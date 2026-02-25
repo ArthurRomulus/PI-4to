@@ -136,7 +136,7 @@ evitando la dependencia de servidores externos y reduciendo la latencia.
 <h2>Autor</h2>
 
 <p>
-Proyecto académico enfocado en sistemas biométricos embebidos para seguridad universitaria.
+Proyecto académico enfocado en sistemas biométricos embebidos para seguridad universitaria.<br>
   Dimas Rolon Aram Sebastian<br>
   Erick yonan Ibarra heredia<br> 
   Arturo GArzon Parra<br>
