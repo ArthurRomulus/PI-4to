@@ -1,15 +1,13 @@
-import mysql.connector
+import sqlite3
+from config import DATABASE  # Usaremos la ruta que ya tienes en config.py
 
 def obtener_conexion():
     try:
-        conexion = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="",   # En XAMPP normalmente está vacío
-            database="reconocimiento_facial",
-            port=3306
-        )
+        # SQLite crea el archivo automáticamente si no existe
+        conexion = sqlite3.connect(DATABASE)
+        # Esto permite acceder a las columnas por nombre como en un diccionario
+        conexion.row_factory = sqlite3.Row 
         return conexion
-    except mysql.connector.Error as e:
-        print("Error de conexión:", e)
+    except sqlite3.Error as e:
+        print(f"Error de conexión a SQLite: {e}")
         return None
