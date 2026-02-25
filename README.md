@@ -128,7 +128,7 @@ evitando la dependencia de servidores externos y reduciendo la latencia.
   <li>Detección de vida (Anti-Spoofing)</li>
   <li>Dashboard web de monitoreo</li>
   <li>Encriptación avanzada de vectores biométricos</li>
-  <li>Integración con aplicación móvil</li>
+  <li>mejorar la Seguridad del sistema</li>
 </ul>
 
 <hr>
@@ -137,11 +137,11 @@ evitando la dependencia de servidores externos y reduciendo la latencia.
 
 <p>
 Proyecto académico enfocado en sistemas biométricos embebidos para seguridad universitaria.
-  Dimas Rolon Aram Sebastian
-  Erick yonan Ibarra heredia 
-  Arturo GArzon Parra
-  quiroz paez
-  ernesto Hernandez Cebrera 
+  Dimas Rolon Aram Sebastian<br>
+  Erick yonan Ibarra heredia<br> 
+  Arturo GArzon Parra<br>
+  quiroz paez<br>
+  ernesto Hernandez Cebrera<br> 
 </p>
 
 <p align="center">
