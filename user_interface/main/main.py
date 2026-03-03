@@ -1,83 +1,98 @@
-import sys, cv2 as cv;
-from PyQt6.QtCore import QSize, Qt, QTimer
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QLabel;
+import sys
+import cv2 as cv
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QLabel,
+    QWidget, QVBoxLayout
+)
 from PyQt6.QtGui import QImage, QPixmap
 
-buttons = {
-    "login" : {
-        "name" : "login",
-        "color" : (255, 255, 255),
-    },
-    
-}
-
-input = {
-    "username" : {
-        "name" : "username",
-        "type" : "text",
-    },
-
-    "password" : {
-        "name" : "password",
-        "type" : "passwordtext",
-    }
-}
 
 class MainWindow(QMainWindow):
     def __init__(self):
-        super().__init__();
+        super().__init__()
 
-        cap = cv.VideoCapture(0)
-        
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout);
-        self.cameralabel = QLabel();
-        self.cameralabel.setAlignment(Qt.AlignmentFlag.AlignHCenter);
-        self.cameralabel.setFixedSize(400, 500);
-        self.layout.addWidget(self.cameralabel);
-        self.cap  = cv.VideoCapture(0);
+        self.setWindowTitle("Identity Verification")
+        self.setFixedSize(800, 600)
 
-        self.timer = QTimer();
+        # --- Widget central ---
+        central = QWidget()
+        self.setCentralWidget(central)
 
-        def update_frame(self):
-            ret, frame = self.cap.read();
-            if ret:
-                frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB);
-                h,w,ch = frame.shape;
-                bpl = ch * w;
-
-                qt_image = QImage(frame.data, w,h, bpl, QImage.Format.Format_RGB888)
-
-                self.cameralabel.setPixmap(QPixmap.fromImage(qt_image))
-        
-
-        self.timer.timeout.connect(update_frame(self));
-        self.timer.start(30);
-
-        self.setWindowTitle("My app");
-        button = QPushButton("Press me");
-        button.setFixedSize(100, 50)
-        button.setStyleSheet("""
-            QPushButton {
-                background-color: rgb(255,255,255);
-                color: rgb(45, 45, 45);
-                border-color: rgb(45, 45, 45);
-                border-radius: 10px;
-                padding: 10px;
-                font-size: 11px;
-            }
-            QPushButton:hover {
-                background-color: rgb(235, 235, 235);
-                border-color: rgb(45, 45, 45);
+        # Fondo degradado
+        central.setStyleSheet("""
+            QWidget {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #8E2DE2,
+                    stop:1 #E0C3FC
+                );
             }
         """)
-        
-        self.setFixedSize(QSize(1000, 600))
-        self.setCentralWidget(button)
 
-app = QApplication(sys.argv);
+        layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        central.setLayout(layout)
 
-w1 = MainWindow();
-w1.show();
+        # --- Texto superior ---
+        self.title = QLabel("COLOCA EL ROSTRO DENTRO DEL RECUADRO")
+        self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 30px;
+                                                 background: none; color: black;
 
-app.exec();
+            }
+        """)
+        layout.addWidget(self.title)
+
+        # --- Recuadro contenedor ---
+        self.cameraContainer = QLabel()
+        self.cameraContainer.setFixedSize(400, 400)
+        self.cameraContainer.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.cameraContainer.setStyleSheet("""
+            QLabel {
+                background-color: rgba(255, 255, 255, 0.7);
+                border-radius: 25px;
+            }
+        """)
+        layout.addWidget(self.cameraContainer)
+
+        # --- Cámara ---
+        self.cap = cv.VideoCapture(0)
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_frame)
+        self.timer.start(30)
+
+    def update_frame(self):
+        ret, frame = self.cap.read()
+        if ret:
+            frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+            h, w, ch = frame.shape
+            bytes_per_line = ch * w
+
+            image = QImage(
+                frame.data,
+                w,
+                h,
+                bytes_per_line,
+                QImage.Format.Format_RGB888
+            )
+
+            pixmap = QPixmap.fromImage(image)
+            scaled_pixmap = pixmap.scaled(
+                380, 380,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+
+            self.cameraContainer.setPixmap(scaled_pixmap)
+
+
+app = QApplication(sys.argv)
+window = MainWindow()
+window.show()
+app.exec()
