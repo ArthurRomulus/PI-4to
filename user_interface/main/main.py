@@ -19,7 +19,7 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
 
-        # Fondo degradado
+        # Diseño de l aventana
         central.setStyleSheet("""
             QWidget {
                 background: qlineargradient(
@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
         central.setLayout(layout)
 
         # --- Texto superior ---
-        self.title = QLabel("COLOCA EL ROSTRO DENTRO DEL RECUADRO")
+        self.title = QLabel("PUT YOUR FACE IN POSITION")
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title.setStyleSheet("""
             QLabel {
