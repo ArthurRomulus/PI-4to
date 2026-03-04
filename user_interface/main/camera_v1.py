@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QImage, QPixmap
 
+int main = 12;
 
 class MainWindow(QMainWindow):
     def __init__(self):
