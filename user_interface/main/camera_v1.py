@@ -1,98 +1,62 @@
 import sys
 import cv2 as cv
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QLabel,
-    QWidget, QVBoxLayout
-)
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PyQt6.QtGui import QImage, QPixmap
 
-
-class MainWindow(QMainWindow):
-    def __init__(self):
+# 1. Cambiamos QMainWindow por QWidget
+class PantallaCamara(QWidget): 
+    def __init__(self, funcion_volver):
         super().__init__()
-
-        self.setWindowTitle("Identity Verification")
-        self.setFixedSize(800, 600)
-
-        # --- Widget central ---
-        central = QWidget()
-        self.setCentralWidget(central)
-
-        # Fondo degradado
-        central.setStyleSheet("""
-            QWidget {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #8E2DE2,
-                    stop:1 #E0C3FC
-                );
-            }
-        """)
-
+        self.funcion_volver = funcion_volver
+        
+        # Eliminamos setCentralWidget y lo ponemos directo en el layout
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        central.setLayout(layout)
+        self.setLayout(layout)
 
         # --- Texto superior ---
         self.title = QLabel("COLOCA EL ROSTRO DENTRO DEL RECUADRO")
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title.setStyleSheet("""
-            QLabel {
-                font-size: 18px;
-                font-weight: bold;
-                margin-bottom: 30px;
-                                                 background: none; color: black;
-
-            }
-        """)
+        self.title.setStyleSheet("font-size: 18px; font-weight: bold; background: none; color: black; margin-bottom: 30px;")
         layout.addWidget(self.title)
 
         # --- Recuadro contenedor ---
         self.cameraContainer = QLabel()
         self.cameraContainer.setFixedSize(400, 400)
         self.cameraContainer.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.cameraContainer.setStyleSheet("""
-            QLabel {
-                background-color: rgba(255, 255, 255, 0.7);
-                border-radius: 25px;
-            }
-        """)
+        self.cameraContainer.setStyleSheet("background-color: rgba(255, 255, 255, 0.7); border-radius: 25px;")
         layout.addWidget(self.cameraContainer)
 
-        # --- Cámara ---
-        self.cap = cv.VideoCapture(0)
+        # --- Botón Volver (Nuevo) ---
+        self.btn_volver = QPushButton("VOLVER")
+        self.btn_volver.setFixedSize(120, 40)
+        self.btn_volver.clicked.connect(self.funcion_volver)
+        layout.addWidget(self.btn_volver, alignment=Qt.AlignmentFlag.AlignCenter)
 
+        self.cap = None
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
+
+    def encender_camara(self):
+        self.cap = cv.VideoCapture(0)
         self.timer.start(30)
 
+    def apagar_camara(self):
+        if self.cap:
+            self.timer.stop()
+            self.cap.release()
+            self.cap = None
+
     def update_frame(self):
-        ret, frame = self.cap.read()
-        if ret:
-            frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            h, w, ch = frame.shape
-            bytes_per_line = ch * w
+        if self.cap:
+            ret, frame = self.cap.read()
+            if ret:
+                frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+                h, w, ch = frame.shape
+                image = QImage(frame.data, w, h, ch * w, QImage.Format.Format_RGB888)
+                pixmap = QPixmap.fromImage(image)
+                self.cameraContainer.setPixmap(pixmap.scaled(380, 380, Qt.AspectRatioMode.KeepAspectRatio))
 
-            image = QImage(
-                frame.data,
-                w,
-                h,
-                bytes_per_line,
-                QImage.Format.Format_RGB888
-            )
-
-            pixmap = QPixmap.fromImage(image)
-            scaled_pixmap = pixmap.scaled(
-                380, 380,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-
-            self.cameraContainer.setPixmap(scaled_pixmap)
-
-
-app = QApplication(sys.argv)
-window = MainWindow()
-window.show()
-app.exec()
+# Nota: Borramos el bloque "if __name__ == '__main__'" para que no se abra solo
+from PyQt6.QtWidgets import QPushButton # Necesario para el botón nuevo
