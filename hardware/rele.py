@@ -1,2 +1,7 @@
+import time
+
 def abrir_puerta():
-    print("🔓 Puerta abierta (simulado)")
+    """Abre la puerta (simulado)."""
+    print("🔓 Puerta abierta")
+    time.sleep(5)
+    print("🔒 Puerta cerrada")

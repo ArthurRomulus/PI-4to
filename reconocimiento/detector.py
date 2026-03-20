@@ -1,34 +1,39 @@
 import cv2
+from config import CAMARA_INDEX
 
 def capturar_frame():
-    cam = cv2.VideoCapture(0)
+    """
+    Captura un frame de la cámara sin mostrar ventanas.
+    Usa la cámara especificada en config.
+    """
+    try:
+        cam = cv2.VideoCapture(CAMARA_INDEX)
+        if not cam.isOpened():
+            print("Error: No se pudo abrir la cámara.")
+            return None
 
-    if not cam.isOpened():
-        print("Error: No se pudo abrir la cámara.")
-        return None
-
-    print("Presiona ESPACIO para capturar rostro...")
-
-    while True:
         ret, frame = cam.read()
+        cam.release()
+        
         if not ret:
             print("Error al leer la cámara.")
-            break
+            return None
+        
+        return frame
+    except Exception as e:
+        print(f"Error capturando frame: {e}")
+        return None
 
-        cv2.imshow("Captura de Rostro", frame)
-
-        tecla = cv2.waitKey(1)
-
-        # ESPACIO para capturar
-        if tecla == 32:
-            break
-
-        # ESC para cancelar
-        if tecla == 27:
-            frame = None
-            break
-
-    cam.release()
-    cv2.destroyAllWindows()
-
-    return frame
+def obtener_camera_stream():
+    """
+    Retorna un objeto VideoCapture para captura continua.
+    Útil para interfaces gráficas que necesitan frames en tiempo real.
+    """
+    try:
+        cam = cv2.VideoCapture(CAMARA_INDEX)
+        if cam.isOpened():
+            return cam
+        return None
+    except Exception as e:
+        print(f"Error abriendo cámara: {e}")
+        return None

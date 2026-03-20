@@ -1,33 +1,30 @@
-from reconocimiento.detector import capturar_frame
-from reconocimiento.embeddings import generar_embedding
-from reconocimiento.comparador import comparar
-from database.consultas import obtener_usuarios, registrar_acceso, crear_tablas
-from hardware.rele import abrir_puerta
+import sys
+import os
+from PyQt5.QtWidgets import QApplication
+from ui.main_window import MainWindow
+from database.consultas import crear_tablas
 
 def main():
+    # Crear base de datos y tablas
     crear_tablas()
-    print("Escaneando rostro...")
 
-    frame = capturar_frame()
-    if frame is None:
-        print("Error al capturar imagen.")
-        return
+    app = QApplication(sys.argv)
+    app.setApplicationName("Sistema Biométrico Escolar")
 
-    embedding_actual = generar_embedding(frame)
-    if embedding_actual is None:
-        print("No se detectó rostro.")
-        return
+    # Cargar estilos
+    style_path = os.path.join(os.path.dirname(__file__), "ui", "styles.qss")
+    if os.path.exists(style_path):
+        with open(style_path, "r", encoding="utf-8") as f:
+            app.setStyleSheet(f.read())
 
-    usuarios = obtener_usuarios()
-    nombre = comparar(embedding_actual, usuarios)
+    # Crear ventana principal
+    window = MainWindow()
+    window.show()
 
-    if nombre:
-        print(f"Acceso concedido a {nombre}")
-        registrar_acceso(nombre)
-        abrir_puerta()
-    else:
-        print("Acceso denegado")
+    # Ejecutar aplicación
+    exit_code = app.exec_()
+    sys.exit(exit_code)
+
 
 if __name__ == "__main__":
     main()
-    
