@@ -16,10 +16,11 @@ from PyQt5.QtGui import QImage, QPixmap
 
 
 class RegisterWindow(QWidget):
-    def __init__(self, access_controller):
+    def __init__(self, access_controller, main_window=None):
         super().__init__()
 
         self.access_controller = access_controller
+        self.main_window = main_window
 
         self.setWindowTitle("Registro de Usuario")
         self.setMinimumSize(900, 600)
@@ -107,7 +108,7 @@ class RegisterWindow(QWidget):
         if not hasattr(self, "current_frame"):
             return
 
-        encoding = self.access_controller.face_engine.encode_face(self.current_frame)
+        encoding = self.access_controller.face_engine.get_face_encoding(self.current_frame)
 
         if encoding is None:
             QMessageBox.warning(self, "Error", "No se detectó rostro.")
@@ -118,7 +119,7 @@ class RegisterWindow(QWidget):
         QMessageBox.information(
             self,
             "Captura Exitosa",
-            f"Capturas actuales: {len(self.captured_encodings)}"
+            f"Capturas actuales: {len(self.captured_encodings)} / 5"
         )
 
     # ---------------------------------
@@ -133,11 +134,11 @@ class RegisterWindow(QWidget):
             QMessageBox.warning(self, "Error", "Ingrese un nombre.")
             return
 
-        if len(self.captured_encodings) < 3:
+        if len(self.captured_encodings) < 5:
             QMessageBox.warning(
                 self,
                 "Error",
-                "Capture al menos 3 imágenes del rostro."
+                "Capture al menos 5 imágenes del rostro."
             )
             return
 
@@ -158,6 +159,7 @@ class RegisterWindow(QWidget):
             )
             self.captured_encodings.clear()
             self.name_input.clear()
+            self.type_combo.setCurrentIndex(0)
         else:
             QMessageBox.critical(
                 self,
@@ -172,6 +174,8 @@ class RegisterWindow(QWidget):
     def close_window(self):
         self.timer.stop()
         self.camera.release()
+        if self.main_window:
+            self.main_window.show()
         self.close()
 
     def closeEvent(self, event):

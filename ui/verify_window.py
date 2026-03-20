@@ -109,3 +109,8 @@ class VerifyWindow(QWidget):
     def closeEvent(self, event):
         self.camera.release()
         event.accept()
+        
+        
+        
+        
+        

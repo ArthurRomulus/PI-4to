@@ -7,7 +7,6 @@ from PyQt5.QtWidgets import (
     QMessageBox
 )
 from PyQt5.QtCore import Qt
-import hashlib
 
 
 class AdminDialog(QDialog):
@@ -57,12 +56,10 @@ class AdminDialog(QDialog):
             QMessageBox.warning(self, "Error", "Complete todos los campos.")
             return
 
-        # Hash SHA256 de la contraseña
-        hashed_password = hashlib.sha256(password.encode()).hexdigest()
-
+        # Pasar contraseña sin hashear, verify_admin() se encargará del hashing
         is_valid = self.access_controller.db.verify_admin(
             username,
-            hashed_password
+            password
         )
 
         if is_valid:

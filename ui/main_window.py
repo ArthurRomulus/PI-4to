@@ -68,8 +68,9 @@ class MainWindow(QMainWindow):
         dialog = AdminDialog(self.access_controller)
 
         if dialog.exec_():
-            self.register_window = RegisterWindow(self.access_controller)
+            self.register_window = RegisterWindow(self.access_controller, self)
             self.register_window.show()
+            self.hide()
 
     def close_system(self):
         confirm = QMessageBox.question(
