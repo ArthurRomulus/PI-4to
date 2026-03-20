@@ -40,7 +40,7 @@ class MenuLateral(QFrame):
         layout.addWidget(self.lbl_admin_drawer)
 
         # Opciones del menú
-        opciones = ["Panel de control", "Historial de usuarios", "Registrar usuarios", "Configuración"]
+        opciones = ["Panel de control", "Historial de acceso", "Registrar usuarios", "Cuentas del sistema", "Configuración"]
         
         for texto in opciones:
             btn = QPushButton(f"  {texto}")

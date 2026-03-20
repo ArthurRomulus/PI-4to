@@ -1,7 +1,7 @@
 import sys
 import os
 from PyQt5.QtWidgets import QApplication
-from ui.main_window import MainWindow
+from ui.users.main_window import MainWindow
 from core.access_controller import AccessController
 from config import APP_NAME
 

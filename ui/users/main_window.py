@@ -10,7 +10,7 @@ from PyQt5.QtCore import Qt
 
 from ui.verify_window import VerifyWindow
 from ui.register_window import RegisterWindow
-from ui.admin_dialog import AdminDialog
+from ui.admin.admin_dialog import AdminDialog
 
 
 class MainWindow(QMainWindow):

@@ -4,9 +4,9 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QL
                              QPushButton, QTableWidget, QTableWidgetItem, 
                              QHeaderView, QAbstractItemView, QFrame)
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect
-from ui.side_menu_admin import MenuLateral # Importamos tu nuevo menú
+from ui.admin.side_menu_admin import MenuLateral # Importamos tu nuevo menú
 
-class PantallaHistorial(QWidget):
+class userlist(QWidget):
     def __init__(self, admin_id=1):
         super().__init__()
         self.setFixedSize(480, 800)
@@ -45,6 +45,8 @@ class PantallaHistorial(QWidget):
         header_layout.addWidget(self.lbl_admin_name)
         header_layout.addWidget(avatar)
         header_layout.addSpacing(15)
+
+
         self.layout_principal.addWidget(header)
 
         # --- CONTENIDO DE LA TABLA ---
@@ -52,13 +54,13 @@ class PantallaHistorial(QWidget):
         lyt = QVBoxLayout(container)
         lyt.setContentsMargins(15, 20, 15, 10)
 
-        titulo = QLabel("Historial de usuarios")
+        titulo = QLabel("Lista de Usuarios")
         titulo.setStyleSheet("font-size: 18px; font-weight: bold; color: #101828; margin-bottom: 10px;")
         lyt.addWidget(titulo)
 
         self.tabla = QTableWidget()
         self.tabla.setColumnCount(3)
-        self.tabla.setHorizontalHeaderLabels(["USUARIO", "CUENTA", "HORA"])
+        self.tabla.setHorizontalHeaderLabels(["ID","USUARIO", "CUENTA", "FECHA DE REGISTRO"])
         self.tabla.verticalHeader().setVisible(False)
         self.tabla.setStyleSheet("QTableWidget { background-color: white; border-radius: 10px; border: 1px solid #E5E9F2; }")
         
