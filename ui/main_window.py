@@ -12,6 +12,7 @@ from verify_window import VerifyWindow
 from register_window import RegisterWindow
 from admin_dialog import AdminDialog
 
+print("starting script")
 
 class MainWindow(QMainWindow):
     def __init__(self, access_controller):
