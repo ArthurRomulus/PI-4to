@@ -5,7 +5,7 @@ from ui.main_window import MainWindow
 from core.access_controller import AccessController
 from config import APP_NAME
 
-print("hello")
+print("hell5o")
 def load_stylesheet(app):
     """
     Carga el archivo styles.qss si existe
