@@ -1,6 +1,6 @@
-from ui.admin.auditlogs import userlist;
+from ui.admin.userlist import userlist;
 
-from PyQt5 import QApplication, sys
+from PyQt5.QtWidgets import QApplication; import sys;
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
