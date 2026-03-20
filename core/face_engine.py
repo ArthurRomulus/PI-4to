@@ -32,6 +32,33 @@ class FaceEngine:
 
         return None
 
+    def encode_face(self, frame):
+        """
+        Alias para get_face_encoding para compatibilidad.
+        Recibe un frame BGR o RGB.
+        Retorna encoding facial o None.
+        """
+        # Si el frame viene en RGB (shape[-1] == 3), usamos directo
+        if len(frame.shape) == 3 and frame.shape[2] == 3:
+            face_locations = face_recognition.face_locations(frame)
+        else:
+            rgb_frame = frame[:, :, ::-1]  # BGR → RGB
+            face_locations = face_recognition.face_locations(rgb_frame)
+
+        if not face_locations:
+            return None
+
+        if len(frame.shape) == 3 and frame.shape[2] == 3:
+            encodings = face_recognition.face_encodings(frame, face_locations)
+        else:
+            rgb_frame = frame[:, :, ::-1]
+            encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+
+        if len(encodings) > 0:
+            return encodings[0]
+
+        return None
+
     # ===================================
     # COMPARAR CON BASE DE DATOS
     # ===================================
