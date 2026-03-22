@@ -8,8 +8,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 
-from ui.verify_window import VerifyWindow
-from ui.register_window import RegisterWindow
+from .verify_window import VerifyWindow
+from .register_window import RegisterWindow
 from ui.admin.admin_dialog import AdminDialog
 
 
