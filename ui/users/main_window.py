@@ -2,8 +2,8 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox
 )
 from PyQt5.QtCore import Qt
-from ui.verify_window import VerifyWindow
-from ui.register_window import RegisterWindow
+from ui.users.verify_window import VerifyWindow
+from ui.users.register_window import RegisterWindow
 
 
 class MainWindow(QMainWindow):

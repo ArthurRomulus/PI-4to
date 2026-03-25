@@ -85,6 +85,8 @@ class IdentityConfirmedWindow(QWidget):
         root.addWidget(card)
         root.addSpacing(20)
 
+        print("confimado")
+
         footer = QLabel("Se cerrará automáticamente en 5 segundos...")
         footer.setAlignment(Qt.AlignCenter)
         footer.setStyleSheet("color: rgba(255,255,255,0.6); font-size: 12px;")

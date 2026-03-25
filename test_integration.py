@@ -13,9 +13,9 @@ try:
     from reconocimiento.embeddings import generar_embedding
     from reconocimiento.comparador import comparar
     from reconocimiento.detector import obtener_camera_stream
-    from ui.main_window import MainWindow
-    from ui.verify_window import VerifyWindow
-    from ui.register_window import RegisterWindow
+    from ui.users.main_window import MainWindow
+    from ui.users.verify_window import VerifyWindow
+    from ui.users.register_window import RegisterWindow
     from ui.identity_confirmed import IdentityConfirmedWindow
     print("   ✓ Todos los imports funcionan correctamente")
 except Exception as e:

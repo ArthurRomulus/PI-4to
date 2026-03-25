@@ -47,9 +47,10 @@ def crear_tablas():
             FOREIGN KEY(id_usuario) REFERENCES usuarios(id)
         )
         """)
-        
+
+
         conn.commit()
-        print("✓ Tablas creadas exitosamente")
+        print("Tablas creadas exitosamente")
         return True
     except sqlite3.Error as e:
         print(f"Error creando tablas: {e}")
@@ -71,7 +72,8 @@ def guardar_usuario(nombre, embedding):
         )
         conn.commit()
         conn.close()
-        print(f"✓ Usuario '{nombre}' guardado exitosamente")
+        # Usar texto ASCII en la consola para evitar errores de codec en Windows
+        print(f"Usuario '{nombre}' guardado exitosamente")
         return True
     except sqlite3.IntegrityError:
         print(f"Error: El usuario '{nombre}' ya existe")
@@ -99,6 +101,23 @@ def obtener_usuarios():
         return usuarios
     except Exception as e:
         print(f"Error obteniendo usuarios: {e}")
+        return []
+
+def obtener_lista_usuarios():
+    """Obtiene lista de usuarios (id, nombre, fecha_registro) para la UI."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return []
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, nombre, fecha_registro FROM usuarios ORDER BY fecha_registro DESC")
+        datos = cursor.fetchall()
+        conn.close()
+        
+        return [dict(row) for row in datos]
+    except Exception as e:
+        print(f"Error obteniendo lista de usuarios: {e}")
         return []
 
 def obtener_usuario_por_nombre(nombre):
@@ -164,3 +183,61 @@ def obtener_historial_accesos(limite=50):
     except Exception as e:
         print(f"Error obteniendo historial: {e}")
         return []
+
+def limpiar_embeddings_invalidos():
+    """Elimina usuarios con embeddings inválidos de la base de datos."""
+    import numpy as np
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, nombre, embedding FROM usuarios")
+        datos = cursor.fetchall()
+        
+        eliminados = 0
+        for id_usuario, nombre, emb_pickle in datos:
+            try:
+                emb = pickle.loads(emb_pickle)
+                if not isinstance(emb, np.ndarray) or emb.shape != (128,):
+                    print(f"Eliminando usuario '{nombre}' con embedding inválido")
+                    cursor.execute("DELETE FROM usuarios WHERE id = ?", (id_usuario,))
+                    eliminados += 1
+            except Exception as e:
+                print(f"Error procesando embedding de '{nombre}': {e}")
+                cursor.execute("DELETE FROM usuarios WHERE id = ?", (id_usuario,))
+                eliminados += 1
+        
+        conn.commit()
+        conn.close()
+        print(f"Limpieza completada: {eliminados} usuarios eliminados")
+        return True
+    except Exception as e:
+        print(f"Error limpiando embeddings: {e}")
+        return False
+
+def eliminar_usuario_por_nombre(nombre):
+    """Elimina un usuario por nombre."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM usuarios WHERE nombre = ?", (nombre,))
+        count = cursor.fetchone()[0]
+        
+        if count == 0:
+            print(f"Usuario '{nombre}' no encontrado")
+            conn.close()
+            return False
+        
+        cursor.execute("DELETE FROM usuarios WHERE nombre = ?", (nombre,))
+        conn.commit()
+        conn.close()
+        print(f"Usuario '{nombre}' eliminado exitosamente")
+        return True
+    except Exception as e:
+        print(f"Error eliminando usuario '{nombre}': {e}")
+        return False
