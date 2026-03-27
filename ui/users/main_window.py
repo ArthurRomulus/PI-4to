@@ -80,11 +80,11 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(layout)
 
     def open_verify(self):
+        self.hide()
         self.verify_window = VerifyWindow(self)
         self.verify_window.show()
-        self.hide()
 
     def open_register(self):
+        self.hide()
         self.register_window = RegisterWindow(self)
         self.register_window.show()
-        self.hide()

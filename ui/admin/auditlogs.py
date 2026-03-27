@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QL
                              QPushButton, QTableWidget, QTableWidgetItem, 
                              QHeaderView, QAbstractItemView, QFrame)
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect
-from side_menu_admin import MenuLateral
+from ui.admin.side_menu_admin import MenuLateral
 from database.consultas import obtener_historial_accesos
 
 class PantallaHistorial(QWidget):

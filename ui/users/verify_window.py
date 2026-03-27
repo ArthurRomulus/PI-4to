@@ -10,6 +10,7 @@ from reconocimiento.embeddings import generar_embedding
 from reconocimiento.comparador import comparar
 from database.consultas import obtener_usuarios, registrar_acceso
 from hardware.rele import abrir_puerta
+import datetime
 
 
 class ScanLineWidget(QWidget):
@@ -130,9 +131,9 @@ class FaceRecognitionThread(QThread):
                 self.camera.release()
 
 
-
 class VerifyWindow(QWidget):
     def __init__(self, main_window):
+        print("Creando VerifyWindow...")
         super().__init__()
         self.main_window = main_window
         self.setWindowTitle("Verificación de Identidad")
@@ -148,86 +149,121 @@ class VerifyWindow(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # Top bar
-        top_bar = QFrame()
-        top_bar.setFixedHeight(48)
-        top_bar.setStyleSheet("background-color: #0f172a;")
-        top_layout = QHBoxLayout(top_bar)
-        top_layout.setContentsMargins(16, 0, 16, 0)
+        # Header con fecha y hora
+        header = QFrame()
+        header.setFixedHeight(86)
+        header.setStyleSheet("background-color: #0f172a;")
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(20, 10, 20, 10)
 
-        self.status_label = QLabel("ESCANEANDO ROSTRO...")
-        self.status_label.setStyleSheet("color:#94a3b8; font-size:13px; font-weight: bold;")
-        top_layout.addWidget(self.status_label)
-        top_layout.addStretch()
+        self.date_label = QLabel(datetime.datetime.now().strftime("%A, %d de %B, %Y"))
+        self.date_label.setStyleSheet("color: #f8fafc; font-size: 14px; font-weight: bold;")
 
-        # Resultado de verificación (texto grande)
+        self.time_label = QLabel(datetime.datetime.now().strftime("%I:%M %p").lstrip('0'))
+        self.time_label.setStyleSheet("color: #f8fafc; font-size: 18px; font-weight: bold;")
+
+        header_layout.addWidget(self.date_label)
+        header_layout.addStretch()
+        header_layout.addWidget(self.time_label)
+
+        # Estado de escaneo
+        status_container = QFrame()
+        status_container.setStyleSheet("background-color: transparent;")
+        status_layout = QVBoxLayout(status_container)
+        status_layout.setContentsMargins(20, 8, 20, 8)
+
+        self.status_label = QLabel("ESCANEANDO...")
+        self.status_label.setStyleSheet("color: #a5b4fc; font-size: 16px; font-weight: bold;")
+        self.status_label.setAlignment(Qt.AlignCenter)
+
+        self.progress_bar = QFrame()
+        self.progress_bar.setFixedHeight(6)
+        self.progress_bar.setStyleSheet("border-radius: 3px; background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #a855f7, stop:1 #6366f1);")
+
+        status_layout.addWidget(self.status_label)
+        status_layout.addWidget(self.progress_bar)
+
+        # Area de cámara con marco
+        cam_container = QFrame()
+        cam_container.setStyleSheet("background-color: #0f172a;")
+        cam_layout = QVBoxLayout(cam_container)
+        cam_layout.setContentsMargins(25, 10, 25, 10)
+
+        self.video_frame = QFrame()
+        self.video_frame.setStyleSheet("background-color: #000; border: 2px solid #5b21b6; border-radius: 20px;")
+        self.video_frame.setMinimumHeight(420)
+        video_layout = QVBoxLayout(self.video_frame)
+        video_layout.setContentsMargins(6, 6, 6, 6)
+
+        self.video_label = QLabel("Abriendo cámara...")
+        self.video_label.setAlignment(Qt.AlignCenter)
+        self.video_label.setStyleSheet("color: #94a3b8; font-size: 16px; font-weight: bold;")
+        self.video_label.setMinimumHeight(400)
+        self.video_label.setScaledContents(True)
+
+        video_layout.addWidget(self.video_label)
+        self.scan_overlay = ScanLineWidget(self.video_label)
+
+        cam_layout.addWidget(self.video_frame)
+
+        # Resultados de verificación
         self.result_label = QLabel("")
         self.result_label.setAlignment(Qt.AlignCenter)
         self.result_label.setStyleSheet("color: #94a3b8; font-size: 16px; font-weight: bold; margin: 8px;")
         self.result_label.setWordWrap(True)
         self.result_label.setVisible(False)
-        root.addWidget(self.result_label)
 
-        # Camera area
-        cam_container = QFrame()
-        cam_container.setStyleSheet("background-color: #000;")
-        cam_layout = QVBoxLayout(cam_container)
-        cam_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.video_label = QLabel("Abriendo cámara...")
-        self.video_label.setAlignment(Qt.AlignCenter)
-        self.video_label.setMinimumHeight(400)
-        self.video_label.setStyleSheet("background-color: #000; color: #94a3b8; font-size: 16px; font-weight: bold;")
-        cam_layout.addWidget(self.video_label)
-
-        self.scan_overlay = ScanLineWidget(self.video_label)
-
-        # Bottom panel
+        # Panel de instrucciones inferior
         bottom = QFrame()
-        bottom.setStyleSheet("""
-            QFrame {
-                background-color: #1e293b;
-                border-top: 1px solid #334155;
-            }
-        """)
+        bottom.setStyleSheet("background-color: #1e293b; border-top: 1px solid #334155;")
         b_layout = QVBoxLayout(bottom)
-        b_layout.setContentsMargins(24, 20, 24, 24)
+        b_layout.setContentsMargins(20, 20, 20, 20)
         b_layout.setSpacing(12)
 
-        hints = QLabel("• Coloque el Rostro encima del recuadro de escaneo\n• Quitarse cubrebocas y/o Lentes\n• Luz adecuada para mejor reconocimiento")
-        hints.setAlignment(Qt.AlignCenter)
-        hints.setStyleSheet("color: #94a3b8; font-size: 13px; line-height: 1.6;")
-        self.hints_label = hints
+        hints_frame = QFrame()
+        hints_frame.setStyleSheet("background-color: rgba(71, 85, 105, 0.7); border-radius: 15px;")
+        hints_layout = QVBoxLayout(hints_frame)
+        hints_layout.setContentsMargins(12, 12, 12, 12)
 
-        returnbutton = QPushButton("← Volver al Inicio")
-        returnbutton.setFixedHeight(52)
-        returnbutton.setCursor(Qt.PointingHandCursor)
-        returnbutton.setStyleSheet("""
+        hints = QLabel("1.- Coloque el Rostro en el recuadro de escaneo\n2.- Quitarse cubrebocas y/o Lentes")
+        hints.setAlignment(Qt.AlignCenter)
+        hints.setStyleSheet("color: #e0e7ff; font-size: 14px; font-weight: 600;")
+        hints.setWordWrap(True)
+
+        hints_layout.addWidget(hints)
+        self.hints_label = hints_frame
+
+        self.return_button = QPushButton("← Volver al Inicio")
+        self.return_button.setFixedHeight(52)
+        self.return_button.setCursor(Qt.PointingHandCursor)
+        self.return_button.setStyleSheet("""
             QPushButton {
-                background-color: transparent;
-                border: 2px solid #334155;
-                border-radius: 12px;
-                color: #94a3b8;
+                background-color: #312e81;
+                border: 2px solid #6366f1;
+                border-radius: 13px;
+                color: #e0e7ff;
                 font-size: 15px;
+                font-weight: bold;
             }
             QPushButton:hover {
-                border-color: #38bdf8;
-                color: #38bdf8;
+                border-color: #8b5cf6;
+                color: #c4b5fd;
             }
         """)
-        returnbutton.clicked.connect(self.close_window)
-        self.return_button = returnbutton
+        self.return_button.clicked.connect(self.close_window)
 
-        b_layout.addWidget(hints)
-        b_layout.addSpacing(8)
-        b_layout.addWidget(returnbutton)
+        b_layout.addWidget(hints_frame)
+        b_layout.addWidget(self.return_button)
 
-        self.bottom_frame = bottom
-        root.addWidget(top_bar)
+        root.addWidget(header)
+        root.addWidget(status_container)
         root.addWidget(cam_container, 1)
+        root.addWidget(self.result_label)
         root.addWidget(bottom)
 
-        # Start recognition
+        self.bottom_frame = bottom
+
+        # Inicia reconocimiento
         self.start_recognition()
 
     def start_recognition(self):
@@ -283,9 +319,8 @@ class VerifyWindow(QWidget):
         if hasattr(self, 'verification_timer') and self.verification_timer.isActive():
             self.verification_timer.stop()
         
-        # Ocultar hints y botón para evitar que se presione accidentalmente
+        # Ocultar hints mientras se muestra el resultado
         self.hints_label.setVisible(False)
-        self.return_button.setVisible(False)
 
         mensaje = f"Usuario '{nombre}' verificado correctamente. Bienvenido!"
         self.status_label.setText("VERIFICADO")
@@ -299,13 +334,16 @@ class VerifyWindow(QWidget):
         if self.thread:
             self.thread.stop()
             self.thread = None
-        
-        # Después de 3 segundos, mostrar botón para volver
-        QTimer.singleShot(3000, self.show_return_button_after_verify)
+
+        # Mantener la ventana abierta y mostrar el botón para volver manualmente
+        self.return_button.setText("← Volver al Inicio")
+        self.return_button.setVisible(True)
+        # No reiniciamos el escaneo automáticamente, se queda en estado VERIFICADO.
 
     def show_return_button_after_verify(self):
-        """Reinicia el escaneo después de verificación exitosa."""
-        self.start_recognition()
+        """Mantiene la ventana abierta y permite al usuario decidir cuándo volver."""
+        self.return_button.setText("← Volver al Inicio")
+        self.return_button.setVisible(True)
 
     def show_not_verified(self):
         # Límite de tiempo alcanzado sin reconocer usuario
@@ -348,10 +386,9 @@ class VerifyWindow(QWidget):
         self.retry_timer.start(3000)
 
     def show_success(self, nombre):
-        from ui.identity_confirmed import IdentityConfirmedWindow
-        self.thread.stop()
-        self.success_window = IdentityConfirmedWindow(nombre)
-        self.success_window.show()
+        # Para mantener la ventana de verificación abierta, reutilizamos el mismo flujo.
+        # Esto evita que esta ruta muestre un popup y luego pierda foco/estado.
+        self.show_verified(nombre)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -379,3 +416,4 @@ class VerifyWindow(QWidget):
         # Ignore el evento para que no se cierre
         event.ignore()
         print("La ventana de verificación no se puede cerrar directamente. Use el botón 'Volver al Inicio'")
+
