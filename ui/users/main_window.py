@@ -1,10 +1,18 @@
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox
 )
+<<<<<<< HEAD
 from PyQt5.QtCore import Qt, QTimer
 from datetime import datetime
 from ui.users.verify_window import VerifyWindow
 from ui.users.register_window import RegisterWindow
+=======
+from PyQt5.QtCore import Qt
+
+from .verify_window import VerifyWindow
+from .register_window import RegisterWindow
+from ui.admin.admin_dialog import AdminDialog
+>>>>>>> aec84c2057f9de083ca8b0105a0872a7d30cce30
 
 
 class MainWindow(QMainWindow):
