@@ -4,7 +4,8 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QL
                              QPushButton, QTableWidget, QTableWidgetItem, 
                              QHeaderView, QAbstractItemView, QFrame)
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect
-from ui.admin.side_menu_admin import MenuLateral # Importamos tu nuevo menú
+from ui.admin.side_menu_admin import MenuLateral
+from database.consultas import obtener_lista_usuarios
 
 class userlist(QWidget):
     def __init__(self, admin_id=1):
@@ -60,7 +61,7 @@ class userlist(QWidget):
 
         self.tabla = QTableWidget()
         self.tabla.setColumnCount(3)
-        self.tabla.setHorizontalHeaderLabels(["ID","USUARIO", "CUENTA", "FECHA DE REGISTRO"])
+        self.tabla.setHorizontalHeaderLabels(["ID","USUARIO", "FECHA DE REGISTRO"])
         self.tabla.verticalHeader().setVisible(False)
         self.tabla.setStyleSheet("QTableWidget { background-color: white; border-radius: 10px; border: 1px solid #E5E9F2; }")
         
@@ -75,6 +76,30 @@ class userlist(QWidget):
 
         # --- INSTANCIA DEL MENÚ INDEPENDIENTE ---
         self.menu_lateral = MenuLateral(self, admin_id=self.admin_id, opcion_activa="Historial de usuarios")
+        
+        # Cargar datos de la BD
+        self.cargar_usuarios()
+
+    def cargar_usuarios(self):
+        """Carga la lista de usuarios desde la base de datos."""
+        try:
+            usuarios = obtener_lista_usuarios()
+            self.tabla.setRowCount(len(usuarios))
+            
+            for row, usuario in enumerate(usuarios):
+                id_item = QTableWidgetItem(str(usuario.get('id', '')))
+                nombre_item = QTableWidgetItem(str(usuario.get('nombre', '')))
+                fecha_item = QTableWidgetItem(str(usuario.get('fecha_registro', '')))
+                
+                id_item.setFlags(id_item.flags() & ~Qt.ItemIsEditable)
+                nombre_item.setFlags(nombre_item.flags() & ~Qt.ItemIsEditable)
+                fecha_item.setFlags(fecha_item.flags() & ~Qt.ItemIsEditable)
+                
+                self.tabla.setItem(row, 0, id_item)
+                self.tabla.setItem(row, 1, nombre_item)
+                self.tabla.setItem(row, 2, fecha_item)
+        except Exception as e:
+            print(f"Error cargando usuarios: {e}")
 
     def actualizar_info_header(self):
         try:
@@ -108,6 +133,6 @@ class userlist(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = PantallaHistorial(admin_id=1)
+    window = userlist(admin_id=1)
     window.show()
     sys.exit(app.exec_())
