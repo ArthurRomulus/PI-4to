@@ -1,26 +1,13 @@
 import cv2
-import json
+import pickle
 import face_recognition
 from reconocimiento.detector import capturar_frame
 from reconocimiento.embeddings import generar_embedding
-from database.conexion import obtener_conexion
+from database.consultas import obtener_usuarios as get_usuarios_db
 
 def obtener_usuarios():
-    conexion = obtener_conexion()
-    cursor = conexion.cursor()
-
-    cursor.execute("SELECT nombre, embedding FROM usuarios")
-    resultados = cursor.fetchall()
-
-    usuarios = []
-
-    for nombre, embedding_json in resultados:
-        embedding = json.loads(embedding_json)
-        usuarios.append((nombre, embedding))
-
-    cursor.close()
-    conexion.close()
-
+    """Obtiene usuarios con sus embeddings usando el nuevo esquema de BD."""
+    usuarios = get_usuarios_db()
     return usuarios
 
 

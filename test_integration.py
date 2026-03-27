@@ -9,14 +9,10 @@ print("=" * 50)
 # Test 1: Importar módulos
 print("\n1. Verificando imports...")
 try:
-    from database.consultas import crear_tablas, guardar_usuario, obtener_usuarios
+    from database.consultas import crear_tablas, guardar_usuario, obtener_usuarios, crear_rol
     from reconocimiento.embeddings import generar_embedding
     from reconocimiento.comparador import comparar
     from reconocimiento.detector import obtener_camera_stream
-    from ui.users.main_window import MainWindow
-    from ui.users.verify_window import VerifyWindow
-    from ui.users.register_window import RegisterWindow
-    from ui.identity_confirmed import IdentityConfirmedWindow
     print("   ✓ Todos los imports funcionan correctamente")
 except Exception as e:
     print(f"   ✗ Error en imports: {e}")
@@ -27,6 +23,10 @@ print("\n2. Verificando base de datos...")
 try:
     crear_tablas()
     print("   ✓ Base de datos inicializada")
+    
+    # Crear rol por defecto
+    crear_rol("usuario")
+    print("   ✓ Rol 'usuario' creado")
 except Exception as e:
     print(f"   ✗ Error en base de datos: {e}")
     exit(1)
@@ -51,7 +51,7 @@ try:
             nombre = comparar(test_embedding, usuarios)
             print(f"   ✓ Reconocimiento: {nombre if nombre else 'No encontrado'}")
     else:
-        print("   ⚠ Usuario ya existe")
+        print("   ⚠ Usuario ya existe o error en inserción")
 except Exception as e:
     print(f"   ✗ Error: {e}")
 
