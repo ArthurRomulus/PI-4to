@@ -1,18 +1,10 @@
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox
+    QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel
 )
-<<<<<<< HEAD
 from PyQt5.QtCore import Qt, QTimer
 from datetime import datetime
 from ui.users.verify_window import VerifyWindow
-from ui.users.register_window import RegisterWindow
-=======
-from PyQt5.QtCore import Qt
-
-from .verify_window import VerifyWindow
-from .register_window import RegisterWindow
-from ui.admin.admin_dialog import AdminDialog
->>>>>>> aec84c2057f9de083ca8b0105a0872a7d30cce30
+from ui.admin.admin_panel import AdminPanelWindow
 
 
 class MainWindow(QMainWindow):
@@ -70,20 +62,20 @@ class MainWindow(QMainWindow):
         """)
         btn_verify.clicked.connect(self.open_verify)
 
-        btn_register = QPushButton("REGISTRAR USUARIO")
-        btn_register.setFixedHeight(60)
-        btn_register.setStyleSheet("""
+        btn_admin = QPushButton("PANEL ADMIN")
+        btn_admin.setFixedHeight(52)
+        btn_admin.setStyleSheet("""
             QPushButton {
-                background-color: #0f172a;
-                border: 2px solid #38bdf8;
-                border-radius: 14px;
-                color: #e0e7ff;
-                font-size: 16px;
+                background-color: #111827;
+                border: 2px solid #60a5fa;
+                border-radius: 12px;
+                color: #dbeafe;
+                font-size: 15px;
                 font-weight: bold;
             }
-            QPushButton:hover { background-color: #1e293b; }
+            QPushButton:hover { background-color: #1f2937; }
         """)
-        btn_register.clicked.connect(self.open_register)
+        btn_admin.clicked.connect(self.open_admin)
 
         layout.addStretch(2)
         layout.addWidget(self.time_label)
@@ -93,7 +85,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(subtitle)
         layout.addSpacing(16)
         layout.addWidget(btn_verify)
-        layout.addWidget(btn_register)
+        layout.addWidget(btn_admin)
         layout.addStretch(3)
 
         central_widget.setLayout(layout)
@@ -114,7 +106,7 @@ class MainWindow(QMainWindow):
         self.verify_window = VerifyWindow(self)
         self.verify_window.show()
 
-    def open_register(self):
+    def open_admin(self):
         self.hide()
-        self.register_window = RegisterWindow(self)
-        self.register_window.show()
+        self.admin_window = AdminPanelWindow(self)
+        self.admin_window.show()

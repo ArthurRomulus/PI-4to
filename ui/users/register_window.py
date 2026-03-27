@@ -7,13 +7,29 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap
 from reconocimiento.detector import obtener_camera_stream
-from reconocimiento.embeddings import generar_embedding
-from database.consultas import guardar_usuario, obtener_usuario_por_nombre
+from reconocimiento.embeddings import (
+    detectar_rostro_mediapipe,
+    embedding_duplicado,
+    generar_embedding,
+    mediapipe_disponible,
+    rostro_centrado,
+    validar_orientacion,
+)
+from database.consultas import guardar_usuario_con_embeddings, obtener_usuario_por_nombre
+
+
+SAMPLE_STEPS = [
+    ("frente", "Mira al frente"),
+    ("derecha", "Gira a la derecha"),
+    ("izquierda", "Gira a la izquierda"),
+    ("inclinacion", "Inclina la cabeza"),
+    ("natural", "Posicion normal"),
+]
 
 
 class CameraThread(QThread):
     """Thread para captura continua de cámara."""
-    frame_ready = pyqtSignal(QPixmap, np.ndarray)
+    frame_ready = pyqtSignal(np.ndarray)
     error_occurred = pyqtSignal(str)
 
     def __init__(self):
@@ -32,13 +48,8 @@ class CameraThread(QThread):
             ret, frame = self.camera.read()
             if not ret:
                 continue
-
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            h, w, ch = rgb.shape
-            qt_img = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
-            pix = QPixmap.fromImage(qt_img).scaledToWidth(360, Qt.SmoothTransformation)
-            self.frame_ready.emit(pix, frame)
-            cv2.waitKey(30)
+            self.frame_ready.emit(frame)
+            self.msleep(30)
 
     def stop(self):
         self.running = False
@@ -63,14 +74,18 @@ class RegisterWindow(QWidget):
         """)
         
         self.camera_thread = None
-        self.captured_frames = []
+        self.captured_embeddings = []
+        self.captured_labels = []
         self.current_frame = None
+        self.current_face_info = None
+        self.current_step = 0
+        self.last_registration_payload = None
         self.init_ui()
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(15)
+        main_layout.setSpacing(12)
 
         title = QLabel("REGISTRO DE NUEVO USUARIO")
         title.setAlignment(Qt.AlignCenter)
@@ -100,26 +115,78 @@ class RegisterWindow(QWidget):
 
         main_layout.addLayout(form_layout)
 
-        # Video
-        video_label = QLabel("Vista Previa:")
+        # Tarjeta de vista previa (camara)
+        preview_card = QWidget()
+        preview_card.setStyleSheet(
+            """
+            QWidget {
+                background-color: #111827;
+                border: 2px solid #334155;
+                border-radius: 16px;
+            }
+            """
+        )
+        preview_layout = QVBoxLayout(preview_card)
+        preview_layout.setContentsMargins(10, 10, 10, 10)
+        preview_layout.setSpacing(8)
+
+        video_label = QLabel("Vista previa")
+        video_label.setStyleSheet("color: #93c5fd; font-size: 13px; font-weight: 700; border: none;")
+
         self.video_label = QLabel()
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setFixedHeight(320)
-        self.video_label.setStyleSheet("background-color: #1a1a1a; border: 2px solid #334155; border-radius: 10px;")
-        
-        main_layout.addWidget(video_label)
-        main_layout.addWidget(self.video_label)
+        self.video_label.setStyleSheet(
+            """
+            QLabel {
+                background-color: #0b1220;
+                border: 1px solid #1f2937;
+                border-radius: 12px;
+            }
+            """
+        )
 
-        # Capture info
-        self.capture_info = QLabel("Capturas: 0/5")
+        preview_layout.addWidget(video_label)
+        preview_layout.addWidget(self.video_label)
+        main_layout.addWidget(preview_card)
+
+        # Tarjeta de instrucciones separada
+        info_card = QWidget()
+        info_card.setStyleSheet(
+            """
+            QWidget {
+                background-color: #0b1736;
+                border: 1px solid #1e3a8a;
+                border-radius: 14px;
+            }
+            """
+        )
+        info_layout = QVBoxLayout(info_card)
+        info_layout.setContentsMargins(12, 10, 12, 10)
+        info_layout.setSpacing(6)
+
+        self.instruction_label = QLabel(SAMPLE_STEPS[0][1])
+        self.instruction_label.setAlignment(Qt.AlignCenter)
+        self.instruction_label.setStyleSheet("color: #38bdf8; font-size: 18px; font-weight: bold; border: none;")
+        info_layout.addWidget(self.instruction_label)
+
+        self.capture_info = QLabel("Muestras restantes: 5")
         self.capture_info.setAlignment(Qt.AlignCenter)
-        self.capture_info.setStyleSheet("color: #94a3b8; font-size: 14px;")
-        main_layout.addWidget(self.capture_info)
+        self.capture_info.setStyleSheet("color: #cbd5e1; font-size: 14px; border: none;")
+        info_layout.addWidget(self.capture_info)
+
+        self.error_info = QLabel("")
+        self.error_info.setAlignment(Qt.AlignCenter)
+        self.error_info.setWordWrap(True)
+        self.error_info.setStyleSheet("color: #fda4af; font-size: 13px; border: none;")
+        info_layout.addWidget(self.error_info)
+
+        main_layout.addWidget(info_card)
 
         # Buttons
         btn_layout = QHBoxLayout()
         
-        btn_capture = QPushButton("📸 CAPTURAR ROSTRO")
+        btn_capture = QPushButton("CAPTURAR MUESTRA")
         btn_capture.setFixedHeight(50)
         btn_capture.setStyleSheet("""
             QPushButton {
@@ -133,10 +200,11 @@ class RegisterWindow(QWidget):
             QPushButton:hover { background-color: #0ea5e9; }
         """)
         btn_capture.clicked.connect(self.capture_face)
+        self.btn_capture = btn_capture
 
         btn_layout.addWidget(btn_capture)
 
-        btn_save = QPushButton("💾 GUARDAR USUARIO")
+        btn_save = QPushButton("GUARDAR USUARIO")
         btn_save.setFixedHeight(50)
         btn_save.setStyleSheet("""
             QPushButton {
@@ -150,6 +218,8 @@ class RegisterWindow(QWidget):
             QPushButton:hover { background-color: #059669; }
         """)
         btn_save.clicked.connect(self.save_user)
+        btn_save.setEnabled(False)
+        self.btn_save = btn_save
         btn_layout.addWidget(btn_save)
 
         main_layout.addLayout(btn_layout)
@@ -181,9 +251,38 @@ class RegisterWindow(QWidget):
         self.camera_thread.error_occurred.connect(self.on_camera_error)
         self.camera_thread.start()
 
-    def on_frame_ready(self, pixmap, frame):
-        self.video_label.setPixmap(pixmap)
+    def on_frame_ready(self, frame):
         self.current_frame = frame
+        self.current_face_info = detectar_rostro_mediapipe(frame)
+
+        shown = frame.copy()
+        if self.current_face_info:
+            x, y, w, h = self.current_face_info["bbox"]
+            centered = rostro_centrado(self.current_face_info, frame.shape)
+            color = (0, 200, 0) if centered else (0, 0, 255)
+            cv2.rectangle(shown, (x, y), (x + w, y + h), color, 2)
+
+        guide_w = int(frame.shape[1] * 0.45)
+        guide_h = int(frame.shape[0] * 0.55)
+        gx = (frame.shape[1] - guide_w) // 2
+        gy = (frame.shape[0] - guide_h) // 2
+        cv2.rectangle(shown, (gx, gy), (gx + guide_w, gy + guide_h), (56, 189, 248), 2)
+
+        rgb = cv2.cvtColor(shown, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb.shape
+        qt_img = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
+        frame_pix = QPixmap.fromImage(qt_img)
+
+        target_size = self.video_label.size()
+        if target_size.width() > 0 and target_size.height() > 0:
+            scaled = frame_pix.scaled(target_size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            x = max(0, (scaled.width() - target_size.width()) // 2)
+            y = max(0, (scaled.height() - target_size.height()) // 2)
+            pix = scaled.copy(x, y, target_size.width(), target_size.height())
+        else:
+            pix = frame_pix
+
+        self.video_label.setPixmap(pix)
 
     def on_camera_error(self, error_msg):
         QMessageBox.critical(self, "Error", f"Error de cámara: {error_msg}")
@@ -194,14 +293,51 @@ class RegisterWindow(QWidget):
             QMessageBox.warning(self, "Error", "No hay frame disponible")
             return
 
-        embedding = generar_embedding(self.current_frame)
-        if embedding is None:
-            QMessageBox.warning(self, "Error", "No se detectó rostro. Intente de nuevo.")
+        if not mediapipe_disponible():
+            self.error_info.setText("MediaPipe no esta disponible. Instala: pip install mediapipe")
             return
 
-        self.captured_frames.append(embedding)
-        self.capture_info.setText(f"Capturas: {len(self.captured_frames)}/5")
-        QMessageBox.information(self, "Éxito", f"Rostro capturado ({len(self.captured_frames)}/5)")
+        if self.current_step >= len(SAMPLE_STEPS):
+            return
+
+        if self.current_face_info is None:
+            self.error_info.setText("No se detecta rostro. Ajusta posicion e intenta de nuevo.")
+            return
+
+        if not rostro_centrado(self.current_face_info, self.current_frame.shape):
+            self.error_info.setText("Centra el rostro dentro del recuadro antes de capturar.")
+            return
+
+        orient_code, orient_text = SAMPLE_STEPS[self.current_step]
+        if not validar_orientacion(self.current_face_info, orient_code):
+            self.error_info.setText(f"Orientacion no valida. Instruccion actual: {orient_text}.")
+            return
+
+        embedding = generar_embedding(self.current_frame)
+        if embedding is None:
+            self.error_info.setText("No se pudo generar embedding. Intenta nuevamente.")
+            return
+
+        if embedding_duplicado(embedding, self.captured_embeddings):
+            self.error_info.setText("Muestra muy parecida a una anterior. Cambia orientacion e intenta otra vez.")
+            return
+
+        self.captured_embeddings.append(embedding)
+        self.captured_labels.append(orient_code)
+        self.current_step += 1
+        self.error_info.setText("")
+
+        restantes = len(SAMPLE_STEPS) - len(self.captured_embeddings)
+        self.capture_info.setText(f"Muestras restantes: {restantes}")
+
+        if self.current_step < len(SAMPLE_STEPS):
+            self.instruction_label.setText(SAMPLE_STEPS[self.current_step][1])
+            QMessageBox.information(self, "Muestra guardada", f"Captura {len(self.captured_embeddings)}/5 completada")
+        else:
+            self.instruction_label.setText("Muestras completas. Ahora puedes guardar el usuario.")
+            self.btn_capture.setEnabled(False)
+            self.btn_save.setEnabled(True)
+            QMessageBox.information(self, "Listo", "Se completaron las 5 muestras requeridas")
 
     def save_user(self):
         nombre = self.name_input.text().strip()
@@ -211,8 +347,8 @@ class RegisterWindow(QWidget):
             QMessageBox.warning(self, "Error", "Ingrese un nombre de usuario")
             return
 
-        if len(self.captured_frames) < 3:
-            QMessageBox.warning(self, "Error", f"Necesita al menos 3 capturas (tiene {len(self.captured_frames)})")
+        if len(self.captured_embeddings) != len(SAMPLE_STEPS):
+            QMessageBox.warning(self, "Error", "Debes completar las 5 muestras del flujo guiado")
             return
 
         # Verificar que no existe
@@ -221,11 +357,17 @@ class RegisterWindow(QWidget):
             return
 
         try:
-            # Promediar embeddings
-            avg_embedding = np.mean(self.captured_frames, axis=0)
-            
-            # Guardar
-            if guardar_usuario(nombre, avg_embedding):
+            self.last_registration_payload = {
+                "usuario": nombre,
+                "embeddings": [emb.tolist() for emb in self.captured_embeddings],
+            }
+
+            if guardar_usuario_con_embeddings(
+                nombre,
+                self.captured_embeddings,
+                labels=self.captured_labels,
+                tipo_usuario=user_type,
+            ):
                 QMessageBox.information(self, "Éxito", f"Usuario '{nombre}' registrado exitosamente")
                 self.close_window()
             else:
