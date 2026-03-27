@@ -4,7 +4,8 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QL
                              QPushButton, QTableWidget, QTableWidgetItem, 
                              QHeaderView, QAbstractItemView, QFrame)
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect
-from side_menu_admin import MenuLateral # Importamos tu nuevo menú
+from ui.admin.side_menu_admin import MenuLateral
+from database.consultas import obtener_historial_accesos
 
 class PantallaHistorial(QWidget):
     def __init__(self, admin_id=1):
@@ -58,7 +59,7 @@ class PantallaHistorial(QWidget):
 
         self.tabla = QTableWidget()
         self.tabla.setColumnCount(3)
-        self.tabla.setHorizontalHeaderLabels(["USUARIO", "CUENTA", "HORA"])
+        self.tabla.setHorizontalHeaderLabels(["USUARIO", "ESTADO", "FECHA"])
         self.tabla.verticalHeader().setVisible(False)
         self.tabla.setStyleSheet("QTableWidget { background-color: white; border-radius: 10px; border: 1px solid #E5E9F2; }")
         
@@ -73,6 +74,30 @@ class PantallaHistorial(QWidget):
 
         # --- INSTANCIA DEL MENÚ INDEPENDIENTE ---
         self.menu_lateral = MenuLateral(self, admin_id=self.admin_id, opcion_activa="Registro de acceso")
+        
+        # Cargar datos de la BD
+        self.cargar_accesos()
+
+    def cargar_accesos(self):
+        """Carga el historial de accesos desde la base de datos."""
+        try:
+            accesos = obtener_historial_accesos(limite=100)
+            self.tabla.setRowCount(len(accesos))
+            
+            for row, acceso in enumerate(accesos):
+                usuario_item = QTableWidgetItem(str(acceso.get('nombre', '')))
+                estado_item = QTableWidgetItem(str(acceso.get('status', '')))
+                fecha_item = QTableWidgetItem(str(acceso.get('fecha', '')))
+                
+                usuario_item.setFlags(usuario_item.flags() & ~Qt.ItemIsEditable)
+                estado_item.setFlags(estado_item.flags() & ~Qt.ItemIsEditable)
+                fecha_item.setFlags(fecha_item.flags() & ~Qt.ItemIsEditable)
+                
+                self.tabla.setItem(row, 0, usuario_item)
+                self.tabla.setItem(row, 1, estado_item)
+                self.tabla.setItem(row, 2, fecha_item)
+        except Exception as e:
+            print(f"Error cargando accesos: {e}")
 
     def actualizar_info_header(self):
         try:

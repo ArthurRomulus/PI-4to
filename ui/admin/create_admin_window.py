@@ -1,12 +1,11 @@
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
-from core.database_manager import DatabaseManager
 
 class CreateAdminWindow(QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Crear Administrador")
         self.setFixedSize(480, 800)
-        self.db_manager = DatabaseManager()
+ 
         self.init_ui()
 
     def init_ui(self):

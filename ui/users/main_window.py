@@ -1,27 +1,28 @@
 from PyQt5.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QPushButton,
-    QLabel,
-    QMessageBox
+    QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox
 )
+<<<<<<< HEAD
+from PyQt5.QtCore import Qt, QTimer
+from datetime import datetime
+from ui.users.verify_window import VerifyWindow
+from ui.users.register_window import RegisterWindow
+=======
 from PyQt5.QtCore import Qt
 
 from .verify_window import VerifyWindow
 from .register_window import RegisterWindow
 from ui.admin.admin_dialog import AdminDialog
+>>>>>>> aec84c2057f9de083ca8b0105a0872a7d30cce30
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, access_controller):
+    def __init__(self):
         super().__init__()
-
-        self.access_controller = access_controller
-
-        self.setWindowTitle("Sistema de Control de Acceso")
-        self.setMinimumSize(800, 480)
-
+        self.setWindowTitle("Sistema de Control de Acceso Biométrico")
+        self.setMinimumSize(480, 800)
+        self.setStyleSheet("""
+            QWidget { background-color: #0f172a; color: #f1f5f9; font-family: 'Segoe UI'; font-size: 16px; }
+        """)
         self.init_ui()
 
     def init_ui(self):
@@ -29,56 +30,91 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         layout = QVBoxLayout()
-        layout.setSpacing(30)
-        layout.setAlignment(Qt.AlignCenter)
+        layout.setSpacing(24)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
 
-        title = QLabel("CONTROL DE ACCESO BIOMÉTRICO")
+        # Cabecera tipo welcome screen
+        self.time_label = QLabel("12:00")
+        self.time_label.setAlignment(Qt.AlignCenter)
+        self.time_label.setStyleSheet("color: #ffffff; font-size: 64px; font-weight: bold;")
+
+        self.date_label = QLabel("Lunes, 1 de Enero")
+        self.date_label.setAlignment(Qt.AlignCenter)
+        self.date_label.setStyleSheet("color: #e5e7eb; font-size: 14px; font-weight: 600;")
+
+        title = QLabel("Bienvenido")
         title.setAlignment(Qt.AlignCenter)
-        title.setObjectName("titleLabel")
+        title.setStyleSheet("color: #0f172a; font-size: 42px; font-weight: bold; margin-top: 24px;")
 
-        btn_verify = QPushButton("VERIFICAR IDENTIDAD")
-        btn_verify.setFixedHeight(70)
+        subtitle = QLabel("Presione INGRESAR para iniciar la verificación biométrica")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setWordWrap(True)
+        subtitle.setStyleSheet("color: #0f172a; font-size: 16px; margin-bottom: 40px;")
+
+        btn_verify = QPushButton("INGRESAR")
+        btn_verify.setFixedHeight(72)
+        btn_verify.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #a855f7, stop:1 #6366f1);
+                border: none;
+                border-radius: 16px;
+                color: #ffffff;
+                font-size: 22px;
+                font-weight: bold;
+                padding: 10px 14px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #c084fc, stop:1 #818cf8);
+            }
+        """)
         btn_verify.clicked.connect(self.open_verify)
 
         btn_register = QPushButton("REGISTRAR USUARIO")
-        btn_register.setFixedHeight(70)
+        btn_register.setFixedHeight(60)
+        btn_register.setStyleSheet("""
+            QPushButton {
+                background-color: #0f172a;
+                border: 2px solid #38bdf8;
+                border-radius: 14px;
+                color: #e0e7ff;
+                font-size: 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #1e293b; }
+        """)
         btn_register.clicked.connect(self.open_register)
 
-        btn_exit = QPushButton("SALIR")
-        btn_exit.setFixedHeight(50)
-        btn_exit.clicked.connect(self.close_system)
-
+        layout.addStretch(2)
+        layout.addWidget(self.time_label)
+        layout.addWidget(self.date_label)
+        layout.addSpacing(12)
         layout.addWidget(title)
+        layout.addWidget(subtitle)
+        layout.addSpacing(16)
         layout.addWidget(btn_verify)
         layout.addWidget(btn_register)
-        layout.addWidget(btn_exit)
+        layout.addStretch(3)
 
         central_widget.setLayout(layout)
 
-    # -------------------------
-    # Eventos
-    # -------------------------
+        # Actualiza fecha y hora cada segundo
+        self._clock_timer = QTimer(self)
+        self._clock_timer.timeout.connect(self._update_datetime)
+        self._clock_timer.start(1000)
+        self._update_datetime()
+
+    def _update_datetime(self):
+        now = datetime.now()
+        self.time_label.setText(now.strftime("%H:%M"))
+        self.date_label.setText(now.strftime("%A, %d de %B").capitalize())
 
     def open_verify(self):
-        self.verify_window = VerifyWindow(self.access_controller)
+        self.hide()
+        self.verify_window = VerifyWindow(self)
         self.verify_window.show()
 
     def open_register(self):
-        # Primero pedimos autenticación de administrador
-        dialog = AdminDialog(self.access_controller)
-
-        if dialog.exec_():
-            self.register_window = RegisterWindow(self.access_controller, self)
-            self.register_window.show()
-            self.hide()
-
-    def close_system(self):
-        confirm = QMessageBox.question(
-            self,
-            "Confirmar",
-            "¿Desea cerrar el sistema?",
-            QMessageBox.Yes | QMessageBox.No
-        )
-
-        if confirm == QMessageBox.Yes:
-            self.close()
+        self.hide()
+        self.register_window = RegisterWindow(self)
+        self.register_window.show()
