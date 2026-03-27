@@ -1,25 +1,22 @@
-import json
-from database.conexion import obtener_conexion
+import pickle
+from database.consultas import guardar_usuario as guardar_usuario_db
 
-def guardar_usuario(nombre, embedding):
-    conexion = obtener_conexion()
+def guardar_usuario(nombre, embedding, account_number=None):
+    """
+    Guarda un usuario con su embedding facial en la base de datos.
     
-    if conexion is None:
-        print("No hay conexión a la base de datos.")
-        return
-
-    cursor = conexion.cursor()
-
-    # Convertimos el embedding a JSON para guardarlo como texto
-    embedding_json = json.dumps(embedding.tolist())
-
-    sql = "INSERT INTO usuarios (nombre, embedding) VALUES (%s, %s)"
-    valores = (nombre, embedding_json)
-
-    cursor.execute(sql, valores)
-    conexion.commit()
-
-    print("Usuario guardado correctamente.")
-
-    cursor.close()
-    conexion.close()
+    Args:
+        nombre: Nombre del usuario
+        embedding: Embedding facial (numpy array)
+        account_number: Número de cuenta opcional
+    
+    Returns:
+        ID del usuario creado o False si hubo error
+    """
+    resultado = guardar_usuario_db(nombre, embedding, account_number)
+    if resultado:
+        print(f"Usuario '{nombre}' guardado correctamente.")
+        return resultado
+    else:
+        print(f"Error guardando usuario '{nombre}'.")
+        return False
