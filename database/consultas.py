@@ -193,14 +193,10 @@ def obtener_lista_usuarios():
             return []
         
         cursor = conn.cursor()
-<<<<<<< HEAD
-        cursor.execute("SELECT id, nombre, tipo_usuario, fecha_registro FROM usuarios ORDER BY fecha_registro DESC")
-=======
         cursor.execute("""
             SELECT id_user, name, created_at FROM USERS 
             ORDER BY created_at DESC
         """)
->>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
         datos = cursor.fetchall()
         conn.close()
         
@@ -225,16 +221,12 @@ def obtener_usuario_por_nombre(nombre):
             return None
         
         cursor = conn.cursor()
-<<<<<<< HEAD
-        cursor.execute("SELECT id, nombre, embedding, tipo_usuario FROM usuarios WHERE nombre = ?", (nombre,))
-=======
         cursor.execute("""
             SELECT u.id_user, u.name, f.face_encoding 
             FROM USERS u
             LEFT JOIN FACIAL_RECORDS f ON u.id_user = f.id_user
             WHERE u.name = ?
         """, (nombre,))
->>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
         resultado = cursor.fetchone()
         conn.close()
         
@@ -250,42 +242,6 @@ def obtener_usuario_por_nombre(nombre):
         print(f"Error obteniendo usuario: {e}")
         return None
 
-<<<<<<< HEAD
-def obtener_embeddings_por_usuario(nombre):
-    """Obtiene todos los embeddings de muestra guardados para un usuario."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return []
-
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM usuarios WHERE nombre = ?", (nombre,))
-        usuario = cursor.fetchone()
-        if not usuario:
-            conn.close()
-            return []
-
-        cursor.execute(
-            "SELECT sample_label, embedding FROM usuario_embeddings WHERE usuario_id = ? ORDER BY id ASC",
-            (usuario[0],),
-        )
-        datos = cursor.fetchall()
-        conn.close()
-
-        out = []
-        for label, emb_blob in datos:
-            out.append({
-                'sample_label': label,
-                'embedding': pickle.loads(emb_blob),
-            })
-        return out
-    except Exception as e:
-        print(f"Error obteniendo embeddings por usuario: {e}")
-        return []
-
-def registrar_acceso(nombre, status="AUTHORIZED"):
-    """Registra un intento de acceso."""
-=======
 def obtener_usuario_por_id(id_user):
     """Obtiene un usuario por ID."""
     try:
@@ -318,7 +274,6 @@ def obtener_usuario_por_id(id_user):
 
 def registrar_acceso(nombre, status="AUTHORIZED", id_user=None):
     """Registra un intento de acceso en el historial."""
->>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
     try:
         conn = obtener_conexion()
         if conn is None:
@@ -385,33 +340,6 @@ def obtener_historial_accesos(limite=50):
         print(f"Error obteniendo historial: {e}")
         return []
 
-<<<<<<< HEAD
-def contar_usuarios_registrados():
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return 0
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM usuarios")
-        total = cursor.fetchone()[0]
-        conn.close()
-        return total
-    except Exception:
-        return 0
-
-def contar_accesos_hoy():
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return 0
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM accesos WHERE DATE(fecha) = DATE('now', 'localtime')")
-        total = cursor.fetchone()[0]
-        conn.close()
-        return total
-    except Exception:
-        return 0
-=======
 # ===== FUNCIONES PARA ADMINS =====
 
 def crear_admin(email, pin_hash, id_role=None):
@@ -503,7 +431,6 @@ def crear_staff(name, position, id_role=None):
         return None
 
 # ===== FUNCIONES DE MANTENIMIENTO =====
->>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
 
 def limpiar_embeddings_invalidos():
     """Elimina usuarios con embeddings inválidos de la base de datos."""
@@ -600,3 +527,42 @@ def eliminar_usuario_por_id(id_user):
     except Exception as e:
         print(f"Error eliminando usuario: {e}")
         return False
+
+def contar_usuarios_registrados():
+    """Cuenta el número total de usuarios registrados."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return 0
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as count FROM USERS WHERE tipo_usuario = 'student'")
+        result = cursor.fetchone()
+        conn.close()
+        
+        return result['count'] if result else 0
+    except Exception as e:
+        print(f"Error contando usuarios registrados: {e}")
+        return 0
+
+def contar_accesos_hoy():
+    """Cuenta el número de accesos registrados hoy."""
+    from datetime import datetime
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return 0
+        
+        cursor = conn.cursor()
+        today = datetime.now().strftime('%Y-%m-%d')
+        cursor.execute(
+            "SELECT COUNT(*) as count FROM ACCESS_LOG WHERE DATE(timestamp) = ?",
+            (today,)
+        )
+        result = cursor.fetchone()
+        conn.close()
+        
+        return result['count'] if result else 0
+    except Exception as e:
+        print(f"Error contando accesos de hoy: {e}")
+        return 0
