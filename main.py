@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import QApplication
 from ui.users.main_window import MainWindow
 from database.consultas import crear_tablas, limpiar_embeddings_invalidos
 
-print ("hi")
+print ("hi2")
 if __name__ == "__main__":
     crear_tablas()
     limpiar_embeddings_invalidos()
