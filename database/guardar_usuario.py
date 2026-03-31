@@ -1,4 +1,3 @@
-import pickle
 from database.consultas import guardar_usuario as guardar_usuario_db
 
 def guardar_usuario(nombre, embedding, account_number=None):

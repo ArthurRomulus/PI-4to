@@ -1,8 +1,8 @@
+from datetime import datetime
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QDialog
 )
 from PyQt5.QtCore import Qt, QTimer
-from datetime import datetime
 from ui.users.verify_window import VerifyWindow
 from ui.users.register_window import RegisterWindow
 from ui.admin.admin_dialog import AdminDialog
