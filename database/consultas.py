@@ -1,6 +1,7 @@
 import pickle
 import sqlite3
 import os
+import numpy as np
 from config import DATABASE
 
 def obtener_conexion():
@@ -116,6 +117,47 @@ def guardar_usuario(nombre, embedding, account_number=None, id_role=None):
             conn.close()
         return False
 
+def guardar_usuario_con_embeddings(nombre, embeddings, labels=None, tipo_usuario="student"):
+    """Guarda usuario con multiples embeddings y embedding promedio representativo."""
+    if not nombre or not embeddings:
+        return False
+
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+
+        arr = [emb for emb in embeddings if isinstance(emb, np.ndarray) and emb.shape == (128,)]
+        if not arr:
+            conn.close()
+            return False
+
+        embedding_promedio = np.mean(np.array(arr), axis=0)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO usuarios (nombre, embedding, tipo_usuario) VALUES (?, ?, ?)",
+            (nombre, pickle.dumps(embedding_promedio), tipo_usuario),
+        )
+        usuario_id = cursor.lastrowid
+
+        for idx, emb in enumerate(arr):
+            label = labels[idx] if labels and idx < len(labels) else f"sample_{idx+1}"
+            cursor.execute(
+                "INSERT INTO usuario_embeddings (usuario_id, sample_label, embedding) VALUES (?, ?, ?)",
+                (usuario_id, label, pickle.dumps(emb)),
+            )
+
+        conn.commit()
+        conn.close()
+        print(f"Usuario '{nombre}' guardado con {len(arr)} embeddings")
+        return True
+    except sqlite3.IntegrityError:
+        print(f"Error: El usuario '{nombre}' ya existe")
+        return False
+    except Exception as e:
+        print(f"Error guardando usuario con embeddings: {e}")
+        return False
+
 def obtener_usuarios():
     """Obtiene todos los usuarios con sus embeddings faciales."""
     try:
@@ -151,10 +193,14 @@ def obtener_lista_usuarios():
             return []
         
         cursor = conn.cursor()
+<<<<<<< HEAD
+        cursor.execute("SELECT id, nombre, tipo_usuario, fecha_registro FROM usuarios ORDER BY fecha_registro DESC")
+=======
         cursor.execute("""
             SELECT id_user, name, created_at FROM USERS 
             ORDER BY created_at DESC
         """)
+>>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
         datos = cursor.fetchall()
         conn.close()
         
@@ -179,12 +225,16 @@ def obtener_usuario_por_nombre(nombre):
             return None
         
         cursor = conn.cursor()
+<<<<<<< HEAD
+        cursor.execute("SELECT id, nombre, embedding, tipo_usuario FROM usuarios WHERE nombre = ?", (nombre,))
+=======
         cursor.execute("""
             SELECT u.id_user, u.name, f.face_encoding 
             FROM USERS u
             LEFT JOIN FACIAL_RECORDS f ON u.id_user = f.id_user
             WHERE u.name = ?
         """, (nombre,))
+>>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
         resultado = cursor.fetchone()
         conn.close()
         
@@ -192,13 +242,50 @@ def obtener_usuario_por_nombre(nombre):
             return {
                 'id': resultado[0],
                 'nombre': resultado[1],
-                'embedding': pickle.loads(resultado[2])
+                'embedding': pickle.loads(resultado[2]),
+                'tipo_usuario': resultado[3] if len(resultado) > 3 else 'student'
             }
         return None
     except Exception as e:
         print(f"Error obteniendo usuario: {e}")
         return None
 
+<<<<<<< HEAD
+def obtener_embeddings_por_usuario(nombre):
+    """Obtiene todos los embeddings de muestra guardados para un usuario."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM usuarios WHERE nombre = ?", (nombre,))
+        usuario = cursor.fetchone()
+        if not usuario:
+            conn.close()
+            return []
+
+        cursor.execute(
+            "SELECT sample_label, embedding FROM usuario_embeddings WHERE usuario_id = ? ORDER BY id ASC",
+            (usuario[0],),
+        )
+        datos = cursor.fetchall()
+        conn.close()
+
+        out = []
+        for label, emb_blob in datos:
+            out.append({
+                'sample_label': label,
+                'embedding': pickle.loads(emb_blob),
+            })
+        return out
+    except Exception as e:
+        print(f"Error obteniendo embeddings por usuario: {e}")
+        return []
+
+def registrar_acceso(nombre, status="AUTHORIZED"):
+    """Registra un intento de acceso."""
+=======
 def obtener_usuario_por_id(id_user):
     """Obtiene un usuario por ID."""
     try:
@@ -231,6 +318,7 @@ def obtener_usuario_por_id(id_user):
 
 def registrar_acceso(nombre, status="AUTHORIZED", id_user=None):
     """Registra un intento de acceso en el historial."""
+>>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
     try:
         conn = obtener_conexion()
         if conn is None:
@@ -297,6 +385,33 @@ def obtener_historial_accesos(limite=50):
         print(f"Error obteniendo historial: {e}")
         return []
 
+<<<<<<< HEAD
+def contar_usuarios_registrados():
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return 0
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM usuarios")
+        total = cursor.fetchone()[0]
+        conn.close()
+        return total
+    except Exception:
+        return 0
+
+def contar_accesos_hoy():
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return 0
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM accesos WHERE DATE(fecha) = DATE('now', 'localtime')")
+        total = cursor.fetchone()[0]
+        conn.close()
+        return total
+    except Exception:
+        return 0
+=======
 # ===== FUNCIONES PARA ADMINS =====
 
 def crear_admin(email, pin_hash, id_role=None):
@@ -388,10 +503,10 @@ def crear_staff(name, position, id_role=None):
         return None
 
 # ===== FUNCIONES DE MANTENIMIENTO =====
+>>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
 
 def limpiar_embeddings_invalidos():
     """Elimina usuarios con embeddings inválidos de la base de datos."""
-    import numpy as np
     try:
         conn = obtener_conexion()
         if conn is None:
