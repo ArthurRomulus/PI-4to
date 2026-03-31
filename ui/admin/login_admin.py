@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -19,6 +20,18 @@ from PyQt5.QtWidgets import (
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(BASE_DIR, "assets")
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from database.consultas import (
+    crear_tablas,
+    crear_admin,
+    obtener_admin_por_email,
+    verify_admin,
+    hash_pin,
+)
+from ui.admin.admin_panel import AdminPanelWindow
 
 
 def asset_path(filename):
@@ -265,7 +278,7 @@ class LoginWindow(QMainWindow):
         form_layout.setContentsMargins(24, 24, 24, 22)
         form_layout.setSpacing(0)
 
-        user_label = QLabel("Nombre de Administrador")
+        user_label = QLabel("Correo electrónico")
         user_label.setStyleSheet("""
             color: #55505A;
             font-size: 12px;
@@ -275,7 +288,7 @@ class LoginWindow(QMainWindow):
         """)
 
         self.user_input = IconInput(
-            placeholder="Ingrese su usuario",
+            placeholder="admin@local",
             left_icon="name.png"
         )
 
@@ -330,15 +343,37 @@ class LoginWindow(QMainWindow):
 
         outer_layout.addWidget(self.page)
 
+        self.setup_database()
+
+    def setup_database(self):
+        crear_tablas()
+        default_email = "admin@local"
+        default_pin = "admin123"
+        if obtener_admin_por_email(default_email) is None:
+            crear_admin(default_email, hash_pin(default_pin))
+
     def handle_login(self):
-        usuario = self.user_input.input.text().strip()
+        correo = self.user_input.input.text().strip()
         password = self.pass_input.input.text().strip()
 
-        if not usuario or not password:
-            self.login_btn.setText("Complete los campos")
+        if not correo or not password:
+            QMessageBox.warning(self, "Campos incompletos", "Complete todos los campos.")
             return
 
+        self.login_btn.setEnabled(False)
         self.login_btn.setText("Ingresando...")
+
+        if verify_admin(correo, password):
+            self.open_admin_panel()
+        else:
+            QMessageBox.critical(self, "Acceso denegado", "Correo o contraseña incorrectos.")
+            self.login_btn.setEnabled(True)
+            self.login_btn.setText("Ingresar  →")
+
+    def open_admin_panel(self):
+        self.admin_panel = AdminPanelWindow()
+        self.admin_panel.show()
+        self.close()
 
 
 if __name__ == "__main__":

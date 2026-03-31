@@ -24,7 +24,6 @@ from database.consultas import (
     obtener_lista_usuarios,
 )
 from ui.admin.hamburger_menu import AdminHamburgerMenu
-from ui.users.register_window import RegisterWindow
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -525,6 +524,8 @@ class AdminPanelWindow(QMainWindow):
 
     def open_register_window(self):
         self.hide()
+        from ui.users.register_window import RegisterWindow
+
         proxy = _AdminReturnProxy(self)
         self.register_window = RegisterWindow(proxy)
         self.register_window.show()

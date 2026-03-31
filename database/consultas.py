@@ -1,3 +1,4 @@
+import hashlib
 import pickle
 import sqlite3
 import os
@@ -26,6 +27,24 @@ def crear_tablas():
     """Crea las tablas necesarias en la base de datos con el nuevo esquema."""
     from database.conexion import crear_tablas as crear_tablas_conexion
     return crear_tablas_conexion()
+
+
+def hash_pin(pin):
+    """Devuelve un hash SHA-256 para el PIN/contraseña."""
+    return hashlib.sha256(pin.encode("utf-8")).hexdigest()
+
+
+def verify_admin(email, pin):
+    """Verifica las credenciales de un admin por correo y PIN."""
+    admin = obtener_admin_por_email(email)
+    if admin is None:
+        return False
+
+    stored = admin.get("pin_hash")
+    if stored is None:
+        return False
+
+    return stored == pin or stored == hash_pin(pin)
 
 # ===== FUNCIONES PARA ROLES =====
 
