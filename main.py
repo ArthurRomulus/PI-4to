@@ -1,5 +1,6 @@
 import sys
 import os
+import dlib
 from PyQt5.QtWidgets import QApplication
 from ui.users.main_window import MainWindow
 from database.consultas import crear_tablas, limpiar_embeddings_invalidos
