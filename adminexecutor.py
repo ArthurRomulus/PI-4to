@@ -1,5 +1,4 @@
 import sys
-import os
 from PyQt5.QtWidgets import QApplication
 from ui.admin.admin_panel import AdminPanelWindow
 from database.consultas import crear_tablas, limpiar_embeddings_invalidos
