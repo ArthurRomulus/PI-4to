@@ -1,10 +1,9 @@
 import cv2
-import numpy as np
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame
 )
 from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QImage, QPixmap, QColor, QPainter, QPen, QFont, QLinearGradient
+from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QFont, QLinearGradient
 from reconocimiento.detector import obtener_camera_stream
 from reconocimiento.embeddings import generar_embedding
 from reconocimiento.comparador import comparar
