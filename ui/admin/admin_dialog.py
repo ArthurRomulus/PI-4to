@@ -2,10 +2,11 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
 )
 from PyQt5.QtCore import Qt
+from database.consultas import verificar_admin
 
 
 class AdminDialog(QDialog):
-    def __init__(self, access_controller):
+    def __init__(self, access_controller=None):
         super().__init__()
         self.access_controller = access_controller
         self.setWindowTitle("Autenticación Administrador")
@@ -49,7 +50,7 @@ class AdminDialog(QDialog):
         if not username or not password:
             QMessageBox.warning(self, "Error", "Complete todos los campos.")
             return
-        is_valid = self.access_controller.db.verify_admin(username, password)
+        is_valid = verificar_admin(username, password)
         if is_valid:
             self.accept()
         else:
