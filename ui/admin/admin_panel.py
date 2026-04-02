@@ -46,19 +46,26 @@ class LoginAdminPanel(QWidget):
         self.on_login_success = on_login_success
         self.setStyleSheet("""
             QWidget {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #f3e5f5, stop:1 #e1bee7);
+                background-color: #0f172a;
                 font-family: 'Segoe UI';
             }
             QLineEdit {
-                background-color: #f5f5f5;
-                border: none;
+                background-color: #1f2937;
+                border: 2px solid #374151;
                 border-radius: 8px;
                 padding: 12px 16px;
                 font-size: 14px;
-                color: #333;
+                color: #f1f5f9;
             }
-            QLineEdit::placeholder { color: #999; }
-            QLineEdit:focus { background-color: #ffffff; border: 2px solid #a855f7; }
+            QLineEdit::placeholder { color: #9ca3af; }
+            QLineEdit:focus { 
+                background-color: #111827;
+                border: 2px solid #a855f7;
+            }
+            QLabel {
+                background-color: transparent;
+                border: none;
+            }
             QPushButton {
                 border: none;
                 border-radius: 12px;
@@ -66,18 +73,21 @@ class LoginAdminPanel(QWidget):
                 padding: 12px;
             }
             QPushButton#btn_login {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #a855f7, stop:1 #9333ea);
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #a855f7, stop:1 #6366f1);
                 color: white;
                 font-size: 16px;
             }
             QPushButton#btn_login:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #c084fc, stop:1 #a855f7);
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #c084fc, stop:1 #818cf8);
             }
             QPushButton#btn_forgot {
                 background-color: transparent;
-                color: #a855f7;
+                color: #60a5fa;
                 font-size: 12px;
                 padding: 8px;
+            }
+            QPushButton#btn_forgot:hover {
+                color: #93c5fd;
             }
         """)
         self.init_ui()
@@ -86,45 +96,47 @@ class LoginAdminPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addStretch(1)
         
         container = QFrame()
         container.setStyleSheet("""
             QFrame {
-                background-color: white;
+                background-color: #111827;
                 border-radius: 24px;
-                margin: 20px;
+                border: 1px solid #1f2937;
             }
         """)
+        container.setFixedWidth(380)
         container_layout = QVBoxLayout(container)
         container_layout.setSpacing(20)
         container_layout.setContentsMargins(32, 40, 32, 40)
         
-        # Logo
+        # Logo/Emoji centrado
         logo_container = QFrame()
         logo_container.setStyleSheet("background-color: transparent; border: none;")
+        logo_container.setFixedHeight(100)
         logo_layout = QVBoxLayout(logo_container)
         logo_layout.setAlignment(Qt.AlignCenter)
-        logo_layout.setContentsMargins(0, 0, 0, 0)
+        logo_layout.setContentsMargins(0, 10, 0, 0)
         
         logo = QLabel()
         logo.setAlignment(Qt.AlignCenter)
-        pixmap = QPixmap(80, 80)
+        pixmap = QPixmap(90, 90)
         pixmap.fill(Qt.transparent)
         
         try:
             if os.path.exists(asset_path("face_id.png")):
                 original = QPixmap(asset_path("face_id.png"))
-                pixmap = original.scaledToWidth(80, Qt.SmoothTransformation)
+                pixmap = original.scaledToWidth(90, Qt.SmoothTransformation)
             else:
+                # Usar emoji/icono personalizado si no existe imagen
                 painter = QPainter(pixmap)
                 painter.setRenderHint(QPainter.Antialiasing)
-                painter.fillRect(0, 0, 80, 80, Qt.white)
                 font = QFont("Segoe UI")
-                font.setPointSize(32)
-                font.setBold(True)
+                font.setPointSize(60)
                 painter.setFont(font)
-                painter.setPen(Qt.magenta)
-                painter.drawText(0, 0, 80, 80, Qt.AlignCenter, "6")
+                painter.setPen(Qt.lightGray)
+                painter.drawText(0, 0, 90, 90, Qt.AlignCenter, "🔐")
                 painter.end()
         except Exception:
             pass
@@ -136,20 +148,20 @@ class LoginAdminPanel(QWidget):
         title = QLabel("Login Administrador")
         title.setAlignment(Qt.AlignCenter)
         title.setFont(QFont("Segoe UI", 24, QFont.Bold))
-        title.setStyleSheet("color: #1a1a1a; background-color: transparent; border: none;")
+        title.setStyleSheet("color: #f1f5f9;")
         container_layout.addWidget(title)
         
         subtitle = QLabel("Acceda al panel administrativo\ncon sus credenciales")
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
         subtitle.setFont(QFont("Segoe UI", 12))
-        subtitle.setStyleSheet("color: #999; background-color: transparent; border: none;")
+        subtitle.setStyleSheet("color: #cbd5e1;")
         container_layout.addWidget(subtitle)
         
         container_layout.addSpacing(24)
         
         label_nombre = QLabel("Nombre de Administrador")
-        label_nombre.setStyleSheet("color: #666; font-weight: bold; background-color: transparent; border: none;")
+        label_nombre.setStyleSheet("color: #e5e7eb; font-weight: bold;")
         container_layout.addWidget(label_nombre)
         
         self.input_nombre = QLineEdit()
@@ -159,7 +171,7 @@ class LoginAdminPanel(QWidget):
         container_layout.addWidget(self.input_nombre)
         
         label_contrasena = QLabel("Contraseña")
-        label_contrasena.setStyleSheet("color: #666; font-weight: bold; background-color: transparent; border: none;")
+        label_contrasena.setStyleSheet("color: #e5e7eb; font-weight: bold;")
         container_layout.addWidget(label_contrasena)
         
         self.input_contrasena = QLineEdit()
@@ -185,7 +197,17 @@ class LoginAdminPanel(QWidget):
         container_layout.addWidget(self.btn_forgot)
         
         container_layout.addStretch()
-        main_layout.addWidget(container)
+        
+        # Envolver container en un QWidget centrado
+        center_widget = QWidget()
+        center_layout = QHBoxLayout(center_widget)
+        center_layout.addStretch()
+        center_layout.addWidget(container)
+        center_layout.addStretch()
+        center_layout.setContentsMargins(0, 0, 0, 0)
+        
+        main_layout.addWidget(center_widget)
+        main_layout.addStretch(1)
         self.setLayout(main_layout)
     
     def login(self):
