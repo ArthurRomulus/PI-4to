@@ -1,9 +1,11 @@
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel
+    QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QDialog
 )
 from PyQt5.QtCore import Qt, QTimer
 from datetime import datetime
 from ui.users.verify_window import VerifyWindow
+from ui.users.register_window import RegisterWindow
+from ui.admin.admin_dialog import AdminDialog
 from ui.admin.admin_panel import AdminPanelWindow
 
 
@@ -108,5 +110,9 @@ class MainWindow(QMainWindow):
 
     def open_admin(self):
         self.hide()
-        self.admin_window = AdminPanelWindow(self)
-        self.admin_window.show()
+        dialog = AdminDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            self.admin_window = AdminPanelWindow(self)
+            self.admin_window.show()
+        else:
+            self.show()
