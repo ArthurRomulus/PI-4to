@@ -97,6 +97,16 @@ def crear_tablas():
         )
         """)
 
+        # Crear tabla admin para login
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS admin (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL UNIQUE,
+            contrasena TEXT NOT NULL,
+            fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+
         conn.commit()
         print("Tablas creadas exitosamente")
         return True

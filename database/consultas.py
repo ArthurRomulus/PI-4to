@@ -1,6 +1,7 @@
 import pickle
 import sqlite3
 import os
+import hashlib
 import numpy as np
 from config import DATABASE
 
@@ -193,14 +194,7 @@ def obtener_lista_usuarios():
             return []
         
         cursor = conn.cursor()
-<<<<<<< HEAD
         cursor.execute("SELECT id, nombre, tipo_usuario, fecha_registro FROM usuarios ORDER BY fecha_registro DESC")
-=======
-        cursor.execute("""
-            SELECT id_user, name, created_at FROM USERS 
-            ORDER BY created_at DESC
-        """)
->>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
         datos = cursor.fetchall()
         conn.close()
         
@@ -225,16 +219,7 @@ def obtener_usuario_por_nombre(nombre):
             return None
         
         cursor = conn.cursor()
-<<<<<<< HEAD
         cursor.execute("SELECT id, nombre, embedding, tipo_usuario FROM usuarios WHERE nombre = ?", (nombre,))
-=======
-        cursor.execute("""
-            SELECT u.id_user, u.name, f.face_encoding 
-            FROM USERS u
-            LEFT JOIN FACIAL_RECORDS f ON u.id_user = f.id_user
-            WHERE u.name = ?
-        """, (nombre,))
->>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
         resultado = cursor.fetchone()
         conn.close()
         
@@ -250,7 +235,6 @@ def obtener_usuario_por_nombre(nombre):
         print(f"Error obteniendo usuario: {e}")
         return None
 
-<<<<<<< HEAD
 def obtener_embeddings_por_usuario(nombre):
     """Obtiene todos los embeddings de muestra guardados para un usuario."""
     try:
@@ -285,40 +269,6 @@ def obtener_embeddings_por_usuario(nombre):
 
 def registrar_acceso(nombre, status="AUTHORIZED"):
     """Registra un intento de acceso."""
-=======
-def obtener_usuario_por_id(id_user):
-    """Obtiene un usuario por ID."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return None
-        
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id_user, id_role, name, account_number, created_at 
-            FROM USERS WHERE id_user = ?
-        """, (id_user,))
-        resultado = cursor.fetchone()
-        conn.close()
-        
-        if resultado:
-            return {
-                'id_user': resultado[0],
-                'id_role': resultado[1],
-                'name': resultado[2],
-                'account_number': resultado[3],
-                'created_at': resultado[4]
-            }
-        return None
-    except Exception as e:
-        print(f"Error obteniendo usuario por ID: {e}")
-        return None
-
-# ===== FUNCIONES PARA ACCESOS =====
-
-def registrar_acceso(nombre, status="AUTHORIZED", id_user=None):
-    """Registra un intento de acceso en el historial."""
->>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
     try:
         conn = obtener_conexion()
         if conn is None:
@@ -385,7 +335,6 @@ def obtener_historial_accesos(limite=50):
         print(f"Error obteniendo historial: {e}")
         return []
 
-<<<<<<< HEAD
 def contar_usuarios_registrados():
     try:
         conn = obtener_conexion()
@@ -411,99 +360,6 @@ def contar_accesos_hoy():
         return total
     except Exception:
         return 0
-=======
-# ===== FUNCIONES PARA ADMINS =====
-
-def crear_admin(email, pin_hash, id_role=None):
-    """Crea un nuevo administrador."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return None
-        
-        cursor = conn.cursor()
-        
-        # Si no se proporciona id_role, obtener el rol admin
-        if id_role is None:
-            id_role = obtener_rol_por_nombre("admin")
-            if id_role is None:
-                id_role = crear_rol("admin")
-        
-        cursor.execute(
-            "INSERT INTO ADMINS (id_role, email, pin_hash) VALUES (?, ?, ?)",
-            (id_role, email, pin_hash)
-        )
-        conn.commit()
-        admin_id = cursor.lastrowid
-        conn.close()
-        print(f"Admin '{email}' creado exitosamente")
-        return admin_id
-    except sqlite3.IntegrityError:
-        print(f"Error: El email '{email}' ya está registrado")
-        return None
-    except Exception as e:
-        print(f"Error creando admin: {e}")
-        return None
-
-def obtener_admin_por_email(email):
-    """Obtiene un admin por email."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return None
-        
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id_admin, id_role, email, pin_hash FROM ADMINS WHERE email = ?",
-            (email,)
-        )
-        resultado = cursor.fetchone()
-        conn.close()
-        
-        if resultado:
-            return {
-                'id_admin': resultado[0],
-                'id_role': resultado[1],
-                'email': resultado[2],
-                'pin_hash': resultado[3]
-            }
-        return None
-    except Exception as e:
-        print(f"Error obteniendo admin: {e}")
-        return None
-
-# ===== FUNCIONES PARA STAFF =====
-
-def crear_staff(name, position, id_role=None):
-    """Crea un nuevo miembro del personal."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return None
-        
-        cursor = conn.cursor()
-        
-        # Si no se proporciona id_role, obtener el rol staff
-        if id_role is None:
-            id_role = obtener_rol_por_nombre("staff")
-            if id_role is None:
-                id_role = crear_rol("staff")
-        
-        cursor.execute(
-            "INSERT INTO STAFF (id_role, name, position) VALUES (?, ?, ?)",
-            (id_role, name, position)
-        )
-        conn.commit()
-        staff_id = cursor.lastrowid
-        conn.close()
-        print(f"Staff '{name}' creado exitosamente")
-        return staff_id
-    except Exception as e:
-        print(f"Error creando staff: {e}")
-        return None
-
-# ===== FUNCIONES DE MANTENIMIENTO =====
->>>>>>> 20f9043c53ff61a5a6cb58e949c639175ecf60c6
 
 def limpiar_embeddings_invalidos():
     """Elimina usuarios con embeddings inválidos de la base de datos."""
@@ -600,3 +456,79 @@ def eliminar_usuario_por_id(id_user):
     except Exception as e:
         print(f"Error eliminando usuario: {e}")
         return False
+
+
+# ===== FUNCIONES PARA ADMINISTRADORES =====
+
+def HashContrasena(contrasena):
+    """Hashea una contraseña usando SHA256."""
+    return hashlib.sha256(contrasena.encode()).hexdigest()
+
+def crear_admin(nombre, contrasena):
+    """Crea un nuevo administrador con su contraseña hasheada."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        
+        contrasena_hash = HashContrasena(contrasena)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO admin (nombre, contrasena) VALUES (?, ?)",
+            (nombre, contrasena_hash)
+        )
+        conn.commit()
+        conn.close()
+        print(f"Administrador '{nombre}' creado exitosamente")
+        return True
+    except sqlite3.IntegrityError:
+        print(f"Error: El administrador '{nombre}' ya existe")
+        return False
+    except Exception as e:
+        print(f"Error creando administrador: {e}")
+        return False
+
+def verificar_admin(nombre, contrasena):
+    """Verifica credenciales de administrador."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        
+        contrasena_hash = HashContrasena(contrasena)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM admin WHERE nombre = ? AND contrasena = ?",
+            (nombre, contrasena_hash)
+        )
+        resultado = cursor.fetchone()
+        conn.close()
+        
+        if resultado:
+            print(f"Autenticación exitosa para admin '{nombre}'")
+            return True
+        else:
+            print(f"Credenciales inválidas para admin '{nombre}'")
+            return False
+    except Exception as e:
+        print(f"Error verificando administrador: {e}")
+        return False
+
+def obtener_admin_por_nombre(nombre):
+    """Obtiene información de un administrador por nombre."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return None
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, nombre FROM admin WHERE nombre = ?", (nombre,))
+        resultado = cursor.fetchone()
+        conn.close()
+        
+        if resultado:
+            return {'id': resultado[0], 'nombre': resultado[1]}
+        return None
+    except Exception as e:
+        print(f"Error obteniendo administrador: {e}")
+        return None

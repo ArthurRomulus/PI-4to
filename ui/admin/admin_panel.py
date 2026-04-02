@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QMainWindow,
+   QMainWindow,
     QPushButton,
     QStackedWidget,
     QTableWidget,
@@ -15,6 +15,8 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QHeaderView,
+    QLineEdit,
+    QMessageBox,
 )
 
 from database.consultas import (
@@ -22,6 +24,7 @@ from database.consultas import (
     contar_usuarios_registrados,
     obtener_historial_accesos,
     obtener_lista_usuarios,
+    verificar_admin,
 )
 from ui.admin.hamburger_menu import AdminHamburgerMenu
 from ui.users.register_window import RegisterWindow
@@ -33,6 +36,173 @@ ASSETS = os.path.join(BASE_DIR, "assets")
 
 def asset_path(filename):
     return os.path.join(ASSETS, filename)
+
+
+class LoginAdminPanel(QWidget):
+    """Pantalla de login para administradores integrada en el panel."""
+    
+    def __init__(self, on_login_success):
+        super().__init__()
+        self.on_login_success = on_login_success
+        self.setStyleSheet("""
+            QWidget {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #f3e5f5, stop:1 #e1bee7);
+                font-family: 'Segoe UI';
+            }
+            QLineEdit {
+                background-color: #f5f5f5;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 16px;
+                font-size: 14px;
+                color: #333;
+            }
+            QLineEdit::placeholder { color: #999; }
+            QLineEdit:focus { background-color: #ffffff; border: 2px solid #a855f7; }
+            QPushButton {
+                border: none;
+                border-radius: 12px;
+                font-weight: bold;
+                padding: 12px;
+            }
+            QPushButton#btn_login {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #a855f7, stop:1 #9333ea);
+                color: white;
+                font-size: 16px;
+            }
+            QPushButton#btn_login:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #c084fc, stop:1 #a855f7);
+            }
+            QPushButton#btn_forgot {
+                background-color: transparent;
+                color: #a855f7;
+                font-size: 12px;
+                padding: 8px;
+            }
+        """)
+        self.init_ui()
+    
+    def init_ui(self):
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        container = QFrame()
+        container.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-radius: 24px;
+                margin: 20px;
+            }
+        """)
+        container_layout = QVBoxLayout(container)
+        container_layout.setSpacing(20)
+        container_layout.setContentsMargins(32, 40, 32, 40)
+        
+        # Logo
+        logo_container = QFrame()
+        logo_container.setStyleSheet("background-color: transparent; border: none;")
+        logo_layout = QVBoxLayout(logo_container)
+        logo_layout.setAlignment(Qt.AlignCenter)
+        logo_layout.setContentsMargins(0, 0, 0, 0)
+        
+        logo = QLabel()
+        logo.setAlignment(Qt.AlignCenter)
+        pixmap = QPixmap(80, 80)
+        pixmap.fill(Qt.transparent)
+        
+        try:
+            if os.path.exists(asset_path("face_id.png")):
+                original = QPixmap(asset_path("face_id.png"))
+                pixmap = original.scaledToWidth(80, Qt.SmoothTransformation)
+            else:
+                painter = QPainter(pixmap)
+                painter.setRenderHint(QPainter.Antialiasing)
+                painter.fillRect(0, 0, 80, 80, Qt.white)
+                font = QFont("Segoe UI")
+                font.setPointSize(32)
+                font.setBold(True)
+                painter.setFont(font)
+                painter.setPen(Qt.magenta)
+                painter.drawText(0, 0, 80, 80, Qt.AlignCenter, "6")
+                painter.end()
+        except Exception:
+            pass
+        
+        logo.setPixmap(pixmap)
+        logo_layout.addWidget(logo)
+        container_layout.addWidget(logo_container)
+        
+        title = QLabel("Login Administrador")
+        title.setAlignment(Qt.AlignCenter)
+        title.setFont(QFont("Segoe UI", 24, QFont.Bold))
+        title.setStyleSheet("color: #1a1a1a; background-color: transparent; border: none;")
+        container_layout.addWidget(title)
+        
+        subtitle = QLabel("Acceda al panel administrativo\ncon sus credenciales")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setWordWrap(True)
+        subtitle.setFont(QFont("Segoe UI", 12))
+        subtitle.setStyleSheet("color: #999; background-color: transparent; border: none;")
+        container_layout.addWidget(subtitle)
+        
+        container_layout.addSpacing(24)
+        
+        label_nombre = QLabel("Nombre de Administrador")
+        label_nombre.setStyleSheet("color: #666; font-weight: bold; background-color: transparent; border: none;")
+        container_layout.addWidget(label_nombre)
+        
+        self.input_nombre = QLineEdit()
+        self.input_nombre.setPlaceholderText("Ingrese su usuario")
+        self.input_nombre.setMinimumHeight(44)
+        self.input_nombre.returnPressed.connect(self.login)
+        container_layout.addWidget(self.input_nombre)
+        
+        label_contrasena = QLabel("Contraseña")
+        label_contrasena.setStyleSheet("color: #666; font-weight: bold; background-color: transparent; border: none;")
+        container_layout.addWidget(label_contrasena)
+        
+        self.input_contrasena = QLineEdit()
+        self.input_contrasena.setPlaceholderText("Ingrese su contraseña")
+        self.input_contrasena.setEchoMode(QLineEdit.Password)
+        self.input_contrasena.setMinimumHeight(44)
+        self.input_contrasena.returnPressed.connect(self.login)
+        container_layout.addWidget(self.input_contrasena)
+        
+        container_layout.addSpacing(16)
+        
+        self.btn_login = QPushButton("Ingresar →")
+        self.btn_login.setObjectName("btn_login")
+        self.btn_login.setMinimumHeight(50)
+        self.btn_login.setCursor(Qt.PointingHandCursor)
+        self.btn_login.clicked.connect(self.login)
+        container_layout.addWidget(self.btn_login)
+        
+        self.btn_forgot = QPushButton("¿Olvidó su contraseña?")
+        self.btn_forgot.setObjectName("btn_forgot")
+        self.btn_forgot.setMinimumHeight(32)
+        self.btn_forgot.setCursor(Qt.PointingHandCursor)
+        container_layout.addWidget(self.btn_forgot)
+        
+        container_layout.addStretch()
+        main_layout.addWidget(container)
+        self.setLayout(main_layout)
+    
+    def login(self):
+        nombre = self.input_nombre.text().strip()
+        contrasena = self.input_contrasena.text()
+        
+        if not nombre or not contrasena:
+            QMessageBox.warning(self, "Campos vacíos", "Por favor ingrese usuario y contraseña.")
+            return
+        
+        if verificar_admin(nombre, contrasena):
+            self.on_login_success(nombre)
+        else:
+            self.input_nombre.clear()
+            self.input_contrasena.clear()
+            self.input_nombre.setFocus()
+            QMessageBox.critical(self, "Acceso denegado", "Usuario o contraseña incorrectos.")
 
 
 class RoundedCard(QFrame):
@@ -370,6 +540,7 @@ class AdminPanelWindow(QMainWindow):
         self.setWindowTitle("Admin Panel")
         self.setFixedSize(480, 800)
         self.setStyleSheet("background: #0f172a;")
+        self.admin_nombre = None
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -378,16 +549,43 @@ class AdminPanelWindow(QMainWindow):
         self.root.setContentsMargins(0, 0, 0, 0)
         self.root.setSpacing(0)
 
+        # QStackedWidget para login y panel
+        self.stack = QStackedWidget()
+        
+        # Página 0: Login
+        self.login_page = LoginAdminPanel(on_login_success=self._on_login_success)
+        self.stack.addWidget(self.login_page)
+        
+        # Página 1: Panel
+        self.panel_container = QWidget()
+        panel_layout = QVBoxLayout(self.panel_container)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
+        panel_layout.setSpacing(0)
+        
         self._build_topbar()
         self._build_pages()
         self._build_overlay()
+        
+        panel_layout.addWidget(self.topbar)
+        panel_layout.addWidget(self.pages)
+        
+        self.stack.addWidget(self.panel_container)
+        
+        self.root.addWidget(self.stack)
+        
+        # Mostrar login al inicio
+        self.stack.setCurrentIndex(0)
 
+    def _on_login_success(self, nombre):
+        """Se llama cuando el login es exitoso."""
+        self.admin_nombre = nombre
+        self.stack.setCurrentIndex(1)
         self._change_page(0)
 
     def _build_topbar(self):
-        top = QFrame()
-        top.setFixedHeight(78)
-        top.setStyleSheet(
+        self.topbar = QFrame()
+        self.topbar.setFixedHeight(78)
+        self.topbar.setStyleSheet(
             """
             QFrame {
                 background: #0b1736;
@@ -396,7 +594,7 @@ class AdminPanelWindow(QMainWindow):
             """
         )
 
-        lay = QHBoxLayout(top)
+        lay = QHBoxLayout(self.topbar)
         lay.setContentsMargins(14, 14, 14, 14)
         lay.setSpacing(10)
 
@@ -469,8 +667,6 @@ class AdminPanelWindow(QMainWindow):
         lay.addSpacing(8)
         lay.addLayout(user_box)
 
-        self.root.addWidget(top)
-
     def _build_pages(self):
         self.pages = QStackedWidget()
 
@@ -482,11 +678,9 @@ class AdminPanelWindow(QMainWindow):
         self.pages.addWidget(self.user_history)
         self.pages.addWidget(self.access_history)
 
-        self.root.addWidget(self.pages)
-
     def _build_overlay(self):
         self.hamburger_menu = AdminHamburgerMenu(
-            parent_widget=self.centralWidget(),
+            parent_widget=self.panel_container,
             on_change_page=self._change_page,
             on_open_register=self.open_register_window,
             on_close_panel=self.close,
