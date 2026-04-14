@@ -1,7 +1,7 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QWidget
 
-from admin_components import RoundedCard
+from .admin_components import RoundedCard
 
 
 class RegisterPage(QWidget):
@@ -50,4 +50,3 @@ class RegisterPage(QWidget):
         inner.addStretch()
 
         lay.addWidget(card)
-

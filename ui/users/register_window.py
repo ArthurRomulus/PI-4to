@@ -303,8 +303,14 @@ class RegisterWindow(QWidget):
             return
 
         if not mediapipe_disponible():
-            self.error_info.setText("MediaPipe no esta disponible. Instala: pip install mediapipe")
+            self.error_info.setText("MediaPipe no está disponible. Instala: pip install mediapipe")
             return
+
+        # face_recognition eliminado - mostrar mensaje
+        self.error_info.setText(
+            "face_recognition eliminado del proyecto. No se pueden generar embeddings faciales."
+        )
+        return
 
         if self.current_step >= len(SAMPLE_STEPS):
             return
