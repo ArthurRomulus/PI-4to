@@ -286,7 +286,16 @@ class RegisterWindow(QWidget):
 
     def on_camera_error(self, error_msg):
         QMessageBox.critical(self, "Error", f"Error de cámara: {error_msg}")
-        self.close_window()
+        self.error_info.setText(
+            "No se pudo iniciar la cámara. Verifica que esté conectada, desbloqueada y no esté en uso por otra aplicación."
+        )
+        self.video_label.setText("Cámara no disponible")
+        self.video_label.setAlignment(Qt.AlignCenter)
+        self.video_label.setStyleSheet(
+            "color: #fda4af; background-color: #0b1220; border: 1px solid #1f2937; border-radius: 12px;"
+        )
+        self.btn_capture.setEnabled(False)
+        self.btn_save.setEnabled(False)
 
     def capture_face(self):
         if self.current_frame is None:

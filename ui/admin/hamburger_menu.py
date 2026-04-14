@@ -1,8 +1,12 @@
 import os
 
 from PyQt5.QtCore import QPropertyAnimation, QRect, QSize, Qt
-from PyQt5.QtGui import QIcon, QPainter, QPixmap
-from PyQt5.QtWidgets import QFrame, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
+from PyQt5.QtGui import QFont, QIcon, QPainter, QPixmap
+from PyQt5.QtWidgets import QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton, QStackedWidget, QVBoxLayout, QWidget
+
+from .dashboard_page import DashboardPage
+from .users_page import UsersPage
+from .access_page import AccessPage
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
