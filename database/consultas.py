@@ -136,8 +136,8 @@ def guardar_usuario(nombre, embedding, account_number=None, id_role=None):
             conn.close()
         return False
 
-def guardar_usuario_con_embeddings(nombre, embeddings, labels=None, tipo_usuario="student"):
-    """Guarda usuario con multiples embeddings y embedding promedio representativo."""
+def guardar_usuario_con_embeddings(nombre, embeddings, labels=None, tipo_usuario="usuario"):
+    """Guarda un usuario con múltiples embeddings y un embedding promedio representativo."""
     if not nombre or not embeddings:
         return False
 
@@ -153,18 +153,25 @@ def guardar_usuario_con_embeddings(nombre, embeddings, labels=None, tipo_usuario
 
         embedding_promedio = np.mean(np.array(arr), axis=0)
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO usuarios (nombre, embedding, tipo_usuario) VALUES (?, ?, ?)",
-            (nombre, pickle.dumps(embedding_promedio), tipo_usuario),
-        )
-        usuario_id = cursor.lastrowid
 
-        for idx, emb in enumerate(arr):
-            label = labels[idx] if labels and idx < len(labels) else f"sample_{idx+1}"
-            cursor.execute(
-                "INSERT INTO usuario_embeddings (usuario_id, sample_label, embedding) VALUES (?, ?, ?)",
-                (usuario_id, label, pickle.dumps(emb)),
-            )
+        role_name = tipo_usuario.lower() if tipo_usuario else "usuario"
+        if role_name not in ("usuario", "admin", "staff"):
+            role_name = "usuario"
+
+        id_role = obtener_rol_por_nombre(role_name)
+        if id_role is None:
+            id_role = crear_rol(role_name)
+
+        cursor.execute(
+            "INSERT INTO USERS (id_role, name, account_number) VALUES (?, ?, ?)",
+            (id_role, nombre, None),
+        )
+        user_id = cursor.lastrowid
+
+        cursor.execute(
+            "INSERT INTO FACIAL_RECORDS (id_user, face_encoding) VALUES (?, ?)",
+            (user_id, pickle.dumps(embedding_promedio)),
+        )
 
         conn.commit()
         conn.close()
@@ -172,9 +179,13 @@ def guardar_usuario_con_embeddings(nombre, embeddings, labels=None, tipo_usuario
         return True
     except sqlite3.IntegrityError:
         print(f"Error: El usuario '{nombre}' ya existe")
+        if conn:
+            conn.close()
         return False
     except Exception as e:
         print(f"Error guardando usuario con embeddings: {e}")
+        if conn:
+            conn.close()
         return False
 
 def obtener_usuarios():
@@ -205,7 +216,7 @@ def obtener_usuarios():
         return []
 
 def obtener_lista_usuarios():
-    """Obtiene lista de usuarios (id_user, name, created_at) para la UI."""
+    """Obtiene lista de usuarios (id_user, name, role_name, created_at) para la UI."""
     try:
         conn = obtener_conexion()
         if conn is None:
@@ -213,19 +224,21 @@ def obtener_lista_usuarios():
         
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id_user, name, created_at FROM USERS 
-            ORDER BY created_at DESC
+            SELECT u.id_user, u.name, r.role_name, u.created_at
+            FROM USERS u
+            LEFT JOIN ROLES r ON u.id_role = r.id_role
+            ORDER BY u.created_at DESC
         """)
         datos = cursor.fetchall()
         conn.close()
         
-        # Convertir a diccionarios para mantener compatibilidad
         resultado = []
         for row in datos:
             resultado.append({
                 'id': row[0],
                 'nombre': row[1],
-                'fecha_registro': row[2]
+                'tipo_usuario': row[2] or 'usuario',
+                'fecha_registro': row[3]
             })
         return resultado
     except Exception as e:
@@ -241,9 +254,10 @@ def obtener_usuario_por_nombre(nombre):
         
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT u.id_user, u.name, f.face_encoding 
+            SELECT u.id_user, u.name, f.face_encoding, r.role_name
             FROM USERS u
             LEFT JOIN FACIAL_RECORDS f ON u.id_user = f.id_user
+            LEFT JOIN ROLES r ON u.id_role = r.id_role
             WHERE u.name = ?
         """, (nombre,))
         resultado = cursor.fetchone()
@@ -254,7 +268,7 @@ def obtener_usuario_por_nombre(nombre):
                 'id': resultado[0],
                 'nombre': resultado[1],
                 'embedding': pickle.loads(resultado[2]),
-                'tipo_usuario': resultado[3] if len(resultado) > 3 else 'student'
+                'tipo_usuario': resultado[3] or 'usuario'
             }
         return None
     except Exception as e:
@@ -555,7 +569,7 @@ def contar_usuarios_registrados():
             return 0
         
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) as count FROM USERS WHERE tipo_usuario = 'student'")
+        cursor.execute("SELECT COUNT(*) as count FROM USERS")
         result = cursor.fetchone()
         conn.close()
         
@@ -575,7 +589,7 @@ def contar_accesos_hoy():
         cursor = conn.cursor()
         today = datetime.now().strftime('%Y-%m-%d')
         cursor.execute(
-            "SELECT COUNT(*) as count FROM ACCESS_LOG WHERE DATE(timestamp) = ?",
+            "SELECT COUNT(*) as count FROM ACCESS_LOG WHERE DATE(access_time) = ?",
             (today,)
         )
         result = cursor.fetchone()
