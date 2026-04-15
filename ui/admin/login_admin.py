@@ -249,8 +249,8 @@ class LoginWindow(QMainWindow):
         """)
 
         subtitle = QLabel(
-            "Acceda al centro de mando de reconocimiento\n"
-            "facial con sus credenciales administrativas."
+            "Acceda al panel administrativo\n"
+            "con sus credenciales administrativas."
         )
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("""
