@@ -65,10 +65,9 @@ class _MenuButton(QPushButton):
 class AdminHamburgerMenu:
     """Drawer del menu hamburguesa separado del panel principal."""
 
-    def __init__(self, parent_widget, on_change_page, on_open_register, on_close_panel):
+    def __init__(self, parent_widget, on_change_page, on_close_panel):
         self.parent_widget = parent_widget
         self.on_change_page = on_change_page
-        self.on_open_register = on_open_register
         self.on_close_panel = on_close_panel
 
         self.overlay = QWidget(parent_widget)
@@ -97,19 +96,16 @@ class AdminHamburgerMenu:
         self.btn_dashboard = _MenuButton("Panel de control", "home.png")
         self.btn_users = _MenuButton("Historial de usuarios", "security.png")
         self.btn_access = _MenuButton("Registro de acceso", "dashboard.png")
-        self.btn_register = _MenuButton("Registrar usuarios", "user_add.png")
 
         self.page_buttons = [self.btn_dashboard, self.btn_users, self.btn_access]
 
         self.btn_dashboard.clicked.connect(lambda: self.on_change_page(0))
         self.btn_users.clicked.connect(lambda: self.on_change_page(1))
         self.btn_access.clicked.connect(lambda: self.on_change_page(2))
-        self.btn_register.clicked.connect(self._handle_register)
 
         drawer_layout.addWidget(self.btn_dashboard)
         drawer_layout.addWidget(self.btn_users)
         drawer_layout.addWidget(self.btn_access)
-        drawer_layout.addWidget(self.btn_register)
         drawer_layout.addStretch()
 
         logout_btn = QPushButton("Cerrar panel")
@@ -151,9 +147,6 @@ class AdminHamburgerMenu:
         self._anim = QPropertyAnimation(self.drawer, b"geometry", self.overlay)
         self._anim.setDuration(220)
 
-    def _handle_register(self):
-        self.hide()
-        self.on_open_register()
 
     def resize(self, width, height):
         self.overlay.setGeometry(0, 0, width, height)

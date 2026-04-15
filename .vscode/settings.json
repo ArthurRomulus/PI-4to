@@ -1,4 +1,5 @@
 {
     "git.ignoreLimitWarning": true,
-    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv310\\Scripts\\python.exe"
+    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv310\\Scripts\\python.exe",
+    "python-envs.defaultEnvManager": "ms-python.python:system"
 }

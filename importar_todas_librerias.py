@@ -37,13 +37,6 @@ except ImportError as e:
     print(f"⚠️  NumPy no disponible: {e}")
     NUMPY_AVAILABLE = False
 
-try:
-    import face_recognition
-    FACE_RECOGNITION_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️  face_recognition no disponible: {e}")
-    FACE_RECOGNITION_AVAILABLE = False
-
 # ======================== MÓDULOS LOCALES ========================
 try:
     from config import (
@@ -71,22 +64,7 @@ except ImportError as e:
     DATABASE_AVAILABLE = False
 
 try:
-    from reconocimiento.detector import (
-        capturar_frame,
-        obtener_camera_stream
-    )
-    from reconocimiento.embeddings import generar_embedding
-    from reconocimiento.comparador import comparar
-    RECONOCIMIENTO_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️  Módulos reconocimiento no disponibles: {e}")
-    RECONOCIMIENTO_AVAILABLE = False
-
-try:
     from ui.users.main_window import MainWindow
-    from ui.users.register_window import RegisterWindow
-    from ui.users.verify_window import VerifyWindow
-    from ui.admin.admin_panel import AdminPanelWindow
     from ui.access_denied_window import AccessDeniedWindow
     from ui.identity_confirmed import IdentityConfirmedWindow
     UI_AVAILABLE = True
@@ -106,10 +84,8 @@ LIBS_STATUS = {
     'PyQt5': PYQT_AVAILABLE,
     'OpenCV': CV2_AVAILABLE,
     'NumPy': NUMPY_AVAILABLE,
-    'face_recognition': FACE_RECOGNITION_AVAILABLE,
     'config': CONFIG_AVAILABLE,
     'database': DATABASE_AVAILABLE,
-    'reconocimiento': RECONOCIMIENTO_AVAILABLE,
     'ui': UI_AVAILABLE,
     'hardware': HARDWARE_AVAILABLE,
 }
