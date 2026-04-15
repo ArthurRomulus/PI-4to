@@ -96,16 +96,19 @@ class AdminHamburgerMenu:
         self.btn_dashboard = _MenuButton("Panel de control", "home.png")
         self.btn_users = _MenuButton("Historial de usuarios", "security.png")
         self.btn_access = _MenuButton("Registro de acceso", "dashboard.png")
+        self.btn_register = _MenuButton("Registro de usuarios", "user_add.png")
 
         self.page_buttons = [self.btn_dashboard, self.btn_users, self.btn_access]
 
         self.btn_dashboard.clicked.connect(lambda: self.on_change_page(0))
         self.btn_users.clicked.connect(lambda: self.on_change_page(1))
         self.btn_access.clicked.connect(lambda: self.on_change_page(2))
+        self.btn_register.clicked.connect(lambda: self.on_change_page(3))
 
         drawer_layout.addWidget(self.btn_dashboard)
         drawer_layout.addWidget(self.btn_users)
         drawer_layout.addWidget(self.btn_access)
+        drawer_layout.addWidget(self.btn_register)
         drawer_layout.addStretch()
 
         logout_btn = QPushButton("Cerrar panel")

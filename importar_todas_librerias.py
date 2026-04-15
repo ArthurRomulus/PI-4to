@@ -65,6 +65,7 @@ except ImportError as e:
 
 try:
     from ui.users.main_window import MainWindow
+    from ui.users.verify_window import VerifyWindow
     from ui.access_denied_window import AccessDeniedWindow
     from ui.identity_confirmed import IdentityConfirmedWindow
     UI_AVAILABLE = True

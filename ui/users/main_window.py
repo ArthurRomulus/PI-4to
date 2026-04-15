@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QDialog
 )
 from PyQt5.QtCore import Qt, QTimer
+from ui.users.verify_window import VerifyWindow
 from ui.admin.admin_dialog import AdminDialog
 
 
@@ -38,17 +39,16 @@ class MainWindow(QMainWindow):
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #0f172a; font-size: 42px; font-weight: bold; margin-top: 24px;")
 
-        subtitle = QLabel("Verificación facial deshabilitada")
+        subtitle = QLabel("Presione INGRESAR para ver la cámara")
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet("color: #0f172a; font-size: 16px; margin-bottom: 40px;")
 
-        btn_verify = QPushButton("INGRESAR (Deshabilitado)")
+        btn_verify = QPushButton("INGRESAR")
         btn_verify.setFixedHeight(72)
-        btn_verify.setEnabled(False)
         btn_verify.setStyleSheet("""
             QPushButton {
-                background: #6b7280;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #a855f7, stop:1 #6366f1);
                 border: none;
                 border-radius: 16px;
                 color: #ffffff;
@@ -56,7 +56,11 @@ class MainWindow(QMainWindow):
                 font-weight: bold;
                 padding: 10px 14px;
             }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #c084fc, stop:1 #818cf8);
+            }
         """)
+        btn_verify.clicked.connect(self.open_verify)
 
         btn_admin = QPushButton("PANEL ADMIN (No disponible)")
         btn_admin.setFixedHeight(52)
@@ -95,6 +99,11 @@ class MainWindow(QMainWindow):
         now = datetime.now()
         self.time_label.setText(now.strftime("%H:%M"))
         self.date_label.setText(now.strftime("%A, %d de %B").capitalize())
+
+    def open_verify(self):
+        self.hide()
+        self.verify_window = VerifyWindow(self)
+        self.verify_window.show()
 
 
     def open_admin(self):
