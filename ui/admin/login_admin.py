@@ -31,7 +31,6 @@ from database.consultas import (
     verify_admin,
     hash_pin,
 )
-from ui.admin.admin_panel import AdminPanelWindow
 
 
 def asset_path(filename):
