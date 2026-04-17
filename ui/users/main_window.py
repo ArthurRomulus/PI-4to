@@ -1,10 +1,10 @@
 from datetime import datetime
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QDialog
+    QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel
 )
 from PyQt5.QtCore import Qt, QTimer
 from ui.users.verify_window import VerifyWindow
-from ui.admin.admin_dialog import AdminDialog
+from ui.admin.login_admin import LoginWindow
 
 
 class MainWindow(QMainWindow):
@@ -62,19 +62,23 @@ class MainWindow(QMainWindow):
         """)
         btn_verify.clicked.connect(self.open_verify)
 
-        btn_admin = QPushButton("PANEL ADMIN (No disponible)")
+        btn_admin = QPushButton("PANEL ADMIN")
         btn_admin.setFixedHeight(52)
-        btn_admin.setEnabled(False)
+        btn_admin.setCursor(Qt.PointingHandCursor)
         btn_admin.setStyleSheet("""
             QPushButton {
                 background-color: #374151;
                 border: 2px solid #6b7280;
                 border-radius: 12px;
-                color: #9ca3af;
+                color: #e5e7eb;
                 font-size: 15px;
                 font-weight: bold;
             }
+            QPushButton:hover {
+                background-color: #4b5563;
+            }
         """)
+        btn_admin.clicked.connect(self.open_admin)
 
         layout.addStretch(2)
         layout.addWidget(self.time_label)
@@ -108,9 +112,6 @@ class MainWindow(QMainWindow):
 
     def open_admin(self):
         self.hide()
-        dialog = AdminDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            self.admin_window = AdminPanelWindow(self)
-            self.admin_window.show()
-        else:
-            self.show()
+        self.login_window = LoginWindow()
+        self.login_window.destroyed.connect(self.show)
+        self.login_window.show()
