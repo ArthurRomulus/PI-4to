@@ -107,15 +107,13 @@ class DashboardPanel(QMainWindow):
         role.setStyleSheet("color: #93c5fd; font-size: 10px; font-weight: 600; border: none;")
 
         avatar = QLabel("")
-        avatar.setFixedSize(32, 32)
-        avatar.setStyleSheet("background: #334155; border-radius: 16px;")
+
 
         user_text.addWidget(name, alignment=Qt.AlignRight)
         user_text.addWidget(role, alignment=Qt.AlignRight)
 
         user_box.addLayout(user_text)
         user_box.addSpacing(8)
-        user_box.addWidget(avatar)
 
         lay.addWidget(self.menu_btn)
         lay.addStretch()

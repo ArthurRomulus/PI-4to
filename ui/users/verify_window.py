@@ -1,10 +1,10 @@
-import cv2
+import datetime
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame
 )
-from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QFont, QLinearGradient
-import datetime
+from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QFont, QLinearGradient, QColor
+from .camera_verify import CameraThread
 
 
 class ScanLineWidget(QWidget):
@@ -58,52 +58,6 @@ class ScanLineWidget(QWidget):
         painter.drawLine(w - margin, h - margin, w - margin, h - margin - size)
 
 
-class CameraThread(QThread):
-    """Thread para captura continua de cámara (sin procesamiento de reconocimiento)."""
-    frame_updated = pyqtSignal(QPixmap)
-    error_occurred = pyqtSignal(str)
-
-    def __init__(self):
-        super().__init__()
-        self.camera = None
-        self.running = False
-
-    def run(self):
-        self.running = True
-        try:
-            self.camera = cv2.VideoCapture(0)  # Usar índice de cámara por defecto
-            if not self.camera.isOpened():
-                self.error_occurred.emit("No se pudo acceder a la cámara")
-                return
-
-            while self.running:
-                ret, frame = self.camera.read()
-                if not ret or frame is None:
-                    continue
-
-                # Convertir frame a QPixmap para mostrar
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                h, w, ch = rgb.shape
-                bytes_per_line = rgb.strides[0]
-                qt_img = QImage(rgb.data, w, h, bytes_per_line, QImage.Format_RGB888).copy()
-                pix = QPixmap.fromImage(qt_img).scaledToWidth(400, Qt.SmoothTransformation)
-                self.frame_updated.emit(pix)
-
-                # Pequeña espera para liberar CPU
-                self.msleep(30)
-        except Exception as e:
-            self.error_occurred.emit(f"Error en captura de cámara: {str(e)}")
-        finally:
-            if self.camera:
-                self.camera.release()
-
-    def stop(self):
-        self.running = False
-        if self.camera:
-            self.camera.release()
-        self.wait()
-
-
 class VerifyWindow(QWidget):
     def __init__(self, main_window):
         print("Creando VerifyWindow (sin reconocimiento facial)...")
@@ -143,7 +97,7 @@ class VerifyWindow(QWidget):
         status_layout = QVBoxLayout(status_container)
         status_layout.setContentsMargins(20, 8, 20, 8)
 
-        self.status_label = QLabel("CÁMARA ACTIVA - RECONOCIMIENTO DESHABILITADO")
+        self.status_label = QLabel("CÁMARA ACTIVA - RECONOCIMIENTO FACIAL ACTIVADO")
         self.status_label.setStyleSheet("color: #f59e0b; font-size: 16px; font-weight: bold;")
         self.status_label.setAlignment(Qt.AlignCenter)
 
@@ -173,7 +127,7 @@ class VerifyWindow(QWidget):
         cam_layout.addWidget(self.video_frame)
 
         # Mensaje informativo
-        info_label = QLabel("El reconocimiento facial ha sido eliminado del sistema.\nEsta ventana muestra solo la vista de la cámara.")
+        info_label = QLabel("Alinee su rostro dentro del óvalo y mantenga una distancia apropiada.\nEl sistema detectará automáticamente cuando esté listo.")
         info_label.setAlignment(Qt.AlignCenter)
         info_label.setStyleSheet("color: #6b7280; font-size: 14px; margin: 8px;")
         info_label.setWordWrap(True)
@@ -216,11 +170,21 @@ class VerifyWindow(QWidget):
         self.start_camera()
 
     def start_camera(self):
-        self.status_label.setText("INICIANDO CÁMARA...")
+        self.status_label.setText("INICIANDO DETECCIÓN FACIAL...")
         self.camera_thread = CameraThread()
         self.camera_thread.frame_updated.connect(self.on_frame_updated)
         self.camera_thread.error_occurred.connect(self.on_camera_error)
+        self.camera_thread.face_aligned.connect(self.on_face_aligned)
         self.camera_thread.start()
+
+    def on_face_aligned(self, is_aligned):
+        """Actualiza el estado cuando la cara está bien alineada."""
+        if is_aligned:
+            self.status_label.setText("✓ ROSTRO DETECTADO - POSICIÓN OK")
+            self.status_label.setStyleSheet("color: #22c55e; font-size: 16px; font-weight: bold;")
+        else:
+            self.status_label.setText("CÁMARA ACTIVA - ALINEANDO ROSTRO")
+            self.status_label.setStyleSheet("color: #f59e0b; font-size: 16px; font-weight: bold;")
 
     def on_frame_updated(self, pixmap):
         if self.video_label.text():
