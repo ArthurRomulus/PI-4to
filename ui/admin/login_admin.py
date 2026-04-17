@@ -30,8 +30,10 @@ from database.consultas import (
     obtener_admin_por_email,
     verify_admin,
     hash_pin,
+    contar_admins,
 )
-from ui.admin.admin_panel import AdminPanelWindow
+from dashboard_panel import DashboardPanel
+from ui.admin.create_admin_window import CreateAdminWindow
 
 
 def asset_path(filename):
@@ -326,6 +328,22 @@ class LoginWindow(QMainWindow):
             }
         """)
 
+        self.create_admin_btn = QPushButton("¿No tienes cuenta? Crear admin")
+        self.create_admin_btn.setCursor(Qt.PointingHandCursor)
+        self.create_admin_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                color: #8D22E4;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            QPushButton:hover {
+                color: #731BC2;
+            }
+        """)
+        self.create_admin_btn.clicked.connect(self.open_create_admin_window)
+
         form_layout.addWidget(user_label)
         form_layout.addSpacing(10)
         form_layout.addWidget(self.user_input)
@@ -337,6 +355,8 @@ class LoginWindow(QMainWindow):
         form_layout.addWidget(self.login_btn)
         form_layout.addSpacing(12)
         form_layout.addWidget(forgot_btn, alignment=Qt.AlignCenter)
+        form_layout.addSpacing(6)
+        form_layout.addWidget(self.create_admin_btn, alignment=Qt.AlignCenter)
 
         page_layout.addWidget(form_card)
         page_layout.addStretch()
@@ -347,10 +367,10 @@ class LoginWindow(QMainWindow):
 
     def setup_database(self):
         crear_tablas()
-        default_email = "admin@local"
-        default_pin = "admin123"
-        if obtener_admin_por_email(default_email) is None:
-            crear_admin(default_email, hash_pin(default_pin))
+        
+        # Si ya existen admins, ocultar el botón de crear admin
+        if contar_admins() > 0:
+            self.create_admin_btn.hide()
 
     def handle_login(self):
         correo = self.user_input.input.text().strip()
@@ -364,16 +384,20 @@ class LoginWindow(QMainWindow):
         self.login_btn.setText("Ingresando...")
 
         if verify_admin(correo, password):
-            self.open_admin_panel()
+            self.open_admin_panel(correo)
         else:
             QMessageBox.critical(self, "Acceso denegado", "Correo o contraseña incorrectos.")
             self.login_btn.setEnabled(True)
             self.login_btn.setText("Ingresar  →")
 
-    def open_admin_panel(self):
-        self.admin_panel = AdminPanelWindow()
-        self.admin_panel.show()
+    def open_admin_panel(self, admin_email):
+        self.dashboard_panel = DashboardPanel(admin_email)
+        self.dashboard_panel.show()
         self.close()
+
+    def open_create_admin_window(self):
+        self.create_admin_window = CreateAdminWindow()
+        self.create_admin_window.exec_()
 
 
 if __name__ == "__main__":

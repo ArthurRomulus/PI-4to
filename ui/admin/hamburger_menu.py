@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButto
 from .dashboard_page import DashboardPage
 from .users_page import UsersPage
 from .access_page import AccessPage
+from .create_admin_window import CreateAdminWindow
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -109,6 +110,11 @@ class AdminHamburgerMenu:
         drawer_layout.addWidget(self.btn_users)
         drawer_layout.addWidget(self.btn_access)
         drawer_layout.addWidget(self.btn_register)
+        drawer_layout.addSpacing(10)
+
+        self.btn_create_admin = _MenuButton("Crear administrador", "security.png")
+        self.btn_create_admin.clicked.connect(self.open_create_admin)
+        drawer_layout.addWidget(self.btn_create_admin)
         drawer_layout.addStretch()
 
         logout_btn = QPushButton("Cerrar panel")
@@ -150,6 +156,11 @@ class AdminHamburgerMenu:
         self._anim = QPropertyAnimation(self.drawer, b"geometry", self.overlay)
         self._anim.setDuration(220)
 
+    def open_create_admin(self):
+        """Abre la ventana para crear un nuevo administrador."""
+        self.create_admin_window = CreateAdminWindow()
+        self.create_admin_window.exec_()
+        self.hide()
 
     def resize(self, width, height):
         self.overlay.setGeometry(0, 0, width, height)
