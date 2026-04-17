@@ -25,8 +25,9 @@ from ui.admin.users_page import UsersPage
 
 
 class DashboardPanel(QMainWindow):
-    def __init__(self):
+    def __init__(self, admin_email="admin"):
         super().__init__()
+        self.admin_email = admin_email
         self.setWindowTitle("Admin Panel")
         self.setFixedSize(480, 800)
         self.setStyleSheet("background: #0f172a;")
@@ -96,24 +97,15 @@ class DashboardPanel(QMainWindow):
         divider.setFixedWidth(1)
         divider.setStyleSheet("background: #1e3a8a; border: none;")
 
-        user_box = QHBoxLayout()
-        user_text = QVBoxLayout()
-        user_text.setSpacing(0)
-
-        name = QLabel("Admin")
-        name.setStyleSheet("color: #e2e8f0; font-size: 12px; font-weight: 700; border: none;")
+        # Mostrar rol y correo del usuario
+        user_info = QVBoxLayout()
+        user_info.setSpacing(2)
+        user_info.setContentsMargins(0, 0, 0, 0)
 
         role = QLabel("Administrador")
         role.setStyleSheet("color: #93c5fd; font-size: 10px; font-weight: 600; border: none;")
+        role.setAlignment(Qt.AlignRight)
 
-        avatar = QLabel("")
-
-
-        user_text.addWidget(name, alignment=Qt.AlignRight)
-        user_text.addWidget(role, alignment=Qt.AlignRight)
-
-        user_box.addLayout(user_text)
-        user_box.addSpacing(8)
 
         lay.addWidget(self.menu_btn)
         lay.addStretch()
@@ -121,7 +113,7 @@ class DashboardPanel(QMainWindow):
         lay.addStretch()
         lay.addWidget(divider)
         lay.addSpacing(8)
-        lay.addLayout(user_box)
+        lay.addLayout(user_info)
 
         self.root.addWidget(top)
 

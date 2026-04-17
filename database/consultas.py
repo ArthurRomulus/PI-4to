@@ -433,6 +433,23 @@ def obtener_admin_por_email(email):
         print(f"Error obteniendo admin: {e}")
         return None
 
+def contar_admins():
+    """Cuenta cuántos administradores existen en la base de datos."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return 0
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM ADMINS")
+        resultado = cursor.fetchone()
+        conn.close()
+        
+        return resultado[0] if resultado else 0
+    except Exception as e:
+        print(f"Error contando admins: {e}")
+        return 0
+
 # ===== FUNCIONES PARA STAFF =====
 
 def crear_staff(name, position, id_role=None):
