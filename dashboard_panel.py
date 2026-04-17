@@ -106,12 +106,6 @@ class DashboardPanel(QMainWindow):
         role.setStyleSheet("color: #93c5fd; font-size: 10px; font-weight: 600; border: none;")
         role.setAlignment(Qt.AlignRight)
 
-        email = QLabel(self.admin_email)
-        email.setStyleSheet("color: #e2e8f0; font-size: 12px; font-weight: 600; border: none;")
-        email.setAlignment(Qt.AlignRight)
-
-        user_info.addWidget(role)
-        user_info.addWidget(email)
 
         lay.addWidget(self.menu_btn)
         lay.addStretch()
