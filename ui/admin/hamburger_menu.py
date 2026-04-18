@@ -99,7 +99,7 @@ class AdminHamburgerMenu:
         self.btn_access = _MenuButton("Registro de acceso", "dashboard.png")
         self.btn_register = _MenuButton("Registro de usuarios", "user_add.png")
 
-        self.page_buttons = [self.btn_dashboard, self.btn_users, self.btn_access]
+        self.page_buttons = [self.btn_dashboard, self.btn_users, self.btn_access, self.btn_register]
 
         self.btn_dashboard.clicked.connect(lambda: self.on_change_page(0))
         self.btn_users.clicked.connect(lambda: self.on_change_page(1))

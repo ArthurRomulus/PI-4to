@@ -311,7 +311,7 @@ class VerifyWindow(QWidget):
             QTimer.singleShot(600, lambda: self._abrir_confirmada(nombre))
 
         else:
-            # ── ROJO: denegado ───────────────────────────────────────────────
+            # ── ROJO: denegado — se muestra inline, sin abrir otra ventana ──
             self.status_label.setText("❌ ACCESO DENEGADO — ROSTRO NO RECONOCIDO")
             self.status_label.setStyleSheet(
                 f"color: {COLOR_ERROR}; font-size: 15px; font-weight: bold;"
@@ -322,7 +322,24 @@ class VerifyWindow(QWidget):
                 QProgressBar { background-color: #1e293b; border-radius: 5px; border: none; }
                 QProgressBar::chunk { background-color: #ef4444; border-radius: 5px; }
             """)
-            QTimer.singleShot(600, self._abrir_denegado)
+            # Mostrar botón de reintento
+            self.return_button.setText("↺ Intentar de nuevo")
+            self.return_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #7f1d1d;
+                    border: 2px solid #ef4444;
+                    border-radius: 13px;
+                    color: #fca5a5;
+                    font-size: 15px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    border-color: #f87171;
+                    color: #fff;
+                }
+            """)
+            self.return_button.clicked.disconnect()
+            self.return_button.clicked.connect(self._reintentar)
 
     def _on_error(self, error_msg: str):
         self.status_label.setText("ERROR DE CÁMARA")
@@ -350,17 +367,38 @@ class VerifyWindow(QWidget):
         self._confirmed_win.show()
         self.close()
 
-    def _abrir_denegado(self):
-        from ui.access_denied_window import AccessDeniedWindow
-        self._stop_camera()
-        self._denied_win = AccessDeniedWindow(on_finished=self._on_denied_finished)
-        self._denied_win.show()
-        self.close()
-
-    def _on_denied_finished(self):
-        """Callback cuando AccessDeniedWindow se cierra — vuelve al inicio."""
-        if self.main_window:
-            self.main_window.show()
+    def _reintentar(self):
+        """Reinicia la cámara para un nuevo intento de verificación."""
+        self._result_shown = False
+        self._set_border_color(COLOR_IDLE)
+        self.status_label.setText("COLOQUE SU ROSTRO EN EL ÓVALO")
+        self.status_label.setStyleSheet(
+            f"color: {COLOR_IDLE}; font-size: 15px; font-weight: bold;"
+        )
+        self.progress_bar.setValue(0)
+        self.progress_bar.setStyleSheet(f"""
+            QProgressBar {{ background-color: #1e293b; border-radius: 5px; border: none; }}
+            QProgressBar::chunk {{ background-color: {COLOR_IDLE}; border-radius: 5px; }}
+        """)
+        # Restaurar botón Volver
+        self.return_button.setText("\u2190 Volver al Inicio")
+        self.return_button.setStyleSheet("""
+            QPushButton {
+                background-color: #312e81;
+                border: 2px solid #6366f1;
+                border-radius: 13px;
+                color: #e0e7ff;
+                font-size: 15px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                border-color: #8b5cf6;
+                color: #c4b5fd;
+            }
+        """)
+        self.return_button.clicked.disconnect()
+        self.return_button.clicked.connect(self.close_window)
+        self._start_camera()
 
     def _stop_camera(self):
         if self.camera_thread and self.camera_thread.isRunning():
