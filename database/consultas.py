@@ -502,7 +502,7 @@ def limpiar_embeddings_invalidos():
             try:
                 if emb_pickle:
                     emb = pickle.loads(emb_pickle)
-                    if not isinstance(emb, np.ndarray) or emb.shape != (128,):
+                    if not isinstance(emb, np.ndarray) or emb.ndim != 1 or emb.shape[0] == 0:
                         print(f"Eliminando usuario '{nombre}' con embedding inválido")
                         cursor.execute("DELETE FROM FACIAL_RECORDS WHERE id_user = ?", (id_user,))
                         cursor.execute("DELETE FROM USERS WHERE id_user = ?", (id_user,))

@@ -123,7 +123,7 @@ class DashboardPanel(QMainWindow):
         self.dashboard = DashboardPage()
         self.user_history = UsersPage()
         self.access_history = AccessPage()
-        self.register_page = RegisterPage(self.open_register_window)
+        self.register_page = RegisterPage()
 
         self.pages.addWidget(self.dashboard)
         self.pages.addWidget(self.user_history)
@@ -165,9 +165,4 @@ class DashboardPanel(QMainWindow):
     def toggle_menu(self):
         self.hamburger_menu.toggle()
 
-    def open_register_window(self):
-        # Registro deshabilitado porque face recognition fue eliminado
-        from PyQt5.QtWidgets import QMessageBox
-        QMessageBox.information(self, "Registro deshabilitado",
-                               "El registro de usuarios está deshabilitado porque\n"
-                               "la funcionalidad de reconocimiento facial fue eliminada.")
+
