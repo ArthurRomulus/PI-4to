@@ -1,1 +1,1 @@
-"""Hardware module - Gestión de dispositivos de hardware"""
+# hardware package
