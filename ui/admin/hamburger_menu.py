@@ -117,6 +117,28 @@ class AdminHamburgerMenu:
         drawer_layout.addWidget(self.btn_create_admin)
         drawer_layout.addStretch()
 
+        back_main_btn = QPushButton("← Inicio")
+        back_main_btn.setCursor(Qt.PointingHandCursor)
+        back_main_btn.setStyleSheet(
+            """
+            QPushButton {
+                text-align: left;
+                color: #93c5fd;
+                background: transparent;
+                border: none;
+                font-size: 13px;
+                font-weight: 600;
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background: #1e3a5a;
+                border-radius: 10px;
+            }
+            """
+        )
+        back_main_btn.clicked.connect(self._go_back_main)
+        drawer_layout.addWidget(back_main_btn)
+
         logout_btn = QPushButton("Cerrar panel")
         logout_btn.setCursor(Qt.PointingHandCursor)
         logout_btn.setStyleSheet(
@@ -161,6 +183,14 @@ class AdminHamburgerMenu:
         self.create_admin_window = CreateAdminWindow()
         self.create_admin_window.exec_()
         self.hide()
+
+    def _go_back_main(self):
+        """Cierra el panel admin y vuelve a la ventana principal de usuarios."""
+        from ui.users.main_window import MainWindow
+        self.hide()
+        self._main_window_ref = MainWindow()
+        self._main_window_ref.show()
+        self.on_close_panel()
 
     def resize(self, width, height):
         self.overlay.setGeometry(0, 0, width, height)

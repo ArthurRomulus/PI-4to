@@ -359,6 +359,27 @@ class LoginWindow(QMainWindow):
         form_layout.addWidget(self.create_admin_btn, alignment=Qt.AlignCenter)
 
         page_layout.addWidget(form_card)
+        page_layout.addSpacing(16)
+
+        back_btn = QPushButton("← Volver al Inicio")
+        back_btn.setCursor(Qt.PointingHandCursor)
+        back_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: 1px solid #8D22E4;
+                border-radius: 20px;
+                color: #8D22E4;
+                font-size: 13px;
+                font-weight: 700;
+                padding: 8px 0;
+            }
+            QPushButton:hover {
+                background: rgba(141, 34, 228, 0.12);
+            }
+        """)
+        back_btn.setFixedHeight(42)
+        back_btn.clicked.connect(self.go_back_main)
+        page_layout.addWidget(back_btn)
         page_layout.addStretch()
 
         outer_layout.addWidget(self.page)
@@ -393,6 +414,12 @@ class LoginWindow(QMainWindow):
     def open_admin_panel(self, admin_email):
         self.dashboard_panel = DashboardPanel(admin_email)
         self.dashboard_panel.show()
+        self.close()
+
+    def go_back_main(self):
+        from ui.users.main_window import MainWindow
+        self._main = MainWindow()
+        self._main.show()
         self.close()
 
     def open_create_admin_window(self):
