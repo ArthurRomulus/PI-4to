@@ -1,10 +1,10 @@
 import os
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame
+    QFrame, QGraphicsDropShadowEffect
 )
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QPixmap
 
 
 class AccessDeniedWindow(QWidget):
@@ -29,8 +29,18 @@ class AccessDeniedWindow(QWidget):
                 return path
         return ""
 
+    def _set_icon(self, label, path, w, h):
+        if path and os.path.exists(path):
+            pix = QPixmap(path).scaled(
+                w, h,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            )
+            label.setPixmap(pix)
+
     def init_ui(self):
         fondo_path = self._asset_path("fondo_usuario.png")
+        denied_icon_path = self._asset_path("deneged.png")
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -76,35 +86,42 @@ class AccessDeniedWindow(QWidget):
         card_layout.setContentsMargins(26, 28, 26, 24)
         card_layout.setSpacing(0)
 
-        # ICONO
+        # ICONO SUPERIOR
         icon_wrap = QHBoxLayout()
         icon_wrap.setAlignment(Qt.AlignHCenter)
 
         icon_circle = QFrame()
-        icon_circle.setFixedSize(88, 88)
+        icon_circle.setFixedSize(96, 96)
         icon_circle.setStyleSheet("""
             QFrame {
-                background: rgba(255,255,255,0.98);
-                border-radius: 44px;
+                background: qradialgradient(
+                    cx:0.5, cy:0.5, radius:0.85,
+                    fx:0.5, fy:0.5,
+                    stop:0 rgba(255,255,255,0.98),
+                    stop:0.72 rgba(255,255,255,0.98),
+                    stop:1 rgba(255,210,210,0.98)
+                );
+                border-radius: 48px;
             }
         """)
+
+        glow = QGraphicsDropShadowEffect(self)
+        glow.setBlurRadius(34)
+        glow.setOffset(0, 0)
+        glow.setColor(QColor(255, 70, 70, 110))
+        icon_circle.setGraphicsEffect(glow)
 
         icon_inner = QVBoxLayout(icon_circle)
         icon_inner.setContentsMargins(0, 0, 0, 0)
         icon_inner.setAlignment(Qt.AlignCenter)
 
-        icon_label = QLabel("⊘")
+        icon_label = QLabel()
+        icon_label.setFixedSize(42, 42)
         icon_label.setAlignment(Qt.AlignCenter)
-        icon_label.setStyleSheet("""
-            QLabel {
-                color: #ef4444;
-                font-size: 40px;
-                font-weight: bold;
-                background: transparent;
-            }
-        """)
-        icon_inner.addWidget(icon_label)
+        icon_label.setStyleSheet("background: transparent;")
+        self._set_icon(icon_label, denied_icon_path, 42, 42)
 
+        icon_inner.addWidget(icon_label)
         icon_wrap.addWidget(icon_circle)
         card_layout.addLayout(icon_wrap)
 
