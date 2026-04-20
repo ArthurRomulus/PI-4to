@@ -36,7 +36,7 @@ class ScanLineWidget(QWidget):
         super().__init__(parent)
         self.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self._scan_y  = 0
+        self._scan_y = 0
         self._direction = 1
         self._anim = QTimer(self)
         self._anim.timeout.connect(self._tick)
@@ -69,11 +69,11 @@ class ScanLineWidget(QWidget):
         m, s = 20, 30
         w, h = self.width(), self.height()
         for px, py, dx, dy in [
-            (m, m, 1, 1), (w-m, m, -1, 1),
-            (m, h-m, 1, -1), (w-m, h-m, -1, -1)
+            (m, m, 1, 1), (w - m, m, -1, 1),
+            (m, h - m, 1, -1), (w - m, h - m, -1, -1)
         ]:
-            painter.drawLine(px, py, px + dx*s, py)
-            painter.drawLine(px, py, px, py + dy*s)
+            painter.drawLine(px, py, px + dx * s, py)
+            painter.drawLine(px, py, px, py + dy * s)
 
 
 class VerifyWindow(QWidget):
@@ -82,9 +82,9 @@ class VerifyWindow(QWidget):
     def __init__(self, main_window):
         print("Creando VerifyWindow...")
         super().__init__()
-        self.main_window    = main_window
-        self.camera_thread  = None
-        self._result_shown  = False
+        self.main_window = main_window
+        self.camera_thread = None
+        self._result_shown = False
 
         self.setWindowTitle("Verificación Biométrica")
         self.setMinimumSize(480, 760)
@@ -262,6 +262,7 @@ class VerifyWindow(QWidget):
     def _on_face_aligned(self, is_aligned: bool):
         if self._result_shown:
             return
+
         if is_aligned:
             self.status_label.setText("✓ ROSTRO DETECTADO — MANTENGA LA POSICIÓN")
             self.status_label.setStyleSheet(
@@ -296,7 +297,6 @@ class VerifyWindow(QWidget):
         self._result_shown = True
 
         if autorizado:
-            # ── VERDE: autorizado ────────────────────────────────────────────
             self.status_label.setText(f"✅ ACCESO AUTORIZADO — {nombre.upper()}")
             self.status_label.setStyleSheet(
                 "color: #22c55e; font-size: 15px; font-weight: bold;"
@@ -307,12 +307,10 @@ class VerifyWindow(QWidget):
                 QProgressBar { background-color: #1e293b; border-radius: 5px; border: none; }
                 QProgressBar::chunk { background-color: #22c55e; border-radius: 5px; }
             """)
-            # Abre IdentityConfirmedWindow después de 600 ms (para que el usuario vea el verde)
             QTimer.singleShot(600, lambda: self._abrir_confirmada(nombre))
 
         else:
-            # ── ROJO: denegado — se muestra inline, sin abrir otra ventana ──
-            self.status_label.setText("❌ ACCESO DENEGADO — ROSTRO NO RECONOCIDO")
+            self.status_label.setText("❌ ACCESO DENEGADO — USUARIO NO REGISTRADO")
             self.status_label.setStyleSheet(
                 f"color: {COLOR_ERROR}; font-size: 15px; font-weight: bold;"
             )
@@ -322,24 +320,7 @@ class VerifyWindow(QWidget):
                 QProgressBar { background-color: #1e293b; border-radius: 5px; border: none; }
                 QProgressBar::chunk { background-color: #ef4444; border-radius: 5px; }
             """)
-            # Mostrar botón de reintento
-            self.return_button.setText("↺ Intentar de nuevo")
-            self.return_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #7f1d1d;
-                    border: 2px solid #ef4444;
-                    border-radius: 13px;
-                    color: #fca5a5;
-                    font-size: 15px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    border-color: #f87171;
-                    color: #fff;
-                }
-            """)
-            self.return_button.clicked.disconnect()
-            self.return_button.clicked.connect(self._reintentar)
+            QTimer.singleShot(700, self._abrir_denegada)
 
     def _on_error(self, error_msg: str):
         self.status_label.setText("ERROR DE CÁMARA")
@@ -363,9 +344,36 @@ class VerifyWindow(QWidget):
     def _abrir_confirmada(self, nombre: str):
         from ui.identity_confirmed import IdentityConfirmedWindow
         self._stop_camera()
-        self._confirmed_win = IdentityConfirmedWindow(nombre)
+
+        try:
+            self._confirmed_win = IdentityConfirmedWindow(
+                user_name=nombre,
+                return_callback=self._volver_a_inicio
+            )
+        except TypeError:
+            self._confirmed_win = IdentityConfirmedWindow(nombre)
+
         self._confirmed_win.show()
         self.close()
+
+    def _abrir_denegada(self):
+        from ui.access_denied_window import AccessDeniedWindow
+        self._stop_camera()
+
+        self._denied_win = AccessDeniedWindow(
+            on_retry=self._reabrir_verificacion,
+            on_home=self._volver_a_inicio
+        )
+        self._denied_win.show()
+        self.close()
+
+    def _reabrir_verificacion(self):
+        self._new_verify = VerifyWindow(self.main_window)
+        self._new_verify.show()
+
+    def _volver_a_inicio(self):
+        if self.main_window:
+            self.main_window.show()
 
     def _reintentar(self):
         """Reinicia la cámara para un nuevo intento de verificación."""
@@ -380,8 +388,13 @@ class VerifyWindow(QWidget):
             QProgressBar {{ background-color: #1e293b; border-radius: 5px; border: none; }}
             QProgressBar::chunk {{ background-color: {COLOR_IDLE}; border-radius: 5px; }}
         """)
-        # Restaurar botón Volver
-        self.return_button.setText("\u2190 Volver al Inicio")
+
+        try:
+            self.return_button.clicked.disconnect()
+        except TypeError:
+            pass
+
+        self.return_button.setText("← Volver al Inicio")
         self.return_button.setStyleSheet("""
             QPushButton {
                 background-color: #312e81;
@@ -396,7 +409,6 @@ class VerifyWindow(QWidget):
                 color: #c4b5fd;
             }
         """)
-        self.return_button.clicked.disconnect()
         self.return_button.clicked.connect(self.close_window)
         self._start_camera()
 

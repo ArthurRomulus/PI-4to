@@ -10,11 +10,10 @@ Flujo:
      inicia un contador de 5 segundos de "cara alineada".
   3. Al cumplir 5 s seguidos, extrae el embedding del frame actual
      y lo compara contra todos los usuarios en la DB.
-  4. Emite recognition_result(True, nombre) si hay match,
+  4. Emite recognition_result(True, nombre) si hay match confiable,
              recognition_result(False, "")  si no hay match.
 """
 
-import pickle
 import numpy as np
 import cv2
 
@@ -22,17 +21,21 @@ from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QImage, QPixmap
 
 from hardware.face_detection import FaceDetector
-from hardware.face_embedder import compute_face_embedding, cosine_similarity, euclidean_distance
+from hardware.face_embedder import (
+    compute_face_embedding,
+    cosine_similarity,
+    euclidean_distance
+)
 
 # ── Configuración ──────────────────────────────────────────────────────────────
-HOLD_SECONDS = 5          # segundos que el usuario debe mantener la cara
-FPS_SLEEP_MS = 30         # ms entre frames (~33 fps)
+HOLD_SECONDS = 5
+FPS_SLEEP_MS = 30
 
-# Umbral de similitud: se usa similitud coseno si los embeddings son de igual
-# dimensión, y distancia euclidiana normalizada como respaldo.
-# Valores más altos = más estricto.
-COSINE_THRESHOLD = 0.70   # similitud coseno mínima (0–1)
-EUCLIDEAN_THRESHOLD = 0.55 # distancia euclidiana máxima (normalizada)
+# Más estricto para evitar falsos positivos.
+# Como solo tienes 1 usuario cargado en tus pruebas, conviene apretar bastante.
+COSINE_THRESHOLD = 0.85
+EUCLIDEAN_THRESHOLD = 0.35
+MIN_MARGIN = 0.08
 
 
 def _cargar_usuarios_db() -> list:
@@ -41,10 +44,12 @@ def _cargar_usuarios_db() -> list:
     """
     try:
         from database.consultas import obtener_conexion
-        import pickle, numpy as np
+        import pickle
+
         conn = obtener_conexion()
         if conn is None:
             return []
+
         cursor = conn.cursor()
         cursor.execute("""
             SELECT u.id_user, u.name, f.face_encoding
@@ -54,11 +59,16 @@ def _cargar_usuarios_db() -> list:
         """)
         datos = cursor.fetchall()
         conn.close()
+
         usuarios = []
         for row in datos:
             if row[2]:
-                usuarios.append((row[0], row[1], pickle.loads(row[2])))  # (id, nombre, emb)
+                emb = pickle.loads(row[2])
+                if isinstance(emb, np.ndarray):
+                    usuarios.append((row[0], row[1], emb))
+
         return usuarios
+
     except Exception as e:
         print(f"[CameraThread] Error cargando usuarios: {e}")
         return []
@@ -67,58 +77,120 @@ def _cargar_usuarios_db() -> list:
 def _reconocer(embedding_actual: np.ndarray, usuarios: list):
     """
     Compara embedding_actual contra todos los usuarios.
-    Retorna (True, nombre, id_user) si hay match, (False, "", None) si no.
-    usuarios: lista de (id_user, nombre, embedding_np)
+    Retorna (True, nombre, id_user) si hay match confiable,
+    (False, "", None) si no.
     """
     if embedding_actual is None or len(usuarios) == 0:
+        print("[Reconocimiento] DENEGADO — sin embedding actual o sin usuarios en DB")
         return False, "", None
 
-    best_score = -1.0
-    best_name  = ""
-    best_id    = None
-    matched    = False
+    emb_act = embedding_actual.astype(np.float32)
+    resultados_cosine = []
+    resultados_euclidean = []
 
     for id_user, nombre, emb_db in usuarios:
         if not isinstance(emb_db, np.ndarray):
             continue
 
-        emb_db  = emb_db.astype(np.float32)
-        emb_act = embedding_actual.astype(np.float32)
+        emb_db = emb_db.astype(np.float32)
 
         dim_db = emb_db.shape[0]
         dim_ac = emb_act.shape[0]
 
         if dim_db == dim_ac:
-            score = cosine_similarity(emb_act, emb_db)
-            if score > best_score:
-                best_score = score
-                best_name  = nombre
-                best_id    = id_user
-            if score >= COSINE_THRESHOLD:
-                matched   = True
-                best_name = nombre
-                best_id   = id_user
-                break
+            score = float(cosine_similarity(emb_act, emb_db))
+            resultados_cosine.append({
+                "id_user": id_user,
+                "nombre": nombre,
+                "score": score
+            })
         else:
             min_dim = min(dim_db, dim_ac)
-            dist    = euclidean_distance(emb_act[:min_dim], emb_db[:min_dim])
-            score   = 1.0 / (1.0 + dist)
-            if score > best_score:
-                best_score = score
-                best_name  = nombre
-                best_id    = id_user
-            if dist <= EUCLIDEAN_THRESHOLD:
-                matched   = True
-                best_name = nombre
-                best_id   = id_user
-                break
+            dist = float(euclidean_distance(emb_act[:min_dim], emb_db[:min_dim]))
+            resultados_euclidean.append({
+                "id_user": id_user,
+                "nombre": nombre,
+                "dist": dist
+            })
 
-    if matched:
-        print(f"[Reconocimiento] AUTORIZADO: {best_name} (ID={best_id}, score={best_score:.3f})")
-        return True, best_name, best_id
-    else:
-        print(f"[Reconocimiento] DENEGADO — mejor candidato: '{best_name}' (score={best_score:.3f})")
+    # ── Comparación principal: cosine ────────────────────────────────────────
+    if resultados_cosine:
+        resultados_cosine.sort(key=lambda x: x["score"], reverse=True)
+
+        best = resultados_cosine[0]
+        second = resultados_cosine[1] if len(resultados_cosine) > 1 else None
+
+        best_score = best["score"]
+        second_score = second["score"] if second else 0.0
+        margin = best_score - second_score if second else best_score
+
+        print(
+            f"[Reconocimiento] Mejor cosine: {best['nombre']} "
+            f"(ID={best['id_user']}, score={best_score:.3f}, margin={margin:.3f})"
+        )
+
+        if len(resultados_cosine) == 1:
+            # Si solo hay un usuario en DB, exigir score alto
+            if best_score >= COSINE_THRESHOLD:
+                print(
+                    f"[Reconocimiento] AUTORIZADO: {best['nombre']} "
+                    f"(ID={best['id_user']}, score={best_score:.3f})"
+                )
+                return True, best["nombre"], best["id_user"]
+        else:
+            # Si hay varios usuarios, además exigir que gane por margen
+            if best_score >= COSINE_THRESHOLD and margin >= MIN_MARGIN:
+                print(
+                    f"[Reconocimiento] AUTORIZADO: {best['nombre']} "
+                    f"(ID={best['id_user']}, score={best_score:.3f}, margin={margin:.3f})"
+                )
+                return True, best["nombre"], best["id_user"]
+
+        print(
+            f"[Reconocimiento] DENEGADO — mejor candidato: '{best['nombre']}' "
+            f"(score={best_score:.3f}, margin={margin:.3f})"
+        )
         return False, "", None
+
+    # ── Respaldo: euclidean ──────────────────────────────────────────────────
+    if resultados_euclidean:
+        resultados_euclidean.sort(key=lambda x: x["dist"])
+
+        best = resultados_euclidean[0]
+        second = resultados_euclidean[1] if len(resultados_euclidean) > 1 else None
+
+        best_dist = best["dist"]
+        second_dist = second["dist"] if second else 999.0
+        margin = second_dist - best_dist if second else 999.0
+
+        print(
+            f"[Reconocimiento] Mejor euclidean: {best['nombre']} "
+            f"(ID={best['id_user']}, dist={best_dist:.3f}, margin={margin:.3f})"
+        )
+
+        if len(resultados_euclidean) == 1:
+            if best_dist <= EUCLIDEAN_THRESHOLD:
+                print(
+                    f"[Reconocimiento] AUTORIZADO: {best['nombre']} "
+                    f"(ID={best['id_user']}, dist={best_dist:.3f})"
+                )
+                return True, best["nombre"], best["id_user"]
+        else:
+            if best_dist <= EUCLIDEAN_THRESHOLD and margin >= MIN_MARGIN:
+                print(
+                    f"[Reconocimiento] AUTORIZADO: {best['nombre']} "
+                    f"(ID={best['id_user']}, dist={best_dist:.3f}, margin={margin:.3f})"
+                )
+                return True, best["nombre"], best["id_user"]
+
+        print(
+            f"[Reconocimiento] DENEGADO — mejor candidato: '{best['nombre']}' "
+            f"(dist={best_dist:.3f}, margin={margin:.3f})"
+        )
+        return False, "", None
+
+    print("[Reconocimiento] DENEGADO — no hubo resultados comparables")
+    return False, "", None
 
 
 class CameraThread(QThread):
@@ -132,56 +204,51 @@ class CameraThread(QThread):
       hold_progress(int)              — Progreso del timer 0-100 (porcentaje).
       recognition_result(bool, str)   — (autorizado, nombre_o_vacío).
     """
-    frame_updated      = pyqtSignal(QPixmap)
-    error_occurred     = pyqtSignal(str)
-    face_aligned       = pyqtSignal(bool)
-    hold_progress      = pyqtSignal(int)          # 0-100 %
-    recognition_result = pyqtSignal(bool, str)    # (autorizado, nombre)
+    frame_updated = pyqtSignal(QPixmap)
+    error_occurred = pyqtSignal(str)
+    face_aligned = pyqtSignal(bool)
+    hold_progress = pyqtSignal(int)
+    recognition_result = pyqtSignal(bool, str)
 
     def __init__(self, width: int = 400):
         super().__init__()
-        self.camera         = None
-        self.running        = False
-        self.face_detector  = FaceDetector()
-        self.target_width   = width
+        self.camera = None
+        self.running = False
+        self.face_detector = FaceDetector()
+        self.target_width = width
 
-        # Estado del temporizador de "hold"
-        self._hold_frames         = 0
+        self._hold_frames = 0
         self._total_frames_needed = int(HOLD_SECONDS * 1000 / FPS_SLEEP_MS)
-        self._verification_done   = False
+        self._verification_done = False
 
-        # ID que se muestra sobre el recuadro azul en el frame
         self._display_id = "unknown"
 
-    # ──────────────────────────────────────────────────────────────────────────
     def run(self):
         self.running = True
         try:
-            # CAP_DSHOW evita el error MSMF -1072873821 en Windows
             self.camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
             if not self.camera.isOpened():
                 self.error_occurred.emit("No se pudo acceder a la cámara")
                 return
 
-            # Warm-up: dejar que el driver inicialice el stream
             self.msleep(500)
 
-            # Cargar usuarios al inicio (una vez)
             usuarios = _cargar_usuarios_db()
             print(f"[CameraThread] {len(usuarios)} usuario(s) cargado(s) desde la DB")
 
-            _fail_count = 0  # contador de frames fallidos consecutivos
+            _fail_count = 0
 
             while self.running:
                 ret, frame = self.camera.read()
                 if not ret or frame is None:
                     _fail_count += 1
-                    if _fail_count > 30:   # ~1 s de frames fallidos → abortar
+                    if _fail_count > 30:
                         self.error_occurred.emit("Cámara desconectada o bloqueada")
                         break
                     self.msleep(FPS_SLEEP_MS)
                     continue
-                _fail_count = 0  # reset al recibir frame válido
+
+                _fail_count = 0
 
                 frame = cv2.flip(frame, 1)
                 detection = self.face_detector.detect_and_validate(frame)
@@ -195,46 +262,44 @@ class CameraThread(QThread):
                 if not self._verification_done:
                     if is_aligned:
                         self._hold_frames += 1
-                        progress = min(int(self._hold_frames * 100 / self._total_frames_needed), 100)
+                        progress = min(
+                            int(self._hold_frames * 100 / self._total_frames_needed),
+                            100
+                        )
                         self.hold_progress.emit(progress)
 
-                        # Dibujar arco de progreso sobre el óvalo
                         frame = self._draw_progress_arc(frame, detection, progress)
 
                         if self._hold_frames >= self._total_frames_needed:
-                            # ── VERIFICACIÓN ──────────────────────────────
                             self._verification_done = True
                             face_rect = detection.get('face_rect')
                             autorizado, nombre, id_user = False, "", None
+
                             if face_rect and len(usuarios) > 0:
                                 x, y, w, h = face_rect
                                 face_crop = frame[y:y+h, x:x+w]
                                 emb = compute_face_embedding(face_crop)
                                 autorizado, nombre, id_user = _reconocer(emb, usuarios)
-                            elif len(usuarios) == 0:
+                            else:
                                 autorizado, nombre, id_user = False, "", None
-                            # Actualizar ID a mostrar en el frame
+
                             self._display_id = str(id_user) if id_user is not None else "unknown"
                             self.recognition_result.emit(autorizado, nombre)
                     else:
-                        # Reiniciar si pierde la posición
                         if self._hold_frames > 0:
                             self._hold_frames = max(0, self._hold_frames - 2)
                             progress = int(self._hold_frames * 100 / self._total_frames_needed)
                             self.hold_progress.emit(progress)
 
-                # Dibujar detección estándar
                 frame = self.face_detector.draw_face_detection(frame, detection)
-
-                # Dibujar ID en esquina superior derecha del recuadro azul
                 frame = self._draw_id_label(frame, detection)
 
-                # Convertir a QPixmap
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 h_f, w_f, ch = rgb.shape
                 qt_img = QImage(
                     rgb.data, w_f, h_f, rgb.strides[0], QImage.Format_RGB888
                 ).copy()
+
                 pix = QPixmap.fromImage(qt_img).scaledToWidth(
                     self.target_width, Qt.SmoothTransformation
                 )
@@ -248,7 +313,6 @@ class CameraThread(QThread):
             if self.camera:
                 self.camera.release()
 
-    # ──────────────────────────────────────────────────────────────────────────
     def _draw_progress_arc(self, frame: np.ndarray, detection: dict, progress: int) -> np.ndarray:
         """Dibuja un arco de progreso alrededor del óvalo facial."""
         try:
@@ -256,15 +320,13 @@ class CameraThread(QThread):
             ax, ay = detection['oval_axes']
             angle_end = int(progress * 360 / 100)
 
-            # Arco de fondo (gris)
             cv2.ellipse(frame, (cx, cy), (ax + 6, ay + 6),
                         -90, 0, 360, (60, 60, 60), 4)
-            # Arco de progreso (cian)
+
             if angle_end > 0:
                 cv2.ellipse(frame, (cx, cy), (ax + 6, ay + 6),
                             -90, 0, angle_end, (0, 220, 220), 5)
 
-            # Texto de cuenta regresiva
             secs_left = max(0, HOLD_SECONDS - int(self._hold_frames / (1000 / FPS_SLEEP_MS)))
             cv2.putText(
                 frame, f"{secs_left}s",
@@ -276,7 +338,6 @@ class CameraThread(QThread):
             pass
         return frame
 
-    # ──────────────────────────────────────────────────────────────────────────
     def _draw_id_label(self, frame: np.ndarray, detection: dict) -> np.ndarray:
         """Dibuja el ID del usuario en la esquina superior derecha del recuadro azul."""
         try:
@@ -285,44 +346,42 @@ class CameraThread(QThread):
                 return frame
 
             x, y, w, h = face_rect
-            label     = f"ID: {self._display_id}"
-            font      = cv2.FONT_HERSHEY_SIMPLEX
+            label = f"ID: {self._display_id}"
+            font = cv2.FONT_HERSHEY_SIMPLEX
             font_scale = 0.55
-            thickness  = 1
+            thickness = 1
 
-            # Medir texto para calcular posición
             (tw, th), baseline = cv2.getTextSize(label, font, font_scale, thickness)
 
-            # Esquina superior derecha del recuadro
             tx = x + w - tw - 4
-            ty = y - 6  # justo encima del borde superior
+            ty = y - 6
 
-            # Si se sale arriba del frame, ponerlo dentro
             if ty - th - 2 < 0:
                 ty = y + th + 4
 
-            # Color según estado: verde si reconocido, rojo si unknown
             if self._display_id == "unknown":
-                bg_color   = (0, 0, 180)    # rojo oscuro (BGR)
+                bg_color = (0, 0, 180)
                 text_color = (100, 180, 255)
             else:
-                bg_color   = (0, 140, 0)    # verde oscuro
+                bg_color = (0, 140, 0)
                 text_color = (180, 255, 180)
 
-            # Fondo semitransparente (rectángulo sólido)
-            cv2.rectangle(frame,
-                          (tx - 3, ty - th - 4),
-                          (tx + tw + 3, ty + baseline),
-                          bg_color, cv2.FILLED)
+            cv2.rectangle(
+                frame,
+                (tx - 3, ty - th - 4),
+                (tx + tw + 3, ty + baseline),
+                bg_color,
+                cv2.FILLED
+            )
 
-            # Texto
-            cv2.putText(frame, label, (tx, ty - 2),
-                        font, font_scale, text_color, thickness, cv2.LINE_AA)
+            cv2.putText(
+                frame, label, (tx, ty - 2),
+                font, font_scale, text_color, thickness, cv2.LINE_AA
+            )
         except Exception:
             pass
         return frame
 
-    # ──────────────────────────────────────────────────────────────────────────
     def stop(self):
         self.running = False
         if self.camera:

@@ -10,9 +10,9 @@ from PyQt5.QtGui import QPixmap, QColor
 
 
 class IdentityConfirmedWindow(QMainWindow):
-    def __init__(self, user_name="Kristopher Vapo", return_callback=None, parent=None):
+    def __init__(self, user_name="NAME", return_callback=None, parent=None):
         super().__init__(parent)
-        self.user_name = user_name if user_name and user_name != "12345" else "Kristopher Vapo"
+        self.user_name = user_name if user_name and user_name != "12345" else "NAME"
         self.return_callback = return_callback
 
         self.setWindowTitle("Identidad Confirmada")
