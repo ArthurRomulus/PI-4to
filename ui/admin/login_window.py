@@ -17,12 +17,24 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ASSETS = os.path.join(BASE_DIR, "assets")
-PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+
+
+def asset_path(filename):
+    possible_paths = [
+        os.path.join(BASE_DIR, "assets", filename),
+        os.path.join(BASE_DIR, "..", "assets", filename),
+        os.path.join(BASE_DIR, "..", "..", "assets", filename),
+        os.path.join(os.getcwd(), "assets", filename),
+    ]
+
+    for path in possible_paths:
+        real_path = os.path.abspath(path)
+        if os.path.exists(real_path):
+            return real_path
+
+    return os.path.abspath(possible_paths[2])
+
 
 from database.consultas import (
     crear_tablas,
@@ -33,19 +45,15 @@ from dashboard_panel import DashboardPanel
 from ui.admin.create_admin_window import CreateAdminWindow
 
 
-def asset_path(filename):
-    return os.path.join(ASSETS, filename)
-
-
-class RoundedCard(QFrame):
-    def __init__(self, radius=20, color="#FFFFFF", border="#FFFFFF"):
+class GlassCard(QFrame):
+    def __init__(self):
         super().__init__()
-        self.setStyleSheet(f"""
-            QFrame {{
-                background: {color};
-                border: 1px solid {border};
-                border-radius: {radius}px;
-            }}
+        self.setStyleSheet("""
+            QFrame {
+                background: rgba(255, 255, 255, 0.15);
+                border: 1px solid rgba(255, 255, 255, 0.22);
+                border-radius: 34px;
+            }
         """)
 
 
@@ -57,9 +65,9 @@ class IconInput(QFrame):
         self.setFixedHeight(58)
         self.setStyleSheet("""
             QFrame {
-                background: #ECE9EC;
-                border: none;
-                border-radius: 29px;
+                background: rgba(255, 255, 255, 0.90);
+                border: 1px solid rgba(255, 255, 255, 0.30);
+                border-radius: 18px;
             }
         """)
 
@@ -68,15 +76,18 @@ class IconInput(QFrame):
         layout.setSpacing(10)
 
         self.left_icon = QLabel()
-        self.left_icon.setFixedSize(18, 18)
+        self.left_icon.setFixedSize(22, 22)
         self.left_icon.setAlignment(Qt.AlignCenter)
         self.left_icon.setStyleSheet("background: transparent; border: none;")
 
-        if left_icon and os.path.exists(asset_path(left_icon)):
-            pix = QPixmap(asset_path(left_icon))
-            self.left_icon.setPixmap(
-                pix.scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            )
+        if left_icon:
+            left_icon_file = asset_path(left_icon)
+            if os.path.exists(left_icon_file):
+                pix = QPixmap(left_icon_file)
+                if not pix.isNull():
+                    self.left_icon.setPixmap(
+                        pix.scaled(18, 18, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    )
 
         self.input = QLineEdit()
         self.input.setPlaceholderText(placeholder)
@@ -84,13 +95,13 @@ class IconInput(QFrame):
             QLineEdit {
                 background: transparent;
                 border: none;
-                color: #5E5863;
-                font-size: 14px;
-                font-weight: 600;
+                color: #5D4E6F;
+                font-size: 15px;
+                font-weight: 700;
                 padding: 0;
             }
             QLineEdit::placeholder {
-                color: #A8A1AC;
+                color: #A295B5;
             }
         """)
 
@@ -104,7 +115,7 @@ class IconInput(QFrame):
         if right_icon:
             self.eye_button = QPushButton()
             self.eye_button.setCursor(Qt.PointingHandCursor)
-            self.eye_button.setFixedSize(24, 24)
+            self.eye_button.setFixedSize(26, 26)
             self.eye_button.setStyleSheet("""
                 QPushButton {
                     background: transparent;
@@ -116,6 +127,8 @@ class IconInput(QFrame):
             if os.path.exists(icon_file):
                 self.eye_button.setIcon(QIcon(icon_file))
                 self.eye_button.setIconSize(QSize(18, 18))
+            else:
+                self.eye_button.setText("👁")
 
             if self.is_password:
                 self.eye_button.clicked.connect(self.toggle_password)
@@ -133,37 +146,66 @@ class GradientButton(QPushButton):
     def __init__(self, text):
         super().__init__(text)
         self.setCursor(Qt.PointingHandCursor)
-        self.setFixedHeight(48)
+        self.setFixedHeight(58)
         self.setStyleSheet("""
             QPushButton {
                 border: none;
-                border-radius: 24px;
+                border-radius: 29px;
                 color: white;
-                font-size: 15px;
+                font-size: 18px;
                 font-weight: 800;
                 background: qlineargradient(
                     x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #8B1FE0,
-                    stop:1 #B777EE
+                    stop:0 #7E18E6,
+                    stop:0.5 #A944F0,
+                    stop:1 #C06AF3
                 );
             }
             QPushButton:hover {
                 background: qlineargradient(
                     x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #7A1BCD,
-                    stop:1 #A865E9
+                    stop:0 #7113D6,
+                    stop:0.5 #9C39E8,
+                    stop:1 #B95EEF
                 );
             }
             QPushButton:pressed {
                 padding-top: 1px;
             }
+            QPushButton:disabled {
+                background: #A58BBB;
+                color: rgba(255,255,255,0.85);
+            }
         """)
 
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(24)
-        shadow.setOffset(0, 8)
-        shadow.setColor(QColor(160, 120, 210, 90))
+        shadow.setBlurRadius(34)
+        shadow.setOffset(0, 12)
+        shadow.setColor(QColor(105, 26, 190, 120))
         self.setGraphicsEffect(shadow)
+
+
+class SecondaryOutlineButton(QPushButton):
+    def __init__(self, text):
+        super().__init__(text)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedHeight(50)
+        self.setStyleSheet("""
+            QPushButton {
+                background: rgba(255,255,255,0.07);
+                border: 1.5px solid rgba(255,255,255,0.42);
+                border-radius: 25px;
+                color: white;
+                font-size: 15px;
+                font-weight: 800;
+            }
+            QPushButton:hover {
+                background: rgba(255,255,255,0.16);
+            }
+            QPushButton:pressed {
+                padding-top: 1px;
+            }
+        """)
 
 
 class LoginWindow(QMainWindow):
@@ -177,72 +219,107 @@ class LoginWindow(QMainWindow):
 
         central.setStyleSheet("""
             QWidget {
-                background: #1F1A22;
+                background: #18131E;
             }
         """)
 
         outer_layout = QVBoxLayout(central)
-        outer_layout.setContentsMargins(14, 14, 14, 14)
+        outer_layout.setContentsMargins(8, 8, 8, 8)
         outer_layout.setSpacing(0)
 
         self.page = QFrame()
+        self.page.setObjectName("page")
         self.page.setStyleSheet("""
-            QFrame {
+            QFrame#page {
+                border-radius: 18px;
                 background: qlineargradient(
-                    x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #E5D8EA,
-                    stop:1 #F3EDF2
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0   #6F22DA,
+                    stop:0.32 #9646E8,
+                    stop:0.66 #B369F0,
+                    stop:1   #8740E3
                 );
-                border: none;
-                border-radius: 0px;
             }
         """)
 
+        outer_layout.addWidget(self.page)
+
         page_layout = QVBoxLayout(self.page)
-        page_layout.setContentsMargins(24, 34, 24, 28)
+        page_layout.setContentsMargins(20, 20, 20, 24)
         page_layout.setSpacing(0)
 
-        page_layout.addSpacing(6)
+        page_layout.addSpacing(8)
 
-        top_icon_wrap = QHBoxLayout()
-        top_icon_wrap.addStretch()
+        icon_circle = QLabel()
+        icon_circle.setFixedSize(130, 130)
+        icon_circle.setAlignment(Qt.AlignCenter)
+        icon_circle.setStyleSheet("""
+            QLabel {
+                background: qradialgradient(
+                    cx:0.5, cy:0.45, radius:0.92,
+                    stop:0 rgba(255,255,255,0.20),
+                    stop:1 rgba(255,255,255,0.07)
+                );
+                border: 2px solid rgba(255,255,255,0.13);
+                border-radius: 65px;
+            }
+        """)
 
-        top_icon = QLabel()
-        top_icon.setFixedSize(72, 72)
-        top_icon.setAlignment(Qt.AlignCenter)
-        top_icon.setStyleSheet("background: transparent; border: none;")
+        icon_shadow = QGraphicsDropShadowEffect(icon_circle)
+        icon_shadow.setBlurRadius(34)
+        icon_shadow.setOffset(0, 8)
+        icon_shadow.setColor(QColor(126, 40, 190, 80))
+        icon_circle.setGraphicsEffect(icon_shadow)
 
         top_icon_path = asset_path("block.png")
         if os.path.exists(top_icon_path):
             pix = QPixmap(top_icon_path)
-            top_icon.setPixmap(
-                pix.scaled(72, 72, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            )
+            if not pix.isNull():
+                icon_circle.setPixmap(
+                    pix.scaled(70, 70, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                )
+            else:
+                icon_circle.setText("LG")
+                icon_circle.setStyleSheet("""
+                    QLabel {
+                        color: white;
+                        font-size: 28px;
+                        font-weight: 800;
+                        background: qradialgradient(
+                            cx:0.5, cy:0.45, radius:0.92,
+                            stop:0 rgba(255,255,255,0.20),
+                            stop:1 rgba(255,255,255,0.07)
+                        );
+                        border: 2px solid rgba(255,255,255,0.13);
+                        border-radius: 65px;
+                    }
+                """)
         else:
-            top_icon.setText("LG")
-            top_icon.setStyleSheet("""
+            icon_circle.setText("LG")
+            icon_circle.setStyleSheet("""
                 QLabel {
                     color: white;
-                    font-size: 20px;
+                    font-size: 28px;
                     font-weight: 800;
-                    border-radius: 36px;
-                    background: #9A47E8;
+                    background: qradialgradient(
+                        cx:0.5, cy:0.45, radius:0.92,
+                        stop:0 rgba(255,255,255,0.20),
+                        stop:1 rgba(255,255,255,0.07)
+                    );
+                    border: 2px solid rgba(255,255,255,0.13);
+                    border-radius: 65px;
                 }
             """)
 
-        top_icon_wrap.addWidget(top_icon)
-        top_icon_wrap.addStretch()
-
-        page_layout.addLayout(top_icon_wrap)
-        page_layout.addSpacing(24)
+        page_layout.addWidget(icon_circle, alignment=Qt.AlignHCenter)
+        page_layout.addSpacing(26)
 
         title = QLabel("Login")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
-            color: #111111;
-            font-size: 31px;
+            color: white;
+            font-size: 29px;
             font-weight: 800;
-            font-family: Georgia;
             background: transparent;
             border: none;
         """)
@@ -253,34 +330,36 @@ class LoginWindow(QMainWindow):
         )
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("""
-            color: #6D6672;
-            font-size: 14px;
+            color: rgba(255, 255, 255, 0.88);
+            font-size: 15px;
             font-weight: 600;
-            line-height: 1.55;
+            line-height: 1.5;
             background: transparent;
             border: none;
         """)
 
         page_layout.addWidget(title)
-        page_layout.addSpacing(18)
+        page_layout.addSpacing(12)
         page_layout.addWidget(subtitle)
-        page_layout.addSpacing(38)
+        page_layout.addSpacing(28)
 
-        form_card = RoundedCard(radius=30, color="#F7F3F6", border="#F7F3F6")
+        form_card = GlassCard()
+        form_card.setFixedHeight(334)
+
         form_shadow = QGraphicsDropShadowEffect(form_card)
-        form_shadow.setBlurRadius(30)
-        form_shadow.setOffset(0, 9)
-        form_shadow.setColor(QColor(0, 0, 0, 32))
+        form_shadow.setBlurRadius(36)
+        form_shadow.setOffset(0, 12)
+        form_shadow.setColor(QColor(46, 16, 76, 75))
         form_card.setGraphicsEffect(form_shadow)
 
         form_layout = QVBoxLayout(form_card)
-        form_layout.setContentsMargins(24, 24, 24, 22)
+        form_layout.setContentsMargins(24, 22, 24, 22)
         form_layout.setSpacing(0)
 
         user_label = QLabel("Correo electrónico")
         user_label.setStyleSheet("""
-            color: #55505A;
-            font-size: 12px;
+            color: rgba(255,255,255,0.92);
+            font-size: 13px;
             font-weight: 700;
             background: transparent;
             border: none;
@@ -293,8 +372,8 @@ class LoginWindow(QMainWindow):
 
         pass_label = QLabel("Contraseña")
         pass_label.setStyleSheet("""
-            color: #55505A;
-            font-size: 12px;
+            color: rgba(255,255,255,0.92);
+            font-size: 13px;
             font-weight: 700;
             background: transparent;
             border: none;
@@ -316,12 +395,13 @@ class LoginWindow(QMainWindow):
             QPushButton {
                 background: transparent;
                 border: none;
-                color: #8D22E4;
-                font-size: 12px;
-                font-weight: 700;
+                color: white;
+                font-size: 13px;
+                font-weight: 800;
             }
             QPushButton:hover {
-                color: #731BC2;
+                color: rgba(255,255,255,0.82);
+                text-decoration: underline;
             }
         """)
         self.forgot_btn.clicked.connect(self.open_forgot_password)
@@ -332,12 +412,13 @@ class LoginWindow(QMainWindow):
             QPushButton {
                 background: transparent;
                 border: none;
-                color: #8D22E4;
-                font-size: 12px;
-                font-weight: 700;
+                color: white;
+                font-size: 13px;
+                font-weight: 800;
             }
             QPushButton:hover {
-                color: #731BC2;
+                color: rgba(255,255,255,0.82);
+                text-decoration: underline;
             }
         """)
         self.create_admin_btn.clicked.connect(self.open_create_admin_window)
@@ -345,7 +426,7 @@ class LoginWindow(QMainWindow):
         form_layout.addWidget(user_label)
         form_layout.addSpacing(10)
         form_layout.addWidget(self.user_input)
-        form_layout.addSpacing(18)
+        form_layout.addSpacing(16)
         form_layout.addWidget(pass_label)
         form_layout.addSpacing(10)
         form_layout.addWidget(self.pass_input)
@@ -353,40 +434,23 @@ class LoginWindow(QMainWindow):
         form_layout.addWidget(self.login_btn)
         form_layout.addSpacing(12)
         form_layout.addWidget(self.forgot_btn, alignment=Qt.AlignCenter)
-        form_layout.addSpacing(6)
+        form_layout.addSpacing(8)
         form_layout.addWidget(self.create_admin_btn, alignment=Qt.AlignCenter)
 
         page_layout.addWidget(form_card)
-        page_layout.addSpacing(16)
+        page_layout.addSpacing(22)
 
-        back_btn = QPushButton("← Volver al Inicio")
-        back_btn.setCursor(Qt.PointingHandCursor)
-        back_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent;
-                border: 1px solid #8D22E4;
-                border-radius: 20px;
-                color: #8D22E4;
-                font-size: 13px;
-                font-weight: 700;
-                padding: 8px 0;
-            }
-            QPushButton:hover {
-                background: rgba(141, 34, 228, 0.12);
-            }
-        """)
-        back_btn.setFixedHeight(42)
+        back_btn = SecondaryOutlineButton("← Volver al Inicio")
         back_btn.clicked.connect(self.go_back_main)
         page_layout.addWidget(back_btn)
-        page_layout.addStretch()
 
-        outer_layout.addWidget(self.page)
+        page_layout.addSpacing(18)
+        page_layout.addStretch()
 
         self.setup_database()
 
     def setup_database(self):
         crear_tablas()
-
         if contar_admins() > 0:
             self.create_admin_btn.hide()
 
