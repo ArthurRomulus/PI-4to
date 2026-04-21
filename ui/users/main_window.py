@@ -9,7 +9,7 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap, QColor, QPainter
 
 from ui.users.verify_window import VerifyWindow
-from ui.admin.login_admin import LoginWindow
+from ui.admin.login_window import LoginWindow
 
 
 class BackgroundWidget(QWidget):

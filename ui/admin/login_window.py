@@ -26,10 +26,7 @@ if PROJECT_ROOT not in sys.path:
 
 from database.consultas import (
     crear_tablas,
-    crear_admin,
-    obtener_admin_por_email,
     verify_admin,
-    hash_pin,
     contar_admins,
 )
 from dashboard_panel import DashboardPanel
@@ -313,9 +310,9 @@ class LoginWindow(QMainWindow):
         self.login_btn = GradientButton("Ingresar  →")
         self.login_btn.clicked.connect(self.handle_login)
 
-        forgot_btn = QPushButton("¿Olvidó su contraseña?")
-        forgot_btn.setCursor(Qt.PointingHandCursor)
-        forgot_btn.setStyleSheet("""
+        self.forgot_btn = QPushButton("¿Olvidó su contraseña?")
+        self.forgot_btn.setCursor(Qt.PointingHandCursor)
+        self.forgot_btn.setStyleSheet("""
             QPushButton {
                 background: transparent;
                 border: none;
@@ -327,6 +324,7 @@ class LoginWindow(QMainWindow):
                 color: #731BC2;
             }
         """)
+        self.forgot_btn.clicked.connect(self.open_forgot_password)
 
         self.create_admin_btn = QPushButton("¿No tienes cuenta? Crear admin")
         self.create_admin_btn.setCursor(Qt.PointingHandCursor)
@@ -354,7 +352,7 @@ class LoginWindow(QMainWindow):
         form_layout.addSpacing(22)
         form_layout.addWidget(self.login_btn)
         form_layout.addSpacing(12)
-        form_layout.addWidget(forgot_btn, alignment=Qt.AlignCenter)
+        form_layout.addWidget(self.forgot_btn, alignment=Qt.AlignCenter)
         form_layout.addSpacing(6)
         form_layout.addWidget(self.create_admin_btn, alignment=Qt.AlignCenter)
 
@@ -388,8 +386,7 @@ class LoginWindow(QMainWindow):
 
     def setup_database(self):
         crear_tablas()
-        
-        # Si ya existen admins, ocultar el botón de crear admin
+
         if contar_admins() > 0:
             self.create_admin_btn.hide()
 
@@ -414,6 +411,12 @@ class LoginWindow(QMainWindow):
     def open_admin_panel(self, admin_email):
         self.dashboard_panel = DashboardPanel(admin_email)
         self.dashboard_panel.show()
+        self.close()
+
+    def open_forgot_password(self):
+        from ui.admin.forgot_password_window import ForgotPasswordWindow
+        self.forgot_window = ForgotPasswordWindow()
+        self.forgot_window.show()
         self.close()
 
     def go_back_main(self):
