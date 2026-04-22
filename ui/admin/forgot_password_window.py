@@ -27,7 +27,7 @@ class GlassCard(QFrame):
         """)
 
 
-# ---------------- INPUT ----------------
+# ---------------- INPUT (ICONO FIXED) ----------------
 class InputField(QFrame):
     def __init__(self):
         super().__init__()
@@ -41,14 +41,32 @@ class InputField(QFrame):
         """)
 
         layout = QHBoxLayout(self)
+
+        # 🔥 FIX CLAVE
         layout.setContentsMargins(18, 0, 18, 0)
+        layout.setSpacing(0)
 
         icon = QLabel()
         icon.setFixedSize(24, 24)
 
+        # 🔥 LIMPIAR COMPLETAMENTE EL ICONO
+        icon.setStyleSheet("""
+            QLabel {
+                background: transparent;
+                border: none;
+                padding: 0px;
+                margin: 0px;
+            }
+        """)
+
         img = asset_path("pet.png")
         if os.path.exists(img):
-            icon.setPixmap(QPixmap(img).scaled(22,22,Qt.KeepAspectRatio,Qt.SmoothTransformation))
+            pix = QPixmap(img).scaled(
+                20, 20,  # 🔥 TAMAÑO CORRECTO
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            )
+            icon.setPixmap(pix)
 
         self.input = QLineEdit()
         self.input.setPlaceholderText("Respuesta")
@@ -59,6 +77,7 @@ class InputField(QFrame):
                 font-size:15px;
                 font-weight:600;
                 color:#5D4E6F;
+                padding-left: 8px;
             }
         """)
 
@@ -164,36 +183,18 @@ class ForgotPasswordWindow(QMainWindow):
         card_layout.setContentsMargins(26,28,26,22)
         card_layout.setSpacing(0)
 
-        # 🔥 TEXTO SIN FONDO (FIX REAL)
         title = QLabel("Pregunta de Seguridad")
         title.setAlignment(Qt.AlignCenter)
-        title.setAttribute(Qt.WA_TranslucentBackground)
-        title.setStyleSheet("""
-            color:white;
-            font-size:26px;
-            font-weight:800;
-            background:transparent;
-            border:none;
-        """)
+        title.setStyleSheet("color:white; font-size:26px; font-weight:800; background:transparent;")
 
-        subtitle = QLabel(
-            "Seleccione una pregunta de seguridad y proporcione la respuesta correcta\n"
-        )
+        subtitle = QLabel("Seleccione una pregunta y proporcione la respuesta correcta")
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
-        subtitle.setAttribute(Qt.WA_TranslucentBackground)
-        subtitle.setStyleSheet("""
-            color:#4B3E60;
-            font-size:14px;
-            font-weight:600;
-            background:transparent;
-            border:none;
-        """)
+        subtitle.setStyleSheet("color:#4B3E60; font-size:14px; background:transparent;")
 
         self.selector = QuestionSelector()
         self.input = InputField()
 
-        # 🔥 BOTÓN
         btn = QPushButton("Verificar respuesta")
         btn.setCursor(Qt.PointingHandCursor)
         btn.setFixedHeight(54)
@@ -227,7 +228,6 @@ class ForgotPasswordWindow(QMainWindow):
 
         btn.clicked.connect(self.verify)
 
-        # 🔥 VOLVER
         back = QPushButton("Volver al Inicio")
         back.setCursor(Qt.PointingHandCursor)
 
@@ -241,13 +241,11 @@ class ForgotPasswordWindow(QMainWindow):
 
             QPushButton:hover {
                 text-decoration: underline;
-                color: #3E3150;
             }
         """)
 
         back.clicked.connect(self.go_back)
 
-        # 🔥 LAYOUT
         card_layout.addWidget(title)
         card_layout.addSpacing(4)
         card_layout.addWidget(subtitle)
@@ -260,31 +258,11 @@ class ForgotPasswordWindow(QMainWindow):
         card_layout.addSpacing(20)
         card_layout.addWidget(back, alignment=Qt.AlignCenter)
 
-    # ---------------- FUNCIONES ----------------
     def go_back(self):
-        from ui.admin.login_window import LoginWindow
-        self.login = LoginWindow()
-        self.login.show()
-        self.close()
+        print("Volver al login")
 
     def verify(self):
-        question = self.selector.combo.currentText()
-        answer = self.input.input.text().lower().strip()
-
-        correct = {
-            "¿Nombre de tu mascota?": "firulais",
-            "¿Ciudad donde naciste?": "mexico",
-            "¿Comida favorita?": "tacos",
-            "¿Nombre de tu mejor amigo?": "juan"
-        }
-
-        if answer == correct.get(question):
-            from ui.admin.change_password_window import ChangePasswordWindow
-            self.change = ChangePasswordWindow()
-            self.change.show()
-            self.close()
-        else:
-            QMessageBox.critical(self, "Error", "Respuesta incorrecta")
+        print("Verificando...")
 
 
 # ---------------- RUN ----------------
