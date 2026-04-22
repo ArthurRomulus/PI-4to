@@ -45,10 +45,16 @@ def crear_tablas():
             id_role INTEGER,
             name TEXT NOT NULL,
             account_number TEXT,
+            activo INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (id_role) REFERENCES ROLES(id_role)
         )
         """)
+        # Migración: agregar columna activo si no existe
+        try:
+            cursor.execute("ALTER TABLE USERS ADD COLUMN activo INTEGER DEFAULT 1")
+        except Exception:
+            pass  # La columna ya existe
         
         # Crear tabla ADMINS
         cursor.execute("""
@@ -104,4 +110,4 @@ def crear_tablas():
         print(f"Error creando tablas: {e}")
         return False
     finally:
-        conn.close()
+        conn.close()
