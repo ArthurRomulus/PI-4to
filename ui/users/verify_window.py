@@ -21,17 +21,17 @@ from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
 
 from hardware.camera.camera_verify import CameraThread
 
-import sys
+import sys as _sys
 import os as _os
 _PROJ_ROOT = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", ".."))
-if _PROJ_ROOT not in sys.path:
-    sys.path.insert(0, _PROJ_ROOT)
+if _PROJ_ROOT not in _sys.path:
+    _sys.path.insert(0, _PROJ_ROOT)
 
 try:
     from database.consultas import registrar_acceso as _registrar_acceso
-except Exception:
+except Exception as _e:
+    print(f"[verify_window] No se pudo importar registrar_acceso: {_e}")
     _registrar_acceso = None
-
 
 # ── Colores del tema ───────────────────────────────────────────────────────────
 COLOR_IDLE    = "#f59e0b"   # Ámbar — esperando
@@ -409,8 +409,16 @@ class VerifyWindow(QWidget):
         self._result_shown = True
         self._stop_camera()
 
+        # ── Registrar acceso en la base de datos ──────────────────────────────
+        if _registrar_acceso is not None:
+            try:
+                status = "AUTHORIZED" if autorizado else "DENIED"
+                _registrar_acceso(nombre=nombre if nombre else None, status=status)
+            except Exception as _err:
+                print(f"[verify_window] Error al registrar acceso: {_err}")
+
         if autorizado:
-            self.status_label.setText(f"✅ ACCESO AUTORIZADO — {nombre.upper()}")
+            self.status_label.setText(f"\u2705 ACCESO AUTORIZADO \u2014 {nombre.upper()}")
             self.status_label.setStyleSheet(
                 "color: #22c55e; font-size: 15px; font-weight: bold;"
             )
@@ -420,14 +428,8 @@ class VerifyWindow(QWidget):
                 QProgressBar { background-color: #1e293b; border-radius: 5px; border: none; }
                 QProgressBar::chunk { background-color: #22c55e; border-radius: 5px; }
             """)
-            # ── Registrar acceso en la base de datos ──────────────────────────
-            if _registrar_acceso:
-                try:
-                    _registrar_acceso(nombre, "AUTHORIZED")
-                except Exception as _e:
-                    print(f"[VerifyWindow] Error registrando acceso: {_e}")
         else:
-            self.status_label.setText("❌ ACCESO DENEGADO — USUARIO NO REGISTRADO")
+            self.status_label.setText("\u274c ACCESO DENEGADO \u2014 USUARIO NO REGISTRADO")
             self.status_label.setStyleSheet(
                 f"color: {COLOR_ERROR}; font-size: 15px; font-weight: bold;"
             )
@@ -441,9 +443,9 @@ class VerifyWindow(QWidget):
         # Mostrar banner sobre la cámara
         self._mostrar_banner(autorizado, nombre)
 
-        # Countdown para quitar el banner (5 s) — la ventana NO se cierra
+        # Countdown para quitar el banner (3 s) — la ventana NO se cierra
         self._countdown_secs = 3
-        self.countdown_label.setText(f"Proximo intento en en {self._countdown_secs} segundos...")
+        self.countdown_label.setText(f"Proximo intento en {self._countdown_secs} segundos...")
         self.countdown_label.setVisible(True)
         self._countdown_timer = QTimer(self)
         self._countdown_timer.timeout.connect(self._tick_countdown)
@@ -566,4 +568,4 @@ class VerifyWindow(QWidget):
         self._stop_camera()
         if self._countdown_timer:
             self._countdown_timer.stop()
-        event.accept()
+        event.accept()
