@@ -7,8 +7,8 @@ embeddings y compararlos con los almacenados en la DB.
 Flujo:
   1. Detecta cara con Haar Cascade (face_detection.py).
   2. Cuando la cara está dentro del círculo/óvalo Y a distancia OK,
-     inicia un contador de 5 segundos de "cara alineada".
-  3. Al cumplir 5 s seguidos, extrae el embedding del frame actual
+     inicia un contador de 3 segundos de "cara alineada".
+  3. Al cumplir 3 s seguidos, extrae el embedding del frame actual
      y lo compara contra todos los usuarios en la DB.
   4. Emite recognition_result(True, nombre) si hay match confiable,
              recognition_result(False, "")  si no hay match.
@@ -28,7 +28,7 @@ from hardware.face_embedder import (
 )
 
 # ── Configuración ──────────────────────────────────────────────────────────────
-HOLD_SECONDS = 5
+HOLD_SECONDS = 3
 FPS_SLEEP_MS = 30
 
 # Más estricto para evitar falsos positivos.
