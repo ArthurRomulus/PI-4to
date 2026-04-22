@@ -32,6 +32,7 @@ if PROJECT_ROOT not in sys.path:
 from hardware.face_detection import FaceDetector
 from hardware.face_embedder  import compute_face_embedding
 from database.consultas      import guardar_usuario
+from ui.sound_manager import play_sound
 
 
 # ── Hilo de cámara para registro ───────────────────────────────────────────────
@@ -429,6 +430,7 @@ class RegisterPage(QWidget):
 
     # ── Guardar usuario ────────────────────────────────────────────────────────
     def _save_user(self):
+        play_sound("registrado.mp3")
         nombre = self.name_input.text().strip()
         if not nombre:
             QMessageBox.warning(self, "Nombre vacío", "El nombre del usuario no puede estar vacío.")

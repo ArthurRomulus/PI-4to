@@ -20,6 +20,7 @@ from PyQt5.QtCore import QTimer, Qt, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
 
 from hardware.camera.camera_verify import CameraThread
+from ui.sound_manager import play_sound
 
 
 # ── Colores del tema ───────────────────────────────────────────────────────────
@@ -399,6 +400,7 @@ class VerifyWindow(QWidget):
         self._stop_camera()
 
         if autorizado:
+            play_sound("acceso_permitido.mp3")
             self.status_label.setText(f"✅ ACCESO AUTORIZADO — {nombre.upper()}")
             self.status_label.setStyleSheet(
                 "color: #22c55e; font-size: 15px; font-weight: bold;"
@@ -410,6 +412,7 @@ class VerifyWindow(QWidget):
                 QProgressBar::chunk { background-color: #22c55e; border-radius: 5px; }
             """)
         else:
+            play_sound("acceso_denegado.mp3")
             self.status_label.setText("❌ ACCESO DENEGADO — USUARIO NO REGISTRADO")
             self.status_label.setStyleSheet(
                 f"color: {COLOR_ERROR}; font-size: 15px; font-weight: bold;"
