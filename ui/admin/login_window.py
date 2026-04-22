@@ -395,6 +395,7 @@ class LoginWindow(QMainWindow):
             QPushButton {
                 background: transparent;
                 border: none;
+                padding-top:20px;
                 color: white;
                 font-size: 13px;
                 font-weight: 800;
