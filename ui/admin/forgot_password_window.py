@@ -145,19 +145,19 @@ class QuestionSelector(QFrame):
                 background: rgba(138, 31, 227, 0.35);
             }
 
-            /* 🔥 SELECCIONADO */
+            /*  SELECCIONADO */
             QComboBox QAbstractItemView::item:selected {
                 background: #8A1FE3;
                 color: white;
             }
 
-            /* 🔥 QUITAR AZUL DEL SISTEMA */
+            /*  QUITAR AZUL DEL SISTEMA */
             QComboBox QAbstractItemView::item:focus {
                 outline: none;
                 background: #8A1FE3;
             }
 
-            /* 🔥 SCROLL LIMPIO */
+            /*  SCROLL LIMPIO */
             QScrollBar:vertical {
                 background: transparent;
                 width: 4px;
