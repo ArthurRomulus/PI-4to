@@ -122,7 +122,7 @@ class QuestionSelector(QFrame):
                 height: 0px;
             }
 
-            /* 🔥 DROPDOWN PREMIUM REAL */
+            /*  DROPDOWN PREMIUM REAL */
             QComboBox QAbstractItemView {
                 background-color: #1A1035;
                 border-radius: 12px;
@@ -132,7 +132,7 @@ class QuestionSelector(QFrame):
                 border: 1px solid rgba(255,255,255,0.08);
             }
 
-            /* 🔥 ITEMS */
+            /* ITEMS */
             QComboBox QAbstractItemView::item {
                 padding: 12px;
                 margin: 4px;
@@ -140,7 +140,7 @@ class QuestionSelector(QFrame):
                 background: transparent;
             }
 
-            /* 🔥 HOVER SUAVE */
+            /* HOVER SUAVE */
             QComboBox QAbstractItemView::item:hover {
                 background: rgba(138, 31, 227, 0.35);
             }
