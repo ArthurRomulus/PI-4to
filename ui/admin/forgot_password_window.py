@@ -27,7 +27,7 @@ class GlassCard(QFrame):
         """)
 
 
-# ---------------- INPUT (ICONO FIXED) ----------------
+# ---------------- INPUT ----------------
 class InputField(QFrame):
     def __init__(self):
         super().__init__()
@@ -41,15 +41,11 @@ class InputField(QFrame):
         """)
 
         layout = QHBoxLayout(self)
-
-        # 🔥 FIX CLAVE
         layout.setContentsMargins(18, 0, 18, 0)
         layout.setSpacing(0)
 
         icon = QLabel()
         icon.setFixedSize(24, 24)
-
-        # 🔥 LIMPIAR COMPLETAMENTE EL ICONO
         icon.setStyleSheet("""
             QLabel {
                 background: transparent;
@@ -62,7 +58,7 @@ class InputField(QFrame):
         img = asset_path("pet.png")
         if os.path.exists(img):
             pix = QPixmap(img).scaled(
-                20, 20,  # 🔥 TAMAÑO CORRECTO
+                20, 20,
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation
             )
@@ -258,14 +254,38 @@ class ForgotPasswordWindow(QMainWindow):
         card_layout.addSpacing(20)
         card_layout.addWidget(back, alignment=Qt.AlignCenter)
 
+    # 🔥 SOLO ARREGLÉ ESTO
     def go_back(self):
-        print("Volver al login")
+        from ui.admin.login_window import LoginWindow
+        self.login = LoginWindow()
+        self.login.show()
+        self.close()
 
     def verify(self):
-        print("Verificando...")
+        question = self.selector.combo.currentText()
+        answer = self.input.input.text().lower().strip()
+
+        correct = {
+            "¿Nombre de tu mascota?": "firulais",
+            "¿Ciudad donde naciste?": "mexico",
+            "¿Comida favorita?": "tacos",
+            "¿Nombre de tu mejor amigo?": "juan"
+        }
+
+        if not answer:
+            QMessageBox.warning(self, "Error", "Escribe una respuesta")
+            return
+
+        if answer == correct.get(question):
+            from ui.admin.change_password_window import ChangePasswordWindow
+            self.change = ChangePasswordWindow()
+            self.change.show()
+            self.close()
+        else:
+            QMessageBox.critical(self, "Error", "Respuesta incorrecta")
 
 
-# ---------------- RUN ----------------
+# RUN
 if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)
