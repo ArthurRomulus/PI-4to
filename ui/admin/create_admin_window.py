@@ -21,6 +21,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from database.consultas import crear_admin, obtener_admin_por_email, hash_pin, crear_tablas
+from ui.sound_manager import play_sound
 
 
 def asset_path(filename):
@@ -34,7 +35,7 @@ class CreateAdminWindow(QDialog):
         self.setFixedSize(480, 500)
         self.setStyleSheet("""
             QDialog {
-                background: #1F1A22;
+                background: #0f172a;
             }
         """)
  
@@ -54,7 +55,7 @@ class CreateAdminWindow(QDialog):
         title_label = QLabel("Crear Administrador")
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("""
-            color: #E5D8EA;
+            color: #ffffff;
             font-size: 28px;
             font-weight: 800;
             font-family: Georgia;
@@ -67,7 +68,7 @@ class CreateAdminWindow(QDialog):
         subtitle = QLabel("Crea una nueva cuenta de administrador")
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("""
-            color: #B0A8B8;
+            color: #cbd5e1;
             font-size: 13px;
             font-weight: 600;
             background: transparent;
@@ -79,7 +80,7 @@ class CreateAdminWindow(QDialog):
         # Email label
         email_label = QLabel("Correo electrónico")
         email_label.setStyleSheet("""
-            color: #E5D8EA;
+            color: #ffffff;
             font-size: 12px;
             font-weight: 700;
             background: transparent;
@@ -93,19 +94,19 @@ class CreateAdminWindow(QDialog):
         self.email_input.setFixedHeight(44)
         self.email_input.setStyleSheet("""
             QLineEdit {
-                background: #2A2530;
-                border: 1px solid #4A424E;
+                background: #1e293b;
+                border: 1px solid #334155;
                 border-radius: 8px;
-                color: #E5D8EA;
+                color: #ffffff;
                 font-size: 13px;
                 padding: 0 12px;
             }
             QLineEdit::placeholder {
-                color: #7A7280;
+                color: #64748b;
             }
             QLineEdit:focus {
-                border: 1px solid #8B1FE0;
-                background: #3A3240;
+                border: 1px solid #475569;
+                background: #0f172a;
             }
         """)
         layout.addWidget(self.email_input)
@@ -113,7 +114,7 @@ class CreateAdminWindow(QDialog):
         # Contraseña label
         pass_label = QLabel("Contraseña")
         pass_label.setStyleSheet("""
-            color: #E5D8EA;
+            color: #ffffff;
             font-size: 12px;
             font-weight: 700;
             background: transparent;
@@ -128,19 +129,19 @@ class CreateAdminWindow(QDialog):
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setStyleSheet("""
             QLineEdit {
-                background: #2A2530;
-                border: 1px solid #4A424E;
+                background: #1e293b;
+                border: 1px solid #334155;
                 border-radius: 8px;
-                color: #E5D8EA;
+                color: #ffffff;
                 font-size: 13px;
                 padding: 0 12px;
             }
             QLineEdit::placeholder {
-                color: #7A7280;
+                color: #64748b;
             }
             QLineEdit:focus {
-                border: 1px solid #8B1FE0;
-                background: #3A3240;
+                border: 1px solid #475569;
+                background: #0f172a;
             }
         """)
         layout.addWidget(self.password_input)
@@ -148,7 +149,7 @@ class CreateAdminWindow(QDialog):
         # Confirmar contraseña label
         confirm_label = QLabel("Confirmar contraseña")
         confirm_label.setStyleSheet("""
-            color: #E5D8EA;
+            color: #ffffff;
             font-size: 12px;
             font-weight: 700;
             background: transparent;
@@ -163,19 +164,19 @@ class CreateAdminWindow(QDialog):
         self.password_confirm_input.setEchoMode(QLineEdit.Password)
         self.password_confirm_input.setStyleSheet("""
             QLineEdit {
-                background: #2A2530;
-                border: 1px solid #4A424E;
+                background: #1e293b;
+                border: 1px solid #334155;
                 border-radius: 8px;
-                color: #E5D8EA;
+                color: #ffffff;
                 font-size: 13px;
                 padding: 0 12px;
             }
             QLineEdit::placeholder {
-                color: #7A7280;
+                color: #64748b;
             }
             QLineEdit:focus {
-                border: 1px solid #8B1FE0;
-                background: #3A3240;
+                border: 1px solid #475569;
+                background: #0f172a;
             }
         """)
         layout.addWidget(self.password_confirm_input)
@@ -192,25 +193,18 @@ class CreateAdminWindow(QDialog):
         create_button.setCursor(Qt.PointingHandCursor)
         create_button.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #8B1FE0,
-                    stop:1 #B777EE
-                );
+                background-color: #3b82f6;
                 border: none;
                 border-radius: 8px;
-                color: white;
+                color: #ffffff;
                 font-size: 13px;
                 font-weight: 700;
             }
             QPushButton:hover {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #7A1BCD,
-                    stop:1 #A865E9
-                );
+                background-color: #2563eb;
             }
             QPushButton:pressed {
+                background-color: #1d4ed8;
                 padding-top: 1px;
             }
         """)
@@ -223,16 +217,16 @@ class CreateAdminWindow(QDialog):
         close_button.setCursor(Qt.PointingHandCursor)
         close_button.setStyleSheet("""
             QPushButton {
-                background: #2A2530;
-                border: 1px solid #4A424E;
+                background-color: #1e293b;
+                border: 1px solid #334155;
                 border-radius: 8px;
-                color: #E5D8EA;
+                color: #ffffff;
                 font-size: 13px;
                 font-weight: 700;
             }
             QPushButton:hover {
-                background: #3A3240;
-                border: 1px solid #5A524E;
+                background-color: #334155;
+                border: 1px solid #475569;
             }
         """)
         close_button.clicked.connect(self.close)
@@ -248,24 +242,159 @@ class CreateAdminWindow(QDialog):
 
         # Validaciones
         if not email or not password or not password_confirm:
-            QMessageBox.warning(self, "Campos incompletos", "Por favor complete todos los campos.")
+            play_sound("registrado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Campos incompletos")
+            msg.setText("Por favor complete todos los campos.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QLabel {
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+                QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()
             return
 
         if "@" not in email:
-            QMessageBox.warning(self, "Email inválido", "Ingresa un correo electrónico válido.")
+            play_sound("registrado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Email inválido")
+            msg.setText("Ingresa un correo electrónico válido.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QLabel {
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+                QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()
             return
 
         if len(password) < 6:
-            QMessageBox.warning(self, "Contraseña débil", "La contraseña debe tener al menos 6 caracteres.")
+            play_sound("registrado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Contraseña débil")
+            msg.setText("La contraseña debe tener al menos 6 caracteres.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QLabel {
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+                QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()
             return
 
         if password != password_confirm:
-            QMessageBox.warning(self, "Contraseñas no coinciden", "Las contraseñas no son iguales.")
+            play_sound("registrado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Contraseñas no coinciden")
+            msg.setText("Las contraseñas no son iguales.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QLabel {
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+                QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()
             return
 
         # Verificar si el email ya existe
         if obtener_admin_por_email(email):
-            QMessageBox.warning(self, "Email registrado", f"El correo '{email}' ya está registrado.")
+            play_sound("registrado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Email registrado")
+            msg.setText(f"El correo '{email}' ya está registrado.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QLabel {
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+                QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()
             return
 
         # Crear el admin
@@ -274,13 +403,90 @@ class CreateAdminWindow(QDialog):
             admin_id = crear_admin(email, pin_hash)
             
             if admin_id:
-                QMessageBox.information(
-                    self,
-                    "Éxito",
-                    f"Administrador creado exitosamente.\n\nCorreo: {email}\nID: {admin_id}"
-                )
+                play_sound("registrado.mp3")
+                msg = QMessageBox(self)
+                msg.setWindowTitle("Éxito")
+                msg.setText(f"Administrador creado exitosamente.\n\nCorreo: {email}\nID: {admin_id}")
+                msg.setIcon(QMessageBox.NoIcon)
+                msg.setStandardButtons(QMessageBox.Ok)
+                msg.setStyleSheet("""
+                    QMessageBox {
+                        background-color: #0f172a;
+                    }
+                    QLabel {
+                        color: #ffffff;
+                        font-size: 13px;
+                    }
+                    QPushButton {
+                        background-color: #1e293b;
+                        color: #ffffff;
+                        border: 1px solid #ffffff;
+                        border-radius: 6px;
+                        padding: 6px 18px;
+                        font-weight: bold;
+                        min-width: 60px;
+                    }
+                    QPushButton:hover {
+                        background-color: #334155;
+                    }
+                """)
+                msg.exec_()
                 self.close()
             else:
-                QMessageBox.critical(self, "Error", "No se pudo crear el administrador.")
+                play_sound("registrado.mp3")
+                msg = QMessageBox(self)
+                msg.setWindowTitle("Error")
+                msg.setText("No se pudo crear el administrador.")
+                msg.setIcon(QMessageBox.NoIcon)
+                msg.setStandardButtons(QMessageBox.Ok)
+                msg.setStyleSheet("""
+                    QMessageBox {
+                        background-color: #0f172a;
+                    }
+                    QLabel {
+                        color: #ffffff;
+                        font-size: 13px;
+                    }
+                    QPushButton {
+                        background-color: #1e293b;
+                        color: #ffffff;
+                        border: 1px solid #ffffff;
+                        border-radius: 6px;
+                        padding: 6px 18px;
+                        font-weight: bold;
+                        min-width: 60px;
+                    }
+                    QPushButton:hover {
+                        background-color: #334155;
+                    }
+                """)
+                msg.exec_()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error al crear administrador: {str(e)}")
+            play_sound("registrado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Error")
+            msg.setText(f"Error al crear administrador: {str(e)}")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QLabel {
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+                QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()

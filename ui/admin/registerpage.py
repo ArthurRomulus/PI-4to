@@ -16,7 +16,7 @@ import os
 
 import cv2
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtGui import QImage, QPixmap, QColor, QPalette
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QFrame,
@@ -334,8 +334,41 @@ class RegisterPage(QWidget):
     def _start_capture(self):
         nombre = self.name_input.text().strip()
         if not nombre:
-            QMessageBox.warning(self, "Nombre requerido",
-                                "Por favor ingrese el nombre del usuario antes de iniciar.")
+            play_sound("acceso_denegado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Nombre requerido")
+            msg.setText("Por favor ingrese el nombre del usuario antes de iniciar.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            
+            # Forzar color blanco en el texto
+            palette = msg.palette()
+            palette.setColor(QPalette.WindowText, QColor("#ffffff"))
+            msg.setPalette(palette)
+            
+            # Aplicar stylesheet agresivo
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QMessageBox QLabel {
+                    color: #ffffff !important;
+                    font-size: 13px;
+                }
+                QMessageBox QDialogButtonBox QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff !important;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QMessageBox QDialogButtonBox QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()
             return
 
         self._pending_embedding = None
@@ -442,19 +475,65 @@ class RegisterPage(QWidget):
         resultado = guardar_usuario(nombre, self._pending_embedding)
 
         if resultado:
-            QMessageBox.information(
-                self, "Usuario registrado",
-                f"✅ El usuario '{nombre}' fue registrado exitosamente.\n"
-                f"ID asignado: {resultado}"
-            )
+            play_sound("registrado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Usuario registrado")
+            msg.setText(f"✅ El usuario '{nombre}' fue registrado exitosamente.\nID asignado: {resultado}")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QLabel {
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+                QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()
             self.name_input.clear()
             self._reset_ui()
         else:
-            QMessageBox.critical(
-                self, "Error al guardar",
-                f"No se pudo guardar el usuario '{nombre}'.\n"
-                "Verifique que el nombre no esté duplicado."
-            )
+            play_sound("registrado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Error al guardar")
+            msg.setText(f"No se pudo guardar el usuario '{nombre}'.\nVerifique que el nombre no esté duplicado.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QLabel {
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+                QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff;
+                    border: 1px solid #334155;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()
 
     # ── Helpers ────────────────────────────────────────────────────────────────
     def _set_status(self, text: str, color: str):

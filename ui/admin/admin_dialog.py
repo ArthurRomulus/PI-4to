@@ -2,6 +2,8 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor, QPalette
+from ui.sound_manager import play_sound
 
 
 class AdminDialog(QDialog):
@@ -47,10 +49,78 @@ class AdminDialog(QDialog):
         username = self.username_input.text().strip()
         password = self.password_input.text().strip()
         if not username or not password:
-            QMessageBox.warning(self, "Error", "Complete todos los campos.")
+            play_sound("acceso_denegado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Error")
+            msg.setText("Complete todos los campos.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            
+            # Forzar color blanco en el texto
+            palette = msg.palette()
+            palette.setColor(QPalette.WindowText, QColor("#ffffff"))
+            msg.setPalette(palette)
+            
+            # Aplicar stylesheet agresivo
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QMessageBox QLabel {
+                    color: #ffffff !important;
+                    font-size: 13px;
+                }
+                QMessageBox QDialogButtonBox QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff !important;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QMessageBox QDialogButtonBox QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()
             return
         is_valid = self.access_controller.db.verify_admin(username, password)
         if is_valid:
             self.accept()
         else:
-            QMessageBox.critical(self, "Acceso Denegado", "Credenciales incorrectas.")
+            play_sound("acceso_denegado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Acceso Denegado")
+            msg.setText("Credenciales incorrectas.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            
+            # Forzar color blanco en el texto
+            palette = msg.palette()
+            palette.setColor(QPalette.WindowText, QColor("#ffffff"))
+            msg.setPalette(palette)
+            
+            # Aplicar stylesheet agresivo
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QMessageBox QLabel {
+                    color: #ffffff !important;
+                    font-size: 13px;
+                }
+                QMessageBox QDialogButtonBox QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff !important;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QMessageBox QDialogButtonBox QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()

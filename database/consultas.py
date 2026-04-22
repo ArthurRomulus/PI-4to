@@ -216,7 +216,7 @@ def obtener_usuarios():
         return []
 
 def obtener_lista_usuarios():
-    """Obtiene lista de usuarios (id_user, name, role_name, created_at, activo, account_number) para la UI."""
+    """Obtiene lista de usuarios (id_user, name, role_name, created_at) para la UI."""
     try:
         conn = obtener_conexion()
         if conn is None:
@@ -224,7 +224,7 @@ def obtener_lista_usuarios():
         
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT u.id_user, u.name, r.role_name, u.created_at, u.activo, u.account_number
+            SELECT u.id_user, u.name, r.role_name, u.created_at
             FROM USERS u
             LEFT JOIN ROLES r ON u.id_role = r.id_role
             ORDER BY u.created_at DESC
@@ -238,15 +238,12 @@ def obtener_lista_usuarios():
                 'id': row[0],
                 'nombre': row[1],
                 'tipo_usuario': row[2] or 'usuario',
-                'fecha_registro': row[3],
-                'activo': bool(row[4]) if row[4] is not None else True,
-                'account_number': row[5] or ''
+                'fecha_registro': row[3]
             })
         return resultado
     except Exception as e:
         print(f"Error obteniendo lista de usuarios: {e}")
         return []
-
 
 def obtener_usuario_por_nombre(nombre):
     """Obtiene un usuario específico por nombre con su embedding."""
@@ -619,101 +616,3 @@ def contar_accesos_hoy():
     except Exception as e:
         print(f"Error contando accesos de hoy: {e}")
         return 0
-
-
-# ===== FUNCIONES NUEVAS: GESTIÓN AVANZADA =====
-
-def obtener_lista_admins():
-    """Obtiene lista de administradores para la UI."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return []
-        cursor = conn.cursor()
-        cursor.execute("SELECT id_admin, email FROM ADMINS ORDER BY id_admin ASC")
-        datos = cursor.fetchall()
-        conn.close()
-        return [{'id_admin': row[0], 'email': row[1]} for row in datos]
-    except Exception as e:
-        print(f"Error obteniendo lista de admins: {e}")
-        return []
-
-
-def eliminar_admin(id_admin):
-    """Elimina un administrador por ID. Protege admin@local."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return False, "Sin conexión a la base de datos."
-        cursor = conn.cursor()
-        cursor.execute("SELECT email FROM ADMINS WHERE id_admin = ?", (id_admin,))
-        row = cursor.fetchone()
-        if not row:
-            conn.close()
-            return False, "Administrador no encontrado."
-        email = row[0]
-        if email == "admin@local":
-            conn.close()
-            return False, "No se puede eliminar al administrador principal (admin@local)."
-        cursor.execute("DELETE FROM ADMINS WHERE id_admin = ?", (id_admin,))
-        conn.commit()
-        conn.close()
-        print(f"Admin '{email}' eliminado exitosamente")
-        return True, ""
-    except Exception as e:
-        print(f"Error eliminando admin: {e}")
-        return False, str(e)
-
-
-def dar_de_baja_usuario(id_user):
-    """Marca un usuario como inactivo (activo=0)."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return False
-        cursor = conn.cursor()
-        cursor.execute("UPDATE USERS SET activo = 0 WHERE id_user = ?", (id_user,))
-        conn.commit()
-        conn.close()
-        print(f"Usuario ID {id_user} dado de baja")
-        return True
-    except Exception as e:
-        print(f"Error al dar de baja usuario: {e}")
-        return False
-
-
-def reactivar_usuario(id_user):
-    """Marca un usuario como activo (activo=1)."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return False
-        cursor = conn.cursor()
-        cursor.execute("UPDATE USERS SET activo = 1 WHERE id_user = ?", (id_user,))
-        conn.commit()
-        conn.close()
-        print(f"Usuario ID {id_user} reactivado")
-        return True
-    except Exception as e:
-        print(f"Error al reactivar usuario: {e}")
-        return False
-
-
-def editar_usuario(id_user, nuevo_nombre, nuevo_account=None):
-    """Actualiza nombre y número de cuenta de un usuario."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return False
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE USERS SET name = ?, account_number = ? WHERE id_user = ?",
-            (nuevo_nombre, nuevo_account, id_user)
-        )
-        conn.commit()
-        conn.close()
-        print(f"Usuario ID {id_user} actualizado: nombre='{nuevo_nombre}'")
-        return True
-    except Exception as e:
-        print(f"Error al editar usuario: {e}")
-        return False
