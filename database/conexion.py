@@ -97,6 +97,28 @@ def crear_tablas():
         )
         """)
 
+        # Migración: columna activo en USERS (1=activo, 0=dado de baja)
+        try:
+            cursor.execute("ALTER TABLE USERS ADD COLUMN activo INTEGER DEFAULT 1")
+            conn.commit()
+            print("Migración: columna 'activo' añadida a USERS")
+        except sqlite3.OperationalError:
+            pass  # Ya existe la columna
+
+        # Insertar roles por defecto
+        for role in ("usuario", "admin", "staff"):
+            cursor.execute("INSERT OR IGNORE INTO ROLES (role_name) VALUES (?)", (role,))
+
+        # Admin por defecto admin@local si no existe ninguno
+        import hashlib
+        cursor.execute("SELECT COUNT(*) FROM ADMINS")
+        if cursor.fetchone()[0] == 0:
+            pin_hash = hashlib.sha256("admin123".encode("utf-8")).hexdigest()
+            cursor.execute(
+                "INSERT OR IGNORE INTO ADMINS (email, pin_hash) VALUES (?, ?)",
+                ("admin@local", pin_hash)
+            )
+
         conn.commit()
         print("Tablas creadas exitosamente")
         return True

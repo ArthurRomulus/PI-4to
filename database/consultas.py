@@ -216,7 +216,7 @@ def obtener_usuarios():
         return []
 
 def obtener_lista_usuarios():
-    """Obtiene lista de usuarios (id_user, name, role_name, created_at) para la UI."""
+    """Obtiene lista de usuarios (id_user, name, role_name, created_at, activo) para la UI."""
     try:
         conn = obtener_conexion()
         if conn is None:
@@ -224,7 +224,8 @@ def obtener_lista_usuarios():
         
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT u.id_user, u.name, r.role_name, u.created_at
+            SELECT u.id_user, u.name, r.role_name, u.created_at,
+                   COALESCE(u.activo, 1) as activo, u.account_number
             FROM USERS u
             LEFT JOIN ROLES r ON u.id_role = r.id_role
             ORDER BY u.created_at DESC
@@ -238,7 +239,9 @@ def obtener_lista_usuarios():
                 'id': row[0],
                 'nombre': row[1],
                 'tipo_usuario': row[2] or 'usuario',
-                'fecha_registro': row[3]
+                'fecha_registro': row[3],
+                'activo': bool(row[4]),
+                'account_number': row[5] or ''
             })
         return resultado
     except Exception as e:
@@ -517,9 +520,103 @@ def limpiar_embeddings_invalidos():
         conn.close()
         print(f"Limpieza completada: {eliminados} usuarios eliminados")
         return True
+
+
+def dar_de_baja_usuario(id_user):
+    """Marca un usuario como dado de baja (activo=0)."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("UPDATE USERS SET activo = 0 WHERE id_user = ?", (id_user,))
+        conn.commit()
+        conn.close()
+        print(f"Usuario {id_user} dado de baja")
+        return True
     except Exception as e:
-        print(f"Error limpiando embeddings: {e}")
+        print(f"Error dando de baja usuario: {e}")
         return False
+
+
+def reactivar_usuario(id_user):
+    """Reactiva un usuario dado de baja (activo=1)."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("UPDATE USERS SET activo = 1 WHERE id_user = ?", (id_user,))
+        conn.commit()
+        conn.close()
+        print(f"Usuario {id_user} reactivado")
+        return True
+    except Exception as e:
+        print(f"Error reactivando usuario: {e}")
+        return False
+
+
+def editar_usuario(id_user, nuevo_nombre, nuevo_account=None):
+    """Actualiza el nombre y número de cuenta de un usuario."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE USERS SET name = ?, account_number = ? WHERE id_user = ?",
+            (nuevo_nombre, nuevo_account, id_user)
+        )
+        conn.commit()
+        conn.close()
+        print(f"Usuario {id_user} actualizado: nombre='{nuevo_nombre}'")
+        return True
+    except Exception as e:
+        print(f"Error editando usuario: {e}")
+        return False
+
+
+def obtener_lista_admins():
+    """Obtiene lista de administradores para la UI."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return []
+        cursor = conn.cursor()
+        cursor.execute("SELECT id_admin, email FROM ADMINS ORDER BY id_admin")
+        rows = cursor.fetchall()
+        conn.close()
+        return [{"id_admin": r[0], "email": r[1]} for r in rows]
+    except Exception as e:
+        print(f"Error obteniendo lista de admins: {e}")
+        return []
+
+
+def eliminar_admin(id_admin):
+    """Elimina un administrador. Protege admin@local."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False, "Sin conexión a la BD"
+        cursor = conn.cursor()
+        # Proteger admin@local
+        cursor.execute("SELECT email FROM ADMINS WHERE id_admin = ?", (id_admin,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return False, "Administrador no encontrado"
+        if row[0] == "admin@local":
+            conn.close()
+            return False, "No se puede eliminar admin@local"
+        cursor.execute("DELETE FROM ADMINS WHERE id_admin = ?", (id_admin,))
+        conn.commit()
+        conn.close()
+        print(f"Admin {id_admin} ({row[0]}) eliminado")
+        return True, "OK"
+    except Exception as e:
+        print(f"Error eliminando admin: {e}")
+        return False, str(e)
+
 
 def eliminar_usuario_por_nombre(nombre):
     """Elimina un usuario por nombre."""

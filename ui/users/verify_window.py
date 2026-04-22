@@ -21,6 +21,17 @@ from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
 
 from hardware.camera.camera_verify import CameraThread
 
+import sys
+import os as _os
+_PROJ_ROOT = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", ".."))
+if _PROJ_ROOT not in sys.path:
+    sys.path.insert(0, _PROJ_ROOT)
+
+try:
+    from database.consultas import registrar_acceso as _registrar_acceso
+except Exception:
+    _registrar_acceso = None
+
 
 # ── Colores del tema ───────────────────────────────────────────────────────────
 COLOR_IDLE    = "#f59e0b"   # Ámbar — esperando
@@ -409,6 +420,12 @@ class VerifyWindow(QWidget):
                 QProgressBar { background-color: #1e293b; border-radius: 5px; border: none; }
                 QProgressBar::chunk { background-color: #22c55e; border-radius: 5px; }
             """)
+            # ── Registrar acceso en la base de datos ──────────────────────────
+            if _registrar_acceso:
+                try:
+                    _registrar_acceso(nombre, "AUTHORIZED")
+                except Exception as _e:
+                    print(f"[VerifyWindow] Error registrando acceso: {_e}")
         else:
             self.status_label.setText("❌ ACCESO DENEGADO — USUARIO NO REGISTRADO")
             self.status_label.setStyleSheet(
