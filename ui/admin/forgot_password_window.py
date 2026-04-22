@@ -1,6 +1,7 @@
 import os
 
 from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QListView
 from PyQt5.QtGui import QPixmap, QFont
 from PyQt5.QtWidgets import (
     QFrame, QLabel, QVBoxLayout, QWidget, QPushButton,
@@ -99,6 +100,9 @@ class QuestionSelector(QFrame):
 
         self.combo = QComboBox()
 
+        # 🔥 CLAVE: FORZAR VIEW LIMPIO (esto elimina el fondo feo)
+        self.combo.setView(QListView())
+
         self.combo.setStyleSheet("""
             QComboBox {
                 border:none;
@@ -106,14 +110,66 @@ class QuestionSelector(QFrame):
                 color:white;
                 font-size:15px;
                 font-weight:600;
+                padding: 10px;
             }
 
+            QComboBox::drop-down {
+                border: none;
+            }
+
+            QComboBox::down-arrow {
+                width: 0px;
+                height: 0px;
+            }
+
+            /* 🔥 DROPDOWN PREMIUM REAL */
             QComboBox QAbstractItemView {
-                background:white;
-                color:black;
-                border-radius:10px;
-                selection-background-color:#8A1FE3;
-                selection-color:white;
+                background-color: #1A1035;
+                border-radius: 12px;
+                padding: 6px;
+                color: white;
+                outline: none;
+                border: 1px solid rgba(255,255,255,0.08);
+            }
+
+            /* 🔥 ITEMS */
+            QComboBox QAbstractItemView::item {
+                padding: 12px;
+                margin: 4px;
+                border-radius: 8px;
+                background: transparent;
+            }
+
+            /* 🔥 HOVER SUAVE */
+            QComboBox QAbstractItemView::item:hover {
+                background: rgba(138, 31, 227, 0.35);
+            }
+
+            /* 🔥 SELECCIONADO */
+            QComboBox QAbstractItemView::item:selected {
+                background: #8A1FE3;
+                color: white;
+            }
+
+            /* 🔥 QUITAR AZUL DEL SISTEMA */
+            QComboBox QAbstractItemView::item:focus {
+                outline: none;
+                background: #8A1FE3;
+            }
+
+            /* 🔥 SCROLL LIMPIO */
+            QScrollBar:vertical {
+                background: transparent;
+                width: 4px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: rgba(255,255,255,0.3);
+                border-radius: 2px;
+            }
+
+            QScrollBar::handle:vertical:hover {
+                background: rgba(255,255,255,0.6);
             }
         """)
 
@@ -125,6 +181,7 @@ class QuestionSelector(QFrame):
         ])
 
         layout.addWidget(self.combo)
+
 
 
 # ---------------- MAIN ----------------
@@ -183,7 +240,9 @@ class ForgotPasswordWindow(QMainWindow):
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color:white; font-size:26px; font-weight:800; background:transparent;")
 
-        subtitle = QLabel("Seleccione una pregunta y proporcione la respuesta correcta")
+        subtitle = QLabel("Seleccione una pregunta de seguridad y proporcione la respuesta correcta\n"
+            "para poder validar su identidad y continuar con el proceso de recuperación de contraseña."
+        )
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet("color:#4B3E60; font-size:14px; background:transparent;")

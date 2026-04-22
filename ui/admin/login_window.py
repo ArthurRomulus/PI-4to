@@ -167,6 +167,7 @@ class GradientButton(QPushButton):
                     stop:0 #7113D6,
                     stop:0.5 #9C39E8,
                     stop:1 #B95EEF
+                    
                 );
             }
             QPushButton:pressed {
