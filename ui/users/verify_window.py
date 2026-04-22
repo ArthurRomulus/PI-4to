@@ -6,18 +6,17 @@ Flujo de UI:
   1. Muestra la cámara en tiempo real con el óvalo de posicionamiento.
   2. Un arco de progreso indica los 5 segundos de "cara estable".
   3. Al completarse:
-       - Si el usuario está en la DB → borde verde + mensaje AUTORIZADO
-         y abre IdentityConfirmedWindow.
-       - Si NO está en la DB       → borde rojo  + mensaje ACCESO DENEGADO
-         y abre AccessDeniedWindow.
+       - Si el usuario está en la DB → borde verde + letrero AUTORIZADO en la misma ventana
+       - Si NO está en la DB       → borde rojo  + letrero ACCESO DENEGADO en la misma ventana
+       (Sin abrir ventanas adicionales)
 """
 
 import datetime
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QFrame, QProgressBar
+    QPushButton, QFrame, QProgressBar, QGraphicsOpacityEffect
 )
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import QTimer, Qt, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
 
 from hardware.camera.camera_verify import CameraThread
@@ -76,6 +75,92 @@ class ScanLineWidget(QWidget):
             painter.drawLine(px, py, px, py + dy * s)
 
 
+class ResultBanner(QFrame):
+    """Banner de resultado que aparece con animación sobre la ventana."""
+
+    def __init__(self, autorizado: bool, nombre: str = "", parent=None):
+        super().__init__(parent)
+        self.autorizado = autorizado
+
+        if autorizado:
+            bg_color   = "rgba(16, 185, 129, 0.97)"
+            border_col = "#10b981"
+            icon       = "✅"
+            titulo     = "IDENTIDAD CONFIRMADA"
+            subtitulo  = f"Bienvenido, {nombre.upper()}" if nombre else "Acceso verificado correctamente"
+        else:
+            bg_color   = "rgba(239, 68, 68, 0.97)"
+            border_col = "#ef4444"
+            icon       = "🚫"
+            titulo     = "ACCESO DENEGADO"
+            subtitulo  = "Usuario no registrado en el sistema"
+
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg_color};
+                border: 2px solid {border_col};
+                border-radius: 20px;
+            }}
+        """)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(8)
+        layout.setAlignment(Qt.AlignCenter)
+
+        icon_lbl = QLabel(icon)
+        icon_lbl.setAlignment(Qt.AlignCenter)
+        icon_lbl.setStyleSheet("font-size: 52px; background: transparent; border: none;")
+        layout.addWidget(icon_lbl)
+
+        title_lbl = QLabel(titulo)
+        title_lbl.setAlignment(Qt.AlignCenter)
+        title_lbl.setStyleSheet("""
+            color: white;
+            font-size: 22px;
+            font-weight: 800;
+            background: transparent;
+            border: none;
+        """)
+        layout.addWidget(title_lbl)
+
+        sub_lbl = QLabel(subtitulo)
+        sub_lbl.setAlignment(Qt.AlignCenter)
+        sub_lbl.setStyleSheet("""
+            color: rgba(255,255,255,0.88);
+            font-size: 14px;
+            font-weight: 600;
+            background: transparent;
+            border: none;
+        """)
+        layout.addWidget(sub_lbl)
+
+        if not autorizado:
+            hint = QLabel("Por favor, pase a dirección para ser registrado.")
+            hint.setAlignment(Qt.AlignCenter)
+            hint.setWordWrap(True)
+            hint.setStyleSheet("""
+                color: rgba(255,255,255,0.75);
+                font-size: 12px;
+                background: transparent;
+                border: none;
+            """)
+            layout.addWidget(hint)
+
+        # Opacidad para animación de entrada
+        self._opacity_effect = QGraphicsOpacityEffect(self)
+        self._opacity_effect.setOpacity(0.0)
+        self.setGraphicsEffect(self._opacity_effect)
+
+        self._fade_anim = QPropertyAnimation(self._opacity_effect, b"opacity")
+        self._fade_anim.setDuration(350)
+        self._fade_anim.setStartValue(0.0)
+        self._fade_anim.setEndValue(1.0)
+        self._fade_anim.setEasingCurve(QEasingCurve.OutCubic)
+        self._fade_anim.start()
+
+
 class VerifyWindow(QWidget):
     """Ventana principal de verificación biométrica facial."""
 
@@ -85,6 +170,8 @@ class VerifyWindow(QWidget):
         self.main_window = main_window
         self.camera_thread = None
         self._result_shown = False
+        self._result_banner = None
+        self._countdown_timer = None
 
         self.setWindowTitle("Verificación Biométrica")
         self.setMinimumSize(480, 760)
@@ -129,11 +216,17 @@ class VerifyWindow(QWidget):
         self.status_label.setAlignment(Qt.AlignCenter)
         s_layout.addWidget(self.status_label)
 
-        # ── Área de cámara ───────────────────────────────────────────────────
+        # ── Área de cámara + overlay de resultado ────────────────────────────
         cam_container = QFrame()
         cam_container.setStyleSheet("background-color: #0f172a;")
         cam_layout = QVBoxLayout(cam_container)
         cam_layout.setContentsMargins(25, 6, 25, 6)
+
+        # Contenedor relativo para superponer el banner
+        self.cam_wrapper = QWidget()
+        self.cam_wrapper.setMinimumHeight(430)
+        cam_wrapper_layout = QVBoxLayout(self.cam_wrapper)
+        cam_wrapper_layout.setContentsMargins(0, 0, 0, 0)
 
         self.video_frame = QFrame()
         self.video_frame.setStyleSheet(
@@ -151,7 +244,8 @@ class VerifyWindow(QWidget):
         v_layout.addWidget(self.video_label)
 
         self.scan_overlay = ScanLineWidget(self.video_label)
-        cam_layout.addWidget(self.video_frame)
+        cam_wrapper_layout.addWidget(self.video_frame)
+        cam_layout.addWidget(self.cam_wrapper)
 
         # ── Barra de progreso de 5 s ─────────────────────────────────────────
         progress_frame = QFrame()
@@ -182,6 +276,13 @@ class VerifyWindow(QWidget):
             }}
         """)
         p_layout.addWidget(self.progress_bar)
+
+        # ── Countdown label (oculto hasta mostrar resultado) ──────────────────
+        self.countdown_label = QLabel("")
+        self.countdown_label.setAlignment(Qt.AlignCenter)
+        self.countdown_label.setStyleSheet("color: #64748b; font-size: 13px; font-style: italic;")
+        self.countdown_label.setVisible(False)
+        p_layout.addWidget(self.countdown_label)
 
         # ── Panel inferior ───────────────────────────────────────────────────
         bottom = QFrame()
@@ -293,8 +394,9 @@ class VerifyWindow(QWidget):
             """)
 
     def _on_recognition_result(self, autorizado: bool, nombre: str):
-        """Muestra resultado y abre la ventana correspondiente."""
+        """Muestra resultado como letrero en la misma ventana, sin abrir otra."""
         self._result_shown = True
+        self._stop_camera()
 
         if autorizado:
             self.status_label.setText(f"✅ ACCESO AUTORIZADO — {nombre.upper()}")
@@ -307,8 +409,6 @@ class VerifyWindow(QWidget):
                 QProgressBar { background-color: #1e293b; border-radius: 5px; border: none; }
                 QProgressBar::chunk { background-color: #22c55e; border-radius: 5px; }
             """)
-            QTimer.singleShot(600, lambda: self._abrir_confirmada(nombre))
-
         else:
             self.status_label.setText("❌ ACCESO DENEGADO — USUARIO NO REGISTRADO")
             self.status_label.setStyleSheet(
@@ -320,7 +420,69 @@ class VerifyWindow(QWidget):
                 QProgressBar { background-color: #1e293b; border-radius: 5px; border: none; }
                 QProgressBar::chunk { background-color: #ef4444; border-radius: 5px; }
             """)
-            QTimer.singleShot(700, self._abrir_denegada)
+
+        # Mostrar banner sobre la cámara
+        self._mostrar_banner(autorizado, nombre)
+
+        # Countdown para quitar el banner (5 s) — la ventana NO se cierra
+        self._countdown_secs = 3
+        self.countdown_label.setText(f"Proximo intento en en {self._countdown_secs} segundos...")
+        self.countdown_label.setVisible(True)
+        self._countdown_timer = QTimer(self)
+        self._countdown_timer.timeout.connect(self._tick_countdown)
+        self._countdown_timer.start(1000)
+
+    
+
+    def _mostrar_banner(self, autorizado: bool, nombre: str):
+        """Crea y posiciona el banner de resultado encima del video."""
+        if self._result_banner:
+            self._result_banner.deleteLater()
+
+        banner = ResultBanner(autorizado=autorizado, nombre=nombre, parent=self.cam_wrapper)
+        margin = 20
+        w = self.cam_wrapper.width() - margin * 2
+        h = 200 if autorizado else 230
+        x = margin
+        y = (self.cam_wrapper.height() - h) // 2
+        banner.setGeometry(x, y, w, h)
+        banner.raise_()
+        banner.show()
+        self._result_banner = banner
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self._result_banner and self._result_banner.isVisible():
+            margin = 20
+            w = self.cam_wrapper.width() - margin * 2
+            h = self._result_banner.height()
+            x = margin
+            y = (self.cam_wrapper.height() - h) // 2
+            self._result_banner.setGeometry(x, y, w, h)
+
+    def _tick_countdown(self):
+        self._countdown_secs -= 1
+        if self._countdown_secs <= 0:
+            if self._countdown_timer:
+                self._countdown_timer.stop()
+            # Solo quitar el banner y reiniciar — NO cerrar la ventana
+            self._limpiar_resultado()
+        else:
+            self.countdown_label.setText(
+                f"Proximo intento en {self._countdown_secs} segundos..."
+            )
+
+    def _limpiar_resultado(self):
+        """Quita el banner y el countdown, reinicia la cámara en la misma ventana."""
+        self.countdown_label.setVisible(False)
+        if self._result_banner:
+            self._result_banner.deleteLater()
+            self._result_banner = None
+        if hasattr(self, "retry_button") and self.retry_button:
+            self.retry_button.deleteLater()
+            self.retry_button = None
+        self._reintentar()
+
 
     def _on_error(self, error_msg: str):
         self.status_label.setText("ERROR DE CÁMARA")
@@ -341,42 +503,13 @@ class VerifyWindow(QWidget):
             f"background-color: #000; border: 3px solid {color}; border-radius: 20px;"
         )
 
-    def _abrir_confirmada(self, nombre: str):
-        from ui.identity_confirmed import IdentityConfirmedWindow
-        self._stop_camera()
-
-        try:
-            self._confirmed_win = IdentityConfirmedWindow(
-                user_name=nombre,
-                return_callback=self._volver_a_inicio
-            )
-        except TypeError:
-            self._confirmed_win = IdentityConfirmedWindow(nombre)
-
-        self._confirmed_win.show()
-        self.close()
-
-    def _abrir_denegada(self):
-        from ui.access_denied_window import AccessDeniedWindow
-        self._stop_camera()
-
-        self._denied_win = AccessDeniedWindow(
-            on_retry=self._reabrir_verificacion,
-            on_home=self._volver_a_inicio
-        )
-        self._denied_win.show()
-        self.close()
-
-    def _reabrir_verificacion(self):
-        self._new_verify = VerifyWindow(self.main_window)
-        self._new_verify.show()
-
-    def _volver_a_inicio(self):
-        if self.main_window:
-            self.main_window.show()
-
     def _reintentar(self):
         """Reinicia la cámara para un nuevo intento de verificación."""
+        # Parar countdown
+        if self._countdown_timer:
+            self._countdown_timer.stop()
+        self.countdown_label.setVisible(False)
+
         self._result_shown = False
         self._set_border_color(COLOR_IDLE)
         self.status_label.setText("COLOQUE SU ROSTRO EN EL ÓVALO")
@@ -388,29 +521,15 @@ class VerifyWindow(QWidget):
             QProgressBar {{ background-color: #1e293b; border-radius: 5px; border: none; }}
             QProgressBar::chunk {{ background-color: {COLOR_IDLE}; border-radius: 5px; }}
         """)
-
-        try:
-            self.return_button.clicked.disconnect()
-        except TypeError:
-            pass
-
-        self.return_button.setText("← Volver al Inicio")
-        self.return_button.setStyleSheet("""
-            QPushButton {
-                background-color: #312e81;
-                border: 2px solid #6366f1;
-                border-radius: 13px;
-                color: #e0e7ff;
-                font-size: 15px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                border-color: #8b5cf6;
-                color: #c4b5fd;
-            }
-        """)
-        self.return_button.clicked.connect(self.close_window)
         self._start_camera()
+
+    def _volver_a_inicio(self):
+        if self._countdown_timer:
+            self._countdown_timer.stop()
+        self._stop_camera()
+        if self.main_window:
+            self.main_window.show()
+        self.close()
 
     def _stop_camera(self):
         if self.camera_thread and self.camera_thread.isRunning():
@@ -420,10 +539,14 @@ class VerifyWindow(QWidget):
     # ── Cerrar ventana ─────────────────────────────────────────────────────────
     def close_window(self):
         self._stop_camera()
+        if self._countdown_timer:
+            self._countdown_timer.stop()
         if self.main_window:
             self.main_window.show()
         self.close()
 
     def closeEvent(self, event):
         self._stop_camera()
+        if self._countdown_timer:
+            self._countdown_timer.stop()
         event.accept()
