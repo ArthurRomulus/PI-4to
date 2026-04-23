@@ -12,6 +12,7 @@ Flujo de UI:
 """
 
 import datetime
+import threading
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QProgressBar, QGraphicsOpacityEffect
@@ -20,6 +21,13 @@ from PyQt5.QtCore import QTimer, Qt, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
 
 from hardware.camera.camera_verify import CameraThread
+
+try:
+    from hardware.Motospasopaso import conceder_acceso_motor
+except ImportError:
+    print("Warning: No se pudo importar hardware.Motospasopaso (Solo funciona en Raspberry Pi)")
+    def conceder_acceso_motor():
+        print("Mock: Concediendo acceso al motor (Simulado)")
 
 
 # ── Colores del tema ───────────────────────────────────────────────────────────
@@ -399,6 +407,9 @@ class VerifyWindow(QWidget):
         self._stop_camera()
 
         if autorizado:
+            # Ejecutar el proceso del motor en un hilo para no bloquear la interfaz
+            threading.Thread(target=conceder_acceso_motor, daemon=True).start()
+
             self.status_label.setText(f"✅ ACCESO AUTORIZADO — {nombre.upper()}")
             self.status_label.setStyleSheet(
                 "color: #22c55e; font-size: 15px; font-weight: bold;"
