@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS ADMINS (
     id_role INTEGER,
     email TEXT NOT NULL UNIQUE,
     pin_hash TEXT NOT NULL,
+    security_question TEXT,
+    security_answer_hash TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_role) REFERENCES ROLES(id_role)
 );
 

@@ -375,7 +375,7 @@ def obtener_historial_accesos(limite=50):
 
 # ===== FUNCIONES PARA ADMINS =====
 
-def crear_admin(email, pin_hash, id_role=None):
+def crear_admin(email, pin_hash, id_role=None, security_question=None, security_answer_hash=None):
     """Crea un nuevo administrador."""
     try:
         conn = obtener_conexion()
@@ -391,8 +391,8 @@ def crear_admin(email, pin_hash, id_role=None):
                 id_role = crear_rol("admin")
         
         cursor.execute(
-            "INSERT INTO ADMINS (id_role, email, pin_hash) VALUES (?, ?, ?)",
-            (id_role, email, pin_hash)
+            "INSERT INTO ADMINS (id_role, email, pin_hash, security_question, security_answer_hash) VALUES (?, ?, ?, ?, ?)",
+            (id_role, email, pin_hash, security_question, security_answer_hash)
         )
         conn.commit()
         admin_id = cursor.lastrowid
@@ -415,7 +415,7 @@ def obtener_admin_por_email(email):
         
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id_admin, id_role, email, pin_hash FROM ADMINS WHERE email = ?",
+            "SELECT id_admin, id_role, email, pin_hash, security_question, security_answer_hash FROM ADMINS WHERE email = ?",
             (email,)
         )
         resultado = cursor.fetchone()
@@ -426,7 +426,9 @@ def obtener_admin_por_email(email):
                 'id_admin': resultado[0],
                 'id_role': resultado[1],
                 'email': resultado[2],
-                'pin_hash': resultado[3]
+                'pin_hash': resultado[3],
+                'security_question': resultado[4],
+                'security_answer_hash': resultado[5]
             }
         return None
     except Exception as e:
@@ -449,6 +451,133 @@ def contar_admins():
     except Exception as e:
         print(f"Error contando admins: {e}")
         return 0
+
+def actualizar_pregunta_seguridad(email, security_question, security_answer_hash):
+    """Actualiza la pregunta de seguridad y respuesta hasheada de un admin."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        
+        cursor = conn.cursor()
+        cursor.execute(
+            """UPDATE ADMINS 
+               SET security_question = ?, security_answer_hash = ? 
+               WHERE email = ?""",
+            (security_question, security_answer_hash, email)
+        )
+        conn.commit()
+        filas_afectadas = cursor.rowcount
+        conn.close()
+        
+        if filas_afectadas > 0:
+            print(f"Pregunta de seguridad actualizada para '{email}'")
+            return True
+        return False
+    except Exception as e:
+        print(f"Error actualizando pregunta de seguridad: {e}")
+        return False
+
+def verificar_respuesta_seguridad(email, security_question, respuesta):
+    """Verifica la respuesta de seguridad de un admin."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        
+        cursor = conn.cursor()
+        
+        # Primero verificar si la pregunta coincide con la guardada
+        cursor.execute(
+            """SELECT security_answer_hash, security_question FROM ADMINS 
+               WHERE email = ?""",
+            (email,)
+        )
+        resultado = cursor.fetchone()
+        conn.close()
+        
+        if resultado and resultado[0]:
+            saved_question = resultado[1]
+            saved_answer_hash = resultado[0]
+            
+            # Verificar que la pregunta seleccionada coincida con la guardada
+            if saved_question != security_question:
+                return False
+            
+            # Comparar con hash de la respuesta proporcionada
+            respuesta_hash = hash_pin(respuesta.lower().strip())
+            return saved_answer_hash == respuesta_hash
+        return False
+    except Exception as e:
+        print(f"Error verificando respuesta: {e}")
+        return False
+
+def tiene_pregunta_seguridad(email):
+    """Verifica si un admin tiene configurada una pregunta de seguridad."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        
+        cursor = conn.cursor()
+        cursor.execute(
+            """SELECT security_question, security_answer_hash 
+               FROM ADMINS WHERE email = ?""",
+            (email,)
+        )
+        resultado = cursor.fetchone()
+        conn.close()
+        
+        return resultado is not None and resultado[0] is not None and resultado[1] is not None
+    except Exception as e:
+        print(f"Error verificando pregunta de seguridad: {e}")
+        return False
+
+def obtener_pregunta_seguridad(email):
+    """Obtiene la pregunta de seguridad configurada para un admin."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return None
+        
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT security_question FROM ADMINS WHERE email = ?",
+            (email,)
+        )
+        resultado = cursor.fetchone()
+        conn.close()
+        
+        if resultado:
+            return resultado[0]
+        return None
+    except Exception as e:
+        print(f"Error obteniendo pregunta de seguridad: {e}")
+        return None
+
+def actualizar_pin_admin(email, nuevo_pin_hash):
+    """Actualiza el PIN/contraseña de un admin."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE ADMINS SET pin_hash = ? WHERE email = ?",
+            (nuevo_pin_hash, email)
+        )
+        conn.commit()
+        filas_afectadas = cursor.rowcount
+        conn.close()
+        
+        if filas_afectadas > 0:
+            print(f"PIN actualizado para '{email}'")
+            return True
+        return False
+    except Exception as e:
+        print(f"Error actualizando PIN: {e}")
+        return False
 
 # ===== FUNCIONES PARA STAFF =====
 

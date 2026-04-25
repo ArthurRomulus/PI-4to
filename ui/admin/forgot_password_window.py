@@ -10,6 +10,12 @@ from PyQt5.QtWidgets import (
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+import sys
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from database.consultas import verificar_respuesta_seguridad, tiene_pregunta_seguridad, hash_pin, obtener_pregunta_seguridad
 
 
 def asset_path(filename):
@@ -30,7 +36,7 @@ class GlassCard(QFrame):
 
 # ---------------- INPUT ----------------
 class InputField(QFrame):
-    def __init__(self):
+    def __init__(self, placeholder="Respuesta"):
         super().__init__()
         self.setFixedHeight(60)
 
@@ -66,7 +72,7 @@ class InputField(QFrame):
             icon.setPixmap(pix)
 
         self.input = QLineEdit()
-        self.input.setPlaceholderText("Respuesta")
+        self.input.setPlaceholderText(placeholder)
         self.input.setStyleSheet("""
             QLineEdit {
                 border:none;
@@ -100,7 +106,7 @@ class QuestionSelector(QFrame):
 
         self.combo = QComboBox()
 
-        # 🔥 CLAVE: FORZAR VIEW LIMPIO (esto elimina el fondo feo)
+        #FORZAR VIEW LIMPIO (esto elimina el fondo feo)
         self.combo.setView(QListView())
 
         self.combo.setStyleSheet("""
@@ -174,10 +180,10 @@ class QuestionSelector(QFrame):
         """)
 
         self.combo.addItems([
-            "¿Nombre de tu mascota?",
+            "¿Ciudad donde se conocieron tus padres?",
             "¿Ciudad donde naciste?",
-            "¿Comida favorita?",
-            "¿Nombre de tu mejor amigo?"
+            "¿Profesor favorito en primaria?",
+            "¿Nombre de tu primera mascota?",
         ])
 
         layout.addWidget(self.combo)
@@ -188,7 +194,8 @@ class QuestionSelector(QFrame):
 class ForgotPasswordWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setFixedSize(480,800)
+        self.setFixedSize(480, 850)
+        self.email = None  # Email del usuario que quiere recuperar
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -229,26 +236,33 @@ class ForgotPasswordWindow(QMainWindow):
 
         # CARD
         card = GlassCard()
-        card.setFixedHeight(520)
+        card.setFixedHeight(600)
         layout.addWidget(card)
 
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(26,28,26,22)
         card_layout.setSpacing(0)
 
-        title = QLabel("Pregunta de Seguridad")
+        title = QLabel("Recuperar Contraseña")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color:white; font-size:26px; font-weight:800; background:transparent;")
 
-        subtitle = QLabel("Seleccione una pregunta de seguridad y proporcione la respuesta correcta\n"
-            "para poder validar su identidad y continuar con el proceso de recuperación de contraseña."
+        subtitle = QLabel("Ingresa tu correo electrónico y responde la pregunta de seguridad\n"
+            "que configuraste al crear tu cuenta."
         )
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet("color:#4B3E60; font-size:14px; background:transparent;")
 
+        # Campo de email
+        self.email_input = InputField("Correo electrónico")
+        self.email_input.input.setPlaceholderText("tu@email.com")
+        
+        # Selector de pregunta
         self.selector = QuestionSelector()
-        self.input = InputField()
+        
+        # Campo de respuesta
+        self.input = InputField("Tu respuesta")
 
         btn = QPushButton("Verificar respuesta")
         btn.setCursor(Qt.PointingHandCursor)
@@ -305,6 +319,8 @@ class ForgotPasswordWindow(QMainWindow):
         card_layout.addSpacing(4)
         card_layout.addWidget(subtitle)
         card_layout.addSpacing(15)
+        card_layout.addWidget(self.email_input)
+        card_layout.addSpacing(12)
         card_layout.addWidget(self.selector)
         card_layout.addSpacing(12)
         card_layout.addWidget(self.input)
@@ -321,27 +337,52 @@ class ForgotPasswordWindow(QMainWindow):
         self.close()
 
     def verify(self):
+        # Obtener email
+        email = self.email_input.input.text().strip()
+        
+        if not email:
+            QMessageBox.warning(self, "Error", "Ingresa tu correo electrónico")
+            return
+        
+        # Verificar que el admin existe y tiene pregunta de seguridad configurada
+        if not tiene_pregunta_seguridad(email):
+            QMessageBox.warning(
+                self, 
+                "Sin configuración", 
+                "Este correo no tiene una pregunta de seguridad configurada.\n"
+                "Contacta al administrador del sistema."
+            )
+            return
+        
+        # Obtener la pregunta guardada en la BD y seleccionarla automáticamente
+        saved_question = obtener_pregunta_seguridad(email)
+        if saved_question:
+            # Buscar y seleccionar la pregunta guardada
+            index = self.selector.combo.findText(saved_question)
+            if index >= 0:
+                self.selector.combo.setCurrentIndex(index)
+        
+        # Obtener la pregunta seleccionada (la guardada o la que eligió el usuario)
         question = self.selector.combo.currentText()
-        answer = self.input.input.text().lower().strip()
-
-        correct = {
-            "¿Nombre de tu mascota?": "firulais",
-            "¿Ciudad donde naciste?": "mexico",
-            "¿Comida favorita?": "tacos",
-            "¿Nombre de tu mejor amigo?": "juan"
-        }
+        answer = self.input.input.text().strip()
 
         if not answer:
             QMessageBox.warning(self, "Error", "Escribe una respuesta")
             return
 
-        if answer == correct.get(question):
+        # Verificar contra la base de datos
+        if verificar_respuesta_seguridad(email, question, answer):
+            # Pasar el email a la ventana de cambio de contraseña
             from ui.admin.change_password_window import ChangePasswordWindow
-            self.change = ChangePasswordWindow()
+            self.change = ChangePasswordWindow(email=email)
             self.change.show()
             self.close()
         else:
-            QMessageBox.critical(self, "Error", "Respuesta incorrecta")
+            QMessageBox.critical(
+                self, 
+                "Error", 
+                "La respuesta es incorrecta. Intenta de nuevo."
+            )
 
 
 # RUN
