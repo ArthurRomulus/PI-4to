@@ -57,6 +57,9 @@ def crear_tablas():
             id_role INTEGER,
             email TEXT NOT NULL,
             pin_hash TEXT NOT NULL,
+            security_question TEXT,
+            security_answer_hash TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (id_role) REFERENCES ROLES(id_role)
         )
         """)
@@ -99,9 +102,31 @@ def crear_tablas():
 
         conn.commit()
         print("Tablas creadas exitosamente")
+        
+        # Migrar columnas de seguridad si existen tablas anteriores
+        migrar_columnas_seguridad(cursor)
+        
         return True
     except sqlite3.Error as e:
         print(f"Error creando tablas: {e}")
         return False
     finally:
         conn.close()
+
+def migrar_columnas_seguridad(cursor):
+    """Agrega columnas de seguridad si no existen (para bases de datos existentes)."""
+    try:
+        # Verificar si la columna security_question existe
+        cursor.execute("PRAGMA table_info(ADMINS)")
+        columnas = [col[1] for col in cursor.fetchall()]
+        
+        if "security_question" not in columnas:
+            cursor.execute("ALTER TABLE ADMINS ADD COLUMN security_question TEXT")
+            print("Columna security_question agregada")
+        
+        if "security_answer_hash" not in columnas:
+            cursor.execute("ALTER TABLE ADMINS ADD COLUMN security_answer_hash TEXT")
+            print("Columna security_answer_hash agregada")
+            
+    except sqlite3.Error as e:
+        print(f"Error en migración: {e}")

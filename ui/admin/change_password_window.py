@@ -16,8 +16,13 @@ from PyQt5.QtWidgets import (
     QApplication,
 )
 
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+import sys
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from database.consultas import hash_pin, actualizar_pin_admin
 
 
 def asset_path(filename):
@@ -176,8 +181,9 @@ class PasswordInput(QFrame):
 
 
 class ChangePasswordWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, email=None):
         super().__init__()
+        self.email = email  # Email del usuario que va a cambiar contraseña
         self.setWindowTitle("Cambiar contraseña")
         self.setFixedSize(480, 800)
 
@@ -357,11 +363,29 @@ class ChangePasswordWindow(QMainWindow):
             )
             return
 
-        QMessageBox.information(
-            self,
-            "Contraseña actualizada",
-            "La contraseña se cambió correctamente."
-        )
+        # Si tenemos el email, actualizar en la base de datos
+        if self.email:
+            nuevo_pin_hash = hash_pin(password1)
+            if actualizar_pin_admin(self.email, nuevo_pin_hash):
+                QMessageBox.information(
+                    self,
+                    "Éxito",
+                    "La contraseña se cambió correctamente."
+                )
+                self.go_back()
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Error",
+                    "No se pudo actualizar la contraseña. Intenta de nuevo."
+                )
+        else:
+            QMessageBox.information(
+                self,
+                "Contraseña actualizada",
+                "La contraseña se cambió correctamente."
+            )
+            self.go_back()
 
     def go_back(self):
         from ui.admin.login_window import LoginWindow

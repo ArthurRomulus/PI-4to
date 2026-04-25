@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QFrame,
     QGraphicsDropShadowEffect,
+    QComboBox,
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -180,6 +181,89 @@ class CreateAdminWindow(QDialog):
             }
         """)
         layout.addWidget(self.password_confirm_input)
+
+        layout.addSpacing(10)
+
+        # Pregunta de seguridad label
+        question_label = QLabel("Pregunta de seguridad")
+        question_label.setStyleSheet("""
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+        """)
+        layout.addWidget(question_label)
+
+        # Pregunta de seguridad combo
+        self.question_combo = QComboBox()
+        self.question_combo.setFixedHeight(44)
+        self.question_combo.setStyleSheet("""
+            QComboBox {
+                background: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                color: #ffffff;
+                font-size: 13px;
+                padding: 0 12px;
+            }
+            QComboBox:focus {
+                border: 1px solid #475569;
+                background: #0f172a;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 30px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid #64748b;
+                margin-right: 10px;
+            }
+        """)
+        self.question_combo.addItems([
+            "¿Ciudad donde se conocieron tus padres?",
+            "¿Ciudad donde naciste?",
+            "¿Profesor favorito en primaria?",
+            "¿Nombre de tu primera mascota?",
+        ])
+        layout.addWidget(self.question_combo)
+
+        # Respuesta de seguridad label
+        answer_label = QLabel("Respuesta de seguridad")
+        answer_label.setStyleSheet("""
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+        """)
+        layout.addWidget(answer_label)
+
+        # Respuesta de seguridad input
+        self.answer_input = QLineEdit()
+        self.answer_input.setPlaceholderText("Escribe tu respuesta (se guardará encriptada)")
+        self.answer_input.setFixedHeight(44)
+        self.answer_input.setStyleSheet("""
+            QLineEdit {
+                background: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                color: #ffffff;
+                font-size: 13px;
+                padding: 0 12px;
+            }
+            QLineEdit::placeholder {
+                color: #64748b;
+            }
+            QLineEdit:focus {
+                border: 1px solid #475569;
+                background: #0f172a;
+            }
+        """)
+        layout.addWidget(self.answer_input)
 
         layout.addSpacing(10)
 
@@ -365,6 +449,41 @@ class CreateAdminWindow(QDialog):
             msg.exec_()
             return
 
+        # Validar que tenga pregunta y respuesta de seguridad
+        security_question = self.question_combo.currentText()
+        security_answer = self.answer_input.text().strip()
+        
+        if not security_answer:
+            play_sound("registrado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Respuesta requerida")
+            msg.setText("Por favor proporciona una respuesta de seguridad.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0f172a;
+                }
+                QLabel {
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+                QPushButton {
+                    background-color: #1e293b;
+                    color: #ffffff;
+                    border: 1px solid #ffffff;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                    min-width: 60px;
+                }
+                QPushButton:hover {
+                    background-color: #334155;
+                }
+            """)
+            msg.exec_()
+            return
+
         # Verificar si el email ya existe
         if obtener_admin_por_email(email):
             play_sound("registrado.mp3")
@@ -397,10 +516,12 @@ class CreateAdminWindow(QDialog):
             msg.exec_()
             return
 
-        # Crear el admin
+        # Crear el admin con pregunta de seguridad
         try:
             pin_hash = hash_pin(password)
-            admin_id = crear_admin(email, pin_hash)
+            # Hashear la respuesta de seguridad
+            answer_hash = hash_pin(security_answer.lower().strip())
+            admin_id = crear_admin(email, pin_hash, security_question=security_question, security_answer_hash=answer_hash)
             
             if admin_id:
                 play_sound("registrado.mp3")
