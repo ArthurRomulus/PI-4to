@@ -226,7 +226,10 @@ class CameraThread(QThread):
     def run(self):
         self.running = True
         try:
-            self.camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+            # Intentar primero con V4L2 (Linux), luego sin backend específico
+            self.camera = cv2.VideoCapture(0, cv2.CAP_V4L2)
+            if not self.camera.isOpened():
+                self.camera = cv2.VideoCapture(0)
             if not self.camera.isOpened():
                 self.error_occurred.emit("No se pudo acceder a la cámara")
                 return
@@ -272,16 +275,24 @@ class CameraThread(QThread):
 
                         if self._hold_frames >= self._total_frames_needed:
                             self._verification_done = True
-                            face_rect = detection.get('face_rect')
                             autorizado, nombre, id_user = False, "", None
 
-                            if face_rect and len(usuarios) > 0:
-                                x, y, w, h = face_rect
-                                face_crop = frame[y:y+h, x:x+w]
-                                emb = compute_face_embedding(face_crop)
-                                autorizado, nombre, id_user = _reconocer(emb, usuarios)
-                            else:
-                                autorizado, nombre, id_user = False, "", None
+                            if len(usuarios) > 0:
+                                # Preferir crop anclado en ojos (invariante al pelo)
+                                crop_hint = detection.get('face_crop_hint')
+                                face_rect  = detection.get('face_rect')
+                                if crop_hint:
+                                    cx, cy, cw, ch = crop_hint
+                                    face_crop = frame[cy:cy+ch, cx:cx+cw]
+                                elif face_rect:
+                                    x, y, w, h = face_rect
+                                    face_crop = frame[y:y+h, x:x+w]
+                                else:
+                                    face_crop = None
+
+                                if face_crop is not None and face_crop.size > 0:
+                                    emb = compute_face_embedding(face_crop)
+                                    autorizado, nombre, id_user = _reconocer(emb, usuarios)
 
                             self._display_id = str(id_user) if id_user is not None else "unknown"
                             self.recognition_result.emit(autorizado, nombre)

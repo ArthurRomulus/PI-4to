@@ -30,9 +30,14 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from hardware.face_detection import FaceDetector
-from hardware.face_embedder  import compute_face_embedding
-from database.consultas      import guardar_usuario
+from hardware.face_embedder  import compute_face_embedding, cosine_similarity
+from database.consultas      import guardar_usuario, obtener_usuarios
 from ui.sound_manager import play_sound
+
+# Umbral para considerar que dos embeddings son de la misma persona
+# Umbral para considerar que dos embeddings son de la misma persona
+# 0.70 es más tolerante: captura diferencias de peinado, iluminación, etc.
+DUPLICATE_COSINE_THRESHOLD = 0.70
 
 
 # ── Hilo de cámara para registro ───────────────────────────────────────────────
@@ -64,11 +69,15 @@ class _RegisterCameraThread(QThread):
         self._frames_needed = int(CAPTURE_HOLD_SECONDS * 1000 / FPS_MS)
         self._done          = False
         self._face_detector = FaceDetector()
+        # Acumulador de embeddings durante los 3 s de espera
+        self._emb_buffer    = []
 
     def run(self):
         self.running = True
-        # CAP_DSHOW evita el error MSMF -1072873821 en Windows
-        cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        # Intentar primero con V4L2 (Linux), luego sin backend específico (Windows/Mac)
+        cam = cv2.VideoCapture(0, cv2.CAP_V4L2)
+        if not cam.isOpened():
+            cam = cv2.VideoCapture(0)
         if not cam.isOpened():
             self.error.emit("No se pudo abrir la cámara.")
             return
@@ -101,6 +110,22 @@ class _RegisterCameraThread(QThread):
                         pct = min(int(self._hold_frames * 100 / self._frames_needed), 100)
                         self.progress.emit(pct)
 
+                        # Acumular embedding de este frame (crop anclado en ojos)
+                        crop_hint = det.get('face_crop_hint')
+                        face_rect  = det.get('face_rect')
+                        emb_frame  = None
+                        if crop_hint:
+                            cx2, cy2, cw2, ch2 = crop_hint
+                            crop = frame[cy2:cy2+ch2, cx2:cx2+cw2]
+                            if crop.size > 0:
+                                emb_frame = compute_face_embedding(crop)
+                        if emb_frame is None and face_rect:
+                            x2, y2, w2, h2 = face_rect
+                            crop = frame[y2:y2+h2, x2:x2+w2]
+                            emb_frame = compute_face_embedding(crop)
+                        if emb_frame is not None:
+                            self._emb_buffer.append(emb_frame)
+
                         # Arco de progreso
                         cx, cy = det['oval_center']
                         ax, ay = det['oval_axes']
@@ -114,15 +139,21 @@ class _RegisterCameraThread(QThread):
 
                         if self._hold_frames >= self._frames_needed:
                             self._done = True
-                            face_rect = det.get('face_rect')
-                            emb = None
-                            if face_rect:
-                                x, y, w, h = face_rect
-                                crop = frame[y:y+h, x:x+w]
-                                emb  = compute_face_embedding(crop)
-                            self.captured.emit(emb)
+                            # Promedio de todos los embeddings acumulados (mucho más estable)
+                            import numpy as np
+                            if self._emb_buffer:
+                                arr = np.array(self._emb_buffer, dtype=np.float32)
+                                emb_avg = arr.mean(axis=0)
+                                norm = np.linalg.norm(emb_avg)
+                                if norm > 0:
+                                    emb_avg = emb_avg / norm
+                                self.captured.emit(emb_avg.astype(np.float32))
+                            else:
+                                self.captured.emit(None)
                     else:
                         self._hold_frames = max(0, self._hold_frames - 2)
+                        if self._hold_frames == 0:
+                            self._emb_buffer.clear()   # reiniciar buffer si pierde la cara
                         pct = int(self._hold_frames * 100 / self._frames_needed)
                         self.progress.emit(pct)
 
@@ -462,14 +493,58 @@ class RegisterPage(QWidget):
         self._reset_ui()
 
     # ── Guardar usuario ────────────────────────────────────────────────────────
+    def _check_duplicate_embedding(self, nuevo_embedding) -> tuple:
+        """
+        Compara el nuevo embedding contra todos los registrados en la DB.
+        Retorna (True, nombre_existente) si hay coincidencia, (False, '') si no.
+        """
+        try:
+            usuarios = obtener_usuarios()  # lista de (nombre, embedding_np)
+            for nombre_db, emb_db in usuarios:
+                import numpy as np
+                if not isinstance(emb_db, np.ndarray):
+                    continue
+                score = cosine_similarity(nuevo_embedding, emb_db)
+                if score >= DUPLICATE_COSINE_THRESHOLD:
+                    return True, nombre_db
+        except Exception as e:
+            print(f"[RegisterPage] Error verificando duplicado: {e}")
+        return False, ''
+
     def _save_user(self):
-        play_sound("registrado.mp3")
         nombre = self.name_input.text().strip()
         if not nombre:
             QMessageBox.warning(self, "Nombre vacío", "El nombre del usuario no puede estar vacío.")
             return
         if self._pending_embedding is None:
             QMessageBox.warning(self, "Sin embedding", "Primero realice la captura facial.")
+            return
+
+        # ── Verificar si el rostro ya está registrado ──────────────────────────
+        es_duplicado, nombre_existente = self._check_duplicate_embedding(self._pending_embedding)
+        if es_duplicado:
+            play_sound("acceso_denegado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Persona ya registrada")
+            msg.setText(
+                f"⚠️ Este rostro ya está registrado como:\n\n"
+                f"  👤  {nombre_existente}\n\n"
+                f"No se puede registrar la misma persona dos veces."
+            )
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox { background-color: #0f172a; }
+                QLabel { color: #fbbf24; font-size: 13px; }
+                QPushButton {
+                    background-color: #1e293b; color: #ffffff;
+                    border: 1px solid #f59e0b; border-radius: 6px;
+                    padding: 6px 18px; font-weight: bold; min-width: 60px;
+                }
+                QPushButton:hover { background-color: #334155; }
+            """)
+            msg.exec_()
+            self._reset_ui()
             return
 
         resultado = guardar_usuario(nombre, self._pending_embedding)
@@ -482,56 +557,34 @@ class RegisterPage(QWidget):
             msg.setIcon(QMessageBox.NoIcon)
             msg.setStandardButtons(QMessageBox.Ok)
             msg.setStyleSheet("""
-                QMessageBox {
-                    background-color: #0f172a;
-                }
-                QLabel {
-                    color: #ffffff;
-                    font-size: 13px;
-                }
+                QMessageBox { background-color: #0f172a; }
+                QLabel { color: #ffffff; font-size: 13px; }
                 QPushButton {
-                    background-color: #1e293b;
-                    color: #ffffff;
-                    border: 1px solid #ffffff;
-                    border-radius: 6px;
-                    padding: 6px 18px;
-                    font-weight: bold;
-                    min-width: 60px;
+                    background-color: #1e293b; color: #ffffff;
+                    border: 1px solid #ffffff; border-radius: 6px;
+                    padding: 6px 18px; font-weight: bold; min-width: 60px;
                 }
-                QPushButton:hover {
-                    background-color: #334155;
-                }
+                QPushButton:hover { background-color: #334155; }
             """)
             msg.exec_()
             self.name_input.clear()
             self._reset_ui()
         else:
-            play_sound("registrado.mp3")
+            play_sound("acceso_denegado.mp3")
             msg = QMessageBox(self)
             msg.setWindowTitle("Error al guardar")
             msg.setText(f"No se pudo guardar el usuario '{nombre}'.\nVerifique que el nombre no esté duplicado.")
             msg.setIcon(QMessageBox.NoIcon)
             msg.setStandardButtons(QMessageBox.Ok)
             msg.setStyleSheet("""
-                QMessageBox {
-                    background-color: #0f172a;
-                }
-                QLabel {
-                    color: #ffffff;
-                    font-size: 13px;
-                }
+                QMessageBox { background-color: #0f172a; }
+                QLabel { color: #ffffff; font-size: 13px; }
                 QPushButton {
-                    background-color: #1e293b;
-                    color: #ffffff;
-                    border: 1px solid #334155;
-                    border-radius: 6px;
-                    padding: 6px 18px;
-                    font-weight: bold;
-                    min-width: 60px;
+                    background-color: #1e293b; color: #ffffff;
+                    border: 1px solid #334155; border-radius: 6px;
+                    padding: 6px 18px; font-weight: bold; min-width: 60px;
                 }
-                QPushButton:hover {
-                    background-color: #334155;
-                }
+                QPushButton:hover { background-color: #334155; }
             """)
             msg.exec_()
 
