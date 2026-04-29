@@ -216,7 +216,7 @@ class RegisterPage(QWidget):
         name_lbl.setStyleSheet("color: #cbd5e1; font-size: 12px; font-weight: 700; border: none;")
 
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Ej: Juan Pérez")
+        self.name_input.setPlaceholderText("Ej: Juan Pérez García")
         self.name_input.setFixedHeight(42)
         self.name_input.setStyleSheet("""
             QLineEdit {
@@ -230,7 +230,16 @@ class RegisterPage(QWidget):
             QLineEdit:focus {
                 border: 1px solid #38bdf8;
             }
+            QLineEdit[invalid="true"] {
+                border: 1px solid #ef4444;
+            }
         """)
+        # Conectar validación en tiempo real
+        self.name_input.textChanged.connect(self._on_name_changed)
+        self._name_valid = False
+        self._name_error_lbl = QLabel("")
+        self._name_error_lbl.setStyleSheet("color: #ef4444; font-size: 11px; border: none;")
+        self._name_error_lbl.setVisible(False)
 
         # Botón iniciar captura
         self.btn_capture = QPushButton("📷  Iniciar captura facial")
@@ -244,6 +253,7 @@ class RegisterPage(QWidget):
         form_layout.addSpacing(4)
         form_layout.addWidget(name_lbl)
         form_layout.addWidget(self.name_input)
+        form_layout.addWidget(self._name_error_lbl)
         form_layout.addSpacing(4)
         form_layout.addWidget(self.btn_capture)
 
@@ -318,6 +328,44 @@ class RegisterPage(QWidget):
         root.addWidget(cam_card)
         root.addStretch()
 
+    # ── Validación del nombre ─────────────────────────────────────────────────
+    def _validate_name(self, nombre: str) -> tuple:
+        """
+        Valida el nombre del usuario.
+        Retorna (es_valido, mensaje_error)
+        """
+        if not nombre:
+            return False, "El nombre es requerido"
+        
+        # Verificar que solo contenga letras y espacios (sin números ni caracteres especiales)
+        import re
+        if not re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', nombre):
+            return False, "Solo se permiten letras y espacios"
+        
+        # Verificar que tenga al menos 3 nombres (mínimo 3 palabras)
+        palabras = nombre.strip().split()
+        if len(palabras) < 3:
+            return False, "Debe contener al menos 3 nombres (nombre, apellido, segundo nombre)"
+        
+        return True, ""
+
+    def _on_name_changed(self, text: str):
+        """Callback cuando cambia el texto del nombre."""
+        es_valido, mensaje = self._validate_name(text)
+        self._name_valid = es_valido
+        
+        if text and not es_valido:
+            self._name_error_lbl.setText(mensaje)
+            self._name_error_lbl.setVisible(True)
+            self.name_input.setProperty("invalid", "true")
+        else:
+            self._name_error_lbl.setVisible(False)
+            self.name_input.setProperty("invalid", "false")
+        
+        # Forzar actualización del estilo
+        self.name_input.style().unpolish(self.name_input)
+        self.name_input.style().polish(self.name_input)
+
     # ── Estilos de botones ─────────────────────────────────────────────────────
     def _style_btn_primary(self, btn: QPushButton):
         btn.setStyleSheet("""
@@ -364,11 +412,14 @@ class RegisterPage(QWidget):
     # ── Lógica de cámara ───────────────────────────────────────────────────────
     def _start_capture(self):
         nombre = self.name_input.text().strip()
-        if not nombre:
+        
+        # Validar nombre con las reglas establecidas
+        es_valido, mensaje_error = self._validate_name(nombre)
+        if not es_valido:
             play_sound("acceso_denegado.mp3")
             msg = QMessageBox(self)
-            msg.setWindowTitle("Nombre requerido")
-            msg.setText("Por favor ingrese el nombre del usuario antes de iniciar.")
+            msg.setWindowTitle("Nombre inválido")
+            msg.setText(mensaje_error)
             msg.setIcon(QMessageBox.NoIcon)
             msg.setStandardButtons(QMessageBox.Ok)
             
