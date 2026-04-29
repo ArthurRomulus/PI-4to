@@ -5,6 +5,12 @@ sin depender de la librería face_recognition.
 
 El embedding resultante es un vector numpy float32 de dimensión fija
 que puede compararse con distancia coseno o euclidiana.
+
+Mejoras de robustez v2:
+  - CLAHE en lugar de equalizeHist (iluminación variable)
+  - Suavizado Gaussiano antes de LBP (menos sensible a expresiones)
+  - Se descarta el 15% superior (zona del cabello)
+  - LBP multi-escala (radio 1 y radio 2) para textura más rica
 """
 
 import cv2
@@ -83,21 +89,45 @@ def compute_face_embedding(face_bgr: np.ndarray) -> np.ndarray:
     try:
         face_bgr = cv2.resize(face_bgr, (128, 128))
         gray = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2GRAY)
-        # Ecualización de histograma para robustez ante iluminación
-        gray = cv2.equalizeHist(gray)
 
-        # Descriptor LBP
-        lbp_feat = _lbp_histogram(gray, num_points=8, radius=1)   # 32-dim
+        # ── CLAHE: robustez ante iluminación variable ─────────────────────────
+        # Mejor que equalizeHist porque adapta el contraste por zonas locales,
+        # reduciendo el impacto de sombras o luz directa en la cara.
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        gray = clahe.apply(gray)
 
-        # Descriptor HOG
-        hog_feat = _hog_simple(gray, cell_size=16)                 # 4x4 celdas x 8 = 128-dim
+        # ── Suavizado Gaussiano ───────────────────────────────────────────────
+        # Reduce la sensibilidad a cambios de textura fina causados por
+        # expresiones faciales (muecas, caras raras) sin borrar la estructura.
+        gray_smooth = cv2.GaussianBlur(gray, (3, 3), 0.8)
 
-        # Descriptor de intensidades medias por bloque (8x8 = 64 bloques)
-        small = cv2.resize(gray, (8, 8)).astype(np.float32).ravel()  # 64-dim
+        # ── Excluir zona del cabello (top 15%) ───────────────────────────────
+        # El cabello cambia entre intentos (peinado distinto); ignorar esa
+        # franja hace el embedding más invariante al peinado.
+        h_img = gray_smooth.shape[0]
+        hair_cut = int(h_img * 0.15)
+        face_core = gray_smooth[hair_cut:, :]   # región ojos → barbilla
 
-        embedding = np.concatenate([lbp_feat, hog_feat, small])     # 32+128+64 = 224-dim
+        # ── LBP multi-escala ─────────────────────────────────────────────────
+        # Radio 1 (textura fina): sensible a detalles pequeños de la piel.
+        lbp_r1 = _lbp_histogram(face_core, num_points=8, radius=1)   # 32-dim
+        # Radio 2 (textura media): captura contornos de ojos, nariz y boca,
+        # que son más estables que los detalles finos al hacer expresiones.
+        lbp_r2 = _lbp_histogram(face_core, num_points=8, radius=2)   # 32-dim
 
-        # Rellenar o truncar hasta EMBEDDING_DIM
+        # ── HOG: gradientes de forma ──────────────────────────────────────────
+        # Captura la estructura geométrica facial global; más estable que LBP
+        # ante pequeñas variaciones de expresión.
+        hog_feat = _hog_simple(gray_smooth, cell_size=16)             # 128-dim
+
+        # ── Intensidades medias por bloque ────────────────────────────────────
+        # Información de bajo nivel sobre la distribución de brillo en la cara.
+        small = cv2.resize(face_core, (8, 8)).astype(np.float32).ravel()  # 64-dim
+
+        # 32 + 32 + 128 + 64 = 256 dims == EMBEDDING_DIM exacto
+        embedding = np.concatenate([lbp_r1, lbp_r2, hog_feat, small])
+
+        # Rellenar o truncar hasta EMBEDDING_DIM (seguridad)
         if embedding.shape[0] < EMBEDDING_DIM:
             embedding = np.pad(embedding, (0, EMBEDDING_DIM - embedding.shape[0]))
         else:

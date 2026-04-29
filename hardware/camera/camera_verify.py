@@ -31,10 +31,11 @@ from hardware.face_embedder import (
 HOLD_SECONDS = 3
 FPS_SLEEP_MS = 30
 
-# Más estricto para evitar falsos positivos.
-# Como solo tienes 1 usuario cargado en tus pruebas, conviene apretar bastante.
-COSINE_THRESHOLD = 0.85
-EUCLIDEAN_THRESHOLD = 0.35
+# Umbral de similitud coseno para autorizar acceso.
+# 0.70 tolera variaciones naturales de expresión y peinado sin sacrificar seguridad.
+# El chequeo de margen (MIN_MARGIN) añade una capa extra cuando hay varios usuarios.
+COSINE_THRESHOLD = 0.70
+EUCLIDEAN_THRESHOLD = 0.45
 MIN_MARGIN = 0.08
 
 
