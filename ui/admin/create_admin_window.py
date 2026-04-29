@@ -23,7 +23,7 @@ if PROJECT_ROOT not in sys.path:
 
 from database.consultas import crear_admin, obtener_admin_por_email, hash_pin, crear_tablas
 from ui.sound_manager import play_sound
-
+print()
 
 def asset_path(filename):
     return os.path.join(ASSETS, filename)

@@ -50,11 +50,7 @@ class FaceDetector:
             'alignment_status': 'No face detected',
             'oval_color': (0, 0, 255),  # Rojo por defecto
             'face_center': None,
-            'face_rect': None,
-            # Crop anclado en ojos (invariante al pelo)
-            'face_crop_hint': None,
-            # True cuando la cara está parcialmente tapada
-            'face_occluded': False
+            'face_rect': None
         }
         
         if len(faces) > 0:
@@ -63,61 +59,36 @@ class FaceDetector:
             face_center = (x + w // 2, y + h // 2)
             result['face_rect'] = (x, y, w, h)
             result['face_center'] = face_center
-
-            # ── Detección de oclusión facial ───────────────────────────────────
-            # Buscar ojos en la mitad superior del bbox de la cara
-            roi_bot = y + int(h * 0.65)
-            face_roi_gray = gray[y:roi_bot, x:x + w]
-            eyes_check = self.eye_cascade.detectMultiScale(
-                face_roi_gray,
-                scaleFactor=1.1,
-                minNeighbors=4,
-                minSize=(18, 18)
-            )
-            # Si hay cara pero no se detectan al menos 2 ojos → cara tapada
-            occluded = len(eyes_check) < 2
-            result['face_occluded'] = occluded
-
-            if occluded:
-                # Cara tapada: bloquear todo y mostrar rojo
-                result['oval_color'] = (0, 0, 255)  # Rojo
-                result['alignment_status'] = 'Descubra su rostro'
-                # face_inside_oval y face_distance_ok permanecen False
+            
+            # Validar posicionamiento dentro del óvalo
+            dx = (face_center[0] - oval_center[0]) / float(oval_axes[0])
+            dy = (face_center[1] - oval_center[1]) / float(oval_axes[1])
+            if dx * dx + dy * dy <= 1.0:
+                result['face_inside_oval'] = True
+            
+            # Validar distancia
+            face_ratio = float(h) / frame_h
+            min_ratio = 0.40
+            max_ratio = 0.70
+            
+            if face_ratio < min_ratio:
+                result['distance_status'] = 'Too far: move closer'
+            elif face_ratio > max_ratio:
+                result['distance_status'] = 'Too close: move back'
             else:
-                # ── Crop anclado en ojos (invariante al pelo) ──────────────────
-                result['face_crop_hint'] = self._eye_anchored_crop(
-                    gray, frame_h, frame_w, x, y, w, h
-                )
-
-                # Validar posicionamiento dentro del óvalo (margen +15% para tolerar pelo)
-                dx = (face_center[0] - oval_center[0]) / float(oval_axes[0])
-                dy = (face_center[1] - oval_center[1]) / float(oval_axes[1])
-                if dx * dx + dy * dy <= 1.15:
-                    result['face_inside_oval'] = True
-
-                # Validar distancia — rango ampliado para evitar falsos rechazos por pelo
-                face_ratio = float(h) / frame_h
-                min_ratio = 0.30
-                max_ratio = 0.80
-
-                if face_ratio < min_ratio:
-                    result['distance_status'] = 'Acerquese a la camara'
-                elif face_ratio > max_ratio:
-                    result['distance_status'] = 'Alejese un poco'
-                else:
-                    result['distance_status'] = 'Distance OK'
-                    result['face_distance_ok'] = True
-
-                # Determinar estado general y color del óvalo
-                if result['face_inside_oval'] and result['face_distance_ok']:
-                    result['oval_color'] = (0, 255, 0)  # Verde - OK
-                    result['alignment_status'] = 'Face aligned and distance OK'
-                elif result['face_inside_oval']:
-                    result['oval_color'] = (0, 255, 255)  # Amarillo - distancia
-                    result['alignment_status'] = result['distance_status']
-                else:
-                    result['oval_color'] = (0, 0, 255)  # Rojo - Alinear
-                    result['alignment_status'] = 'Align face inside oval'
+                result['distance_status'] = 'Distance OK'
+                result['face_distance_ok'] = True
+            
+            # Determinar estado general y color del óvalo
+            if result['face_inside_oval'] and result['face_distance_ok']:
+                result['oval_color'] = (0, 255, 0)  # Verde - OK
+                result['alignment_status'] = 'Face aligned and distance OK'
+            elif result['face_inside_oval']:
+                result['oval_color'] = (0, 255, 255)  # Amarillo - Posición OK pero distancia no
+                result['alignment_status'] = result['distance_status']
+            else:
+                result['oval_color'] = (0, 0, 255)  # Rojo - Alinear
+                result['alignment_status'] = 'Align face inside oval'
         else:
             result['alignment_status'] = 'Align face inside oval'
         
