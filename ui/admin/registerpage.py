@@ -33,6 +33,7 @@ from hardware.face_detection import FaceDetector
 from hardware.face_embedder  import compute_face_embedding, cosine_similarity
 from database.consultas      import guardar_usuario, obtener_usuarios
 from ui.sound_manager import play_sound
+from ui.admin.privacy_notice import PrivacyNoticeDialog
 
 # Umbral para considerar que dos embeddings son de la misma persona
 # Umbral para considerar que dos embeddings son de la misma persona
@@ -248,6 +249,26 @@ class RegisterPage(QWidget):
         self._style_btn_primary(self.btn_capture)
         self.btn_capture.clicked.connect(self._start_capture)
 
+        # Botón aviso de privacidad
+        self.btn_privacy = QPushButton("🔒  Aviso de Privacidad")
+        self.btn_privacy.setFixedHeight(38)
+        self.btn_privacy.setCursor(Qt.PointingHandCursor)
+        self.btn_privacy.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: 1px solid #475569;
+                border-radius: 8px;
+                color: #94a3b8;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                border: 1px solid #38bdf8;
+                color: #38bdf8;
+            }
+        """)
+        self.btn_privacy.clicked.connect(self._show_privacy_notice)
+
         form_layout.addWidget(title)
         form_layout.addWidget(desc)
         form_layout.addSpacing(4)
@@ -256,6 +277,7 @@ class RegisterPage(QWidget):
         form_layout.addWidget(self._name_error_lbl)
         form_layout.addSpacing(4)
         form_layout.addWidget(self.btn_capture)
+        form_layout.addWidget(self.btn_privacy)
 
         # ── Tarjeta de cámara ─────────────────────────────────────────────────
         cam_card = QFrame()
@@ -327,6 +349,31 @@ class RegisterPage(QWidget):
         root.addWidget(form_card)
         root.addWidget(cam_card)
         root.addStretch()
+
+    # ── Aviso de privacidad ───────────────────────────────────────────────────
+    def _show_privacy_notice(self):
+        """Muestra el diálogo de aviso de privacidad."""
+        dialog = PrivacyNoticeDialog(self)
+        result = dialog.exec_()
+        
+        if result == 0:  # Usuario canceló
+            play_sound("acceso_denegado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Registro cancelado")
+            msg.setText("Debe aceptar el aviso de privacidad para continuar con el registro.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox { background-color: #0f172a; }
+                QLabel { color: #fbbf24; font-size: 13px; }
+                QPushButton {
+                    background-color: #1e293b; color: #ffffff;
+                    border: 1px solid #f59e0b; border-radius: 6px;
+                    padding: 6px 18px; font-weight: bold; min-width: 60px;
+                }
+                QPushButton:hover { background-color: #334155; }
+            """)
+            msg.exec_()
 
     # ── Validación del nombre ─────────────────────────────────────────────────
     def _validate_name(self, nombre: str) -> tuple:
@@ -412,6 +459,30 @@ class RegisterPage(QWidget):
     # ── Lógica de cámara ───────────────────────────────────────────────────────
     def _start_capture(self):
         nombre = self.name_input.text().strip()
+        
+        # Primero mostrar aviso de privacidad
+        privacy_dialog = PrivacyNoticeDialog(self)
+        result = privacy_dialog.exec_()
+        
+        if result == 0:  # Usuario canceló
+            play_sound("acceso_denegado.mp3")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Registro cancelado")
+            msg.setText("Debe aceptar el aviso de privacidad para continuar con el registro.")
+            msg.setIcon(QMessageBox.NoIcon)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox { background-color: #0f172a; }
+                QLabel { color: #fbbf24; font-size: 13px; }
+                QPushButton {
+                    background-color: #1e293b; color: #ffffff;
+                    border: 1px solid #f59e0b; border-radius: 6px;
+                    padding: 6px 18px; font-weight: bold; min-width: 60px;
+                }
+                QPushButton:hover { background-color: #334155; }
+            """)
+            msg.exec_()
+            return
         
         # Validar nombre con las reglas establecidas
         es_valido, mensaje_error = self._validate_name(nombre)
