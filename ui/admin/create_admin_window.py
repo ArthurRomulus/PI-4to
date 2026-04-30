@@ -308,7 +308,7 @@ class CreateAdminWindow(QDialog):
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(34, 16, 34, 20)
+        main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(0)
 
         # =====================================================
@@ -333,7 +333,7 @@ class CreateAdminWindow(QDialog):
         main_layout.addWidget(outer_frame)
 
         outer_layout = QVBoxLayout(outer_frame)
-        outer_layout.setContentsMargins(28, 18, 28, 17)
+        outer_layout.setContentsMargins(16, 14, 16, 14)
         outer_layout.setSpacing(0)
 
         # =====================================================
