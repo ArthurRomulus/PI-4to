@@ -639,7 +639,7 @@ class RegisterPage(QWidget):
         icon_wrap.addStretch()
 
         layout.addLayout(icon_wrap)
-        layout.addSpacing(6)
+        layout.addSpacing(18)
 
         title = QLabel("Registrar Usuario")
         title.setAlignment(Qt.AlignCenter)
