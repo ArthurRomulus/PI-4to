@@ -541,7 +541,7 @@ class CreateAdminWindow(QDialog):
         self.create_button.clicked.connect(self.create_admin)
         card_layout.addWidget(self.create_button)
 
-        card_layout.addSpacing(0)
+        card_layout.addSpacing(25)
 
         # =====================================================
         # BOTÓN CERRAR
