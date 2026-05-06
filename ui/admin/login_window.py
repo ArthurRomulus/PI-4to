@@ -467,12 +467,24 @@ class LoginWindow(QMainWindow):
         self.login_btn.setEnabled(False)
         self.login_btn.setText("Ingresando...")
 
+        from database.consultas import admin_esta_activo
         if verify_admin(correo, password):
+            if not admin_esta_activo(correo):
+                QMessageBox.critical(
+                    self,
+                    "Cuenta desactivada",
+                    "Esta cuenta de administrador ha sido dada de baja.\n"
+                    "Contacte a otro administrador para reactivarla."
+                )
+                self.login_btn.setEnabled(True)
+                self.login_btn.setText("Ingresar  →")
+                return
             self.open_admin_panel(correo)
         else:
             QMessageBox.critical(self, "Acceso denegado", "Correo o contraseña incorrectos.")
             self.login_btn.setEnabled(True)
             self.login_btn.setText("Ingresar  →")
+
 
     def open_admin_panel(self, admin_email):
         self.dashboard_panel = DashboardPanel(admin_email)

@@ -216,7 +216,7 @@ def obtener_usuarios():
         return []
 
 def obtener_lista_usuarios():
-    """Obtiene lista de usuarios (id_user, name, role_name, created_at) para la UI."""
+    """Obtiene lista de usuarios (id_user, name, role_name, is_active, created_at) para la UI."""
     try:
         conn = obtener_conexion()
         if conn is None:
@@ -224,7 +224,7 @@ def obtener_lista_usuarios():
         
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT u.id_user, u.name, r.role_name, u.created_at
+            SELECT u.id_user, u.name, r.role_name, u.is_active, u.created_at
             FROM USERS u
             LEFT JOIN ROLES r ON u.id_role = r.id_role
             ORDER BY u.created_at DESC
@@ -238,7 +238,8 @@ def obtener_lista_usuarios():
                 'id': row[0],
                 'nombre': row[1],
                 'tipo_usuario': row[2] or 'usuario',
-                'fecha_registro': row[3]
+                'is_active': row[3] if row[3] is not None else 1,
+                'fecha_registro': row[4]
             })
         return resultado
     except Exception as e:
@@ -745,3 +746,211 @@ def contar_accesos_hoy():
     except Exception as e:
         print(f"Error contando accesos de hoy: {e}")
         return 0
+
+
+# ===== FUNCIONES DE BAJA / REACTIVACIÓN =====
+
+def dar_de_baja_usuario(id_user: int) -> bool:
+    """Marca un usuario como inactivo (is_active=0). No puede iniciar sesión."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("UPDATE USERS SET is_active = 0 WHERE id_user = ?", (id_user,))
+        conn.commit()
+        afectados = cursor.rowcount
+        conn.close()
+        return afectados > 0
+    except Exception as e:
+        print(f"Error dando de baja usuario {id_user}: {e}")
+        return False
+
+
+def reactivar_usuario(id_user: int) -> bool:
+    """Reactiva un usuario previamente dado de baja (is_active=1)."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("UPDATE USERS SET is_active = 1 WHERE id_user = ?", (id_user,))
+        conn.commit()
+        afectados = cursor.rowcount
+        conn.close()
+        return afectados > 0
+    except Exception as e:
+        print(f"Error reactivando usuario {id_user}: {e}")
+        return False
+
+
+def modificar_usuario(id_user: int, nuevo_nombre: str, nuevo_numero_cuenta: str = None) -> bool:
+    """Actualiza el nombre y número de cuenta de un usuario."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE USERS SET name = ?, account_number = ? WHERE id_user = ?",
+            (nuevo_nombre.strip(), nuevo_numero_cuenta, id_user)
+        )
+        conn.commit()
+        afectados = cursor.rowcount
+        conn.close()
+        return afectados > 0
+    except sqlite3.IntegrityError:
+        print(f"Error: nombre duplicado '{nuevo_nombre}'")
+        return False
+    except Exception as e:
+        print(f"Error modificando usuario {id_user}: {e}")
+        return False
+
+
+# ===== FUNCIONES EXTENDIDAS PARA ADMINS =====
+
+def obtener_lista_admins():
+    """Obtiene lista de administradores con su estado activo para la UI."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return []
+        cursor = conn.cursor()
+
+        # Detectar columnas disponibles en ADMINS
+        cursor.execute("PRAGMA table_info(ADMINS)")
+        cols = [c[1] for c in cursor.fetchall()]
+        tiene_created = "created_at" in cols
+        tiene_active  = "is_active"  in cols
+
+        select_parts = ["id_admin", "email"]
+        select_parts.append("is_active" if tiene_active else "1 AS is_active")
+        select_parts.append("created_at" if tiene_created else "NULL AS created_at")
+
+        query = f"SELECT {', '.join(select_parts)} FROM ADMINS ORDER BY id_admin"
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        conn.close()
+
+        resultado = []
+        for r in rows:
+            resultado.append({
+                'id_admin':   r[0],
+                'email':      r[1],
+                'is_active':  r[2] if r[2] is not None else 1,
+                'created_at': r[3],
+            })
+        return resultado
+    except Exception as e:
+        print(f"Error obteniendo lista de admins: {e}")
+        return []
+
+
+def dar_de_baja_admin(id_admin: int) -> bool:
+    """Marca un administrador como inactivo (is_active=0). No puede iniciar sesión."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("UPDATE ADMINS SET is_active = 0 WHERE id_admin = ?", (id_admin,))
+        conn.commit()
+        afectados = cursor.rowcount
+        conn.close()
+        return afectados > 0
+    except Exception as e:
+        print(f"Error dando de baja admin {id_admin}: {e}")
+        return False
+
+
+def reactivar_admin(id_admin: int) -> bool:
+    """Reactiva un administrador previamente dado de baja (is_active=1)."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("UPDATE ADMINS SET is_active = 1 WHERE id_admin = ?", (id_admin,))
+        conn.commit()
+        afectados = cursor.rowcount
+        conn.close()
+        return afectados > 0
+    except Exception as e:
+        print(f"Error reactivando admin {id_admin}: {e}")
+        return False
+
+
+def modificar_admin(id_admin: int, nuevo_email: str) -> bool:
+    """Actualiza el correo electrónico de un administrador."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE ADMINS SET email = ? WHERE id_admin = ?",
+            (nuevo_email.strip(), id_admin)
+        )
+        conn.commit()
+        afectados = cursor.rowcount
+        conn.close()
+        return afectados > 0
+    except sqlite3.IntegrityError:
+        print(f"Error: el correo '{nuevo_email}' ya está registrado")
+        return False
+    except Exception as e:
+        print(f"Error modificando admin {id_admin}: {e}")
+        return False
+
+
+def eliminar_admin_por_id(id_admin: int) -> bool:
+    """Elimina permanentemente un administrador de la base de datos."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM ADMINS WHERE id_admin = ?", (id_admin,))
+        conn.commit()
+        afectados = cursor.rowcount
+        conn.close()
+        return afectados > 0
+    except Exception as e:
+        print(f"Error eliminando admin {id_admin}: {e}")
+        return False
+
+
+def usuario_esta_activo(id_user: int) -> bool:
+    """Verifica si un usuario está activo (is_active=1)."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("SELECT is_active FROM USERS WHERE id_user = ?", (id_user,))
+        resultado = cursor.fetchone()
+        conn.close()
+        if resultado is None:
+            return False
+        return bool(resultado[0]) if resultado[0] is not None else True
+    except Exception as e:
+        print(f"Error verificando estado de usuario {id_user}: {e}")
+        return False
+
+
+def admin_esta_activo(email: str) -> bool:
+    """Verifica si un administrador está activo (is_active=1)."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("SELECT is_active FROM ADMINS WHERE email = ?", (email,))
+        resultado = cursor.fetchone()
+        conn.close()
+        if resultado is None:
+            return False
+        return bool(resultado[0]) if resultado[0] is not None else True
+    except Exception as e:
+        print(f"Error verificando estado de admin '{email}': {e}")
+        return False

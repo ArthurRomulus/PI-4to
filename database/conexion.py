@@ -45,6 +45,7 @@ def crear_tablas():
             id_role INTEGER,
             name TEXT NOT NULL,
             account_number TEXT,
+            is_active INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (id_role) REFERENCES ROLES(id_role)
         )
@@ -59,6 +60,7 @@ def crear_tablas():
             pin_hash TEXT NOT NULL,
             security_question TEXT,
             security_answer_hash TEXT,
+            is_active INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (id_role) REFERENCES ROLES(id_role)
         )
@@ -114,19 +116,33 @@ def crear_tablas():
         conn.close()
 
 def migrar_columnas_seguridad(cursor):
-    """Agrega columnas de seguridad si no existen (para bases de datos existentes)."""
+    """Agrega columnas de seguridad y de estado si no existen (para bases de datos existentes)."""
     try:
-        # Verificar si la columna security_question existe
+        # ── Columnas de ADMINS ───────────────────────────────────────────────
         cursor.execute("PRAGMA table_info(ADMINS)")
-        columnas = [col[1] for col in cursor.fetchall()]
-        
-        if "security_question" not in columnas:
+        columnas_admins = [col[1] for col in cursor.fetchall()]
+
+        if "security_question" not in columnas_admins:
             cursor.execute("ALTER TABLE ADMINS ADD COLUMN security_question TEXT")
             print("Columna security_question agregada")
-        
-        if "security_answer_hash" not in columnas:
+
+        if "security_answer_hash" not in columnas_admins:
             cursor.execute("ALTER TABLE ADMINS ADD COLUMN security_answer_hash TEXT")
             print("Columna security_answer_hash agregada")
-            
+
+        if "is_active" not in columnas_admins:
+            cursor.execute("ALTER TABLE ADMINS ADD COLUMN is_active INTEGER DEFAULT 1")
+            cursor.execute("UPDATE ADMINS SET is_active = 1 WHERE is_active IS NULL")
+            print("Columna is_active agregada a ADMINS")
+
+        # ── Columnas de USERS ────────────────────────────────────────────────
+        cursor.execute("PRAGMA table_info(USERS)")
+        columnas_users = [col[1] for col in cursor.fetchall()]
+
+        if "is_active" not in columnas_users:
+            cursor.execute("ALTER TABLE USERS ADD COLUMN is_active INTEGER DEFAULT 1")
+            cursor.execute("UPDATE USERS SET is_active = 1 WHERE is_active IS NULL")
+            print("Columna is_active agregada a USERS")
+
     except sqlite3.Error as e:
         print(f"Error en migración: {e}")

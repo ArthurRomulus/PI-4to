@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QHeaderView, QLabel, QTableWidget, QTableWidgetItem,
     QVBoxLayout, QWidget, QFrame, QScrollArea, QSizePolicy,
     QPushButton, QHBoxLayout, QMessageBox, QAbstractItemView,
+    QDialog, QFormLayout, QLineEdit, QDialogButtonBox,
 )
 from .admin_components import RoundedCard
 
@@ -15,24 +16,83 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from database.consultas import (
-    obtener_lista_usuarios, obtener_conexion, eliminar_usuario_por_id
+    obtener_lista_usuarios, obtener_conexion, eliminar_usuario_por_id,
+    dar_de_baja_usuario, reactivar_usuario, modificar_usuario,
+    obtener_lista_admins, dar_de_baja_admin, reactivar_admin,
+    modificar_admin, eliminar_admin_por_id,
 )
 
+# ── Estilos compartidos ───────────────────────────────────────────────────────
 
-def _obtener_admins():
-    """Retorna lista de dicts {id_admin, email} de la tabla ADMINS."""
-    try:
-        conn = obtener_conexion()
-        if conn is None:
-            return []
-        cursor = conn.cursor()
-        cursor.execute("SELECT id_admin, email FROM ADMINS ORDER BY id_admin")
-        rows = cursor.fetchall()
-        conn.close()
-        return [{"id_admin": r[0], "email": r[1]} for r in rows]
-    except Exception as e:
-        print(f"[UsersPage] Error cargando admins: {e}")
-        return []
+_DIALOG_STYLE = """
+    QDialog {
+        background-color: #0f172a;
+        color: #e2e8f0;
+    }
+    QLabel {
+        color: #94a3b8;
+        font-size: 12px;
+    }
+    QLineEdit {
+        background-color: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        color: #e2e8f0;
+        font-size: 13px;
+        padding: 6px 10px;
+    }
+    QLineEdit:focus { border-color: #38bdf8; }
+    QDialogButtonBox QPushButton {
+        background-color: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 6px 20px;
+        font-weight: bold;
+    }
+    QDialogButtonBox QPushButton:hover { background-color: #334155; }
+"""
+
+_MSG_STYLE = """
+    QMessageBox { background-color: #0f172a; color: #e2e8f0; }
+    QLabel { color: #e2e8f0; font-size: 13px; }
+    QPushButton {
+        background-color: #1e293b; color: #e2e8f0;
+        border: 1px solid #334155; border-radius: 6px;
+        padding: 6px 18px; font-weight: bold;
+    }
+    QPushButton:hover { background-color: #334155; }
+"""
+
+_BTN_DELETE = """
+    QPushButton {
+        background-color: #7f1d1d; border: 1px solid #ef4444;
+        border-radius: 8px; color: #fca5a5;
+        font-size: 11px; font-weight: 700; padding: 0 12px;
+    }
+    QPushButton:hover { background-color: #991b1b; color: #fff; border-color: #f87171; }
+    QPushButton:disabled { background-color: #1e293b; border-color: #334155; color: #475569; }
+"""
+
+_BTN_BAJA = """
+    QPushButton {
+        background-color: #78350f; border: 1px solid #f59e0b;
+        border-radius: 8px; color: #fde68a;
+        font-size: 11px; font-weight: 700; padding: 0 12px;
+    }
+    QPushButton:hover { background-color: #92400e; color: #fff; border-color: #fbbf24; }
+    QPushButton:disabled { background-color: #1e293b; border-color: #334155; color: #475569; }
+"""
+
+_BTN_MODIFY = """
+    QPushButton {
+        background-color: #1e3a5f; border: 1px solid #38bdf8;
+        border-radius: 8px; color: #7dd3fc;
+        font-size: 11px; font-weight: 700; padding: 0 12px;
+    }
+    QPushButton:hover { background-color: #1e4d7a; color: #fff; border-color: #7dd3fc; }
+    QPushButton:disabled { background-color: #1e293b; border-color: #334155; color: #475569; }
+"""
 
 
 def _make_table(columns: list, stretch_col: int = 1) -> QTableWidget:
@@ -68,11 +128,96 @@ def _make_table(columns: list, stretch_col: int = 1) -> QTableWidget:
     return t
 
 
+def _make_btn(label: str, style: str, height: int = 32) -> QPushButton:
+    btn = QPushButton(label)
+    btn.setCursor(Qt.PointingHandCursor)
+    btn.setFixedHeight(height)
+    btn.setStyleSheet(style)
+    btn.setEnabled(False)
+    return btn
+
+
+# ── Diálogos de modificación ──────────────────────────────────────────────────
+
+class ModificarUsuarioDialog(QDialog):
+    """Ventana para editar nombre y número de cuenta de un usuario."""
+
+    def __init__(self, nombre_actual: str, cuenta_actual: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Modificar usuario")
+        self.setMinimumWidth(380)
+        self.setStyleSheet(_DIALOG_STYLE)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(14)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        titulo = QLabel("✏️  Editar datos del usuario")
+        titulo.setStyleSheet("color: #38bdf8; font-size: 15px; font-weight: 700;")
+        layout.addWidget(titulo)
+
+        form = QFormLayout()
+        form.setSpacing(10)
+
+        self.nombre_edit = QLineEdit(nombre_actual or "")
+        self.cuenta_edit = QLineEdit(cuenta_actual or "")
+
+        form.addRow("Nombre:", self.nombre_edit)
+        form.addRow("Número de cuenta:", self.cuenta_edit)
+        layout.addLayout(form)
+
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.button(QDialogButtonBox.Ok).setText("Guardar")
+        btns.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        layout.addWidget(btns)
+
+    def get_datos(self):
+        return self.nombre_edit.text().strip(), self.cuenta_edit.text().strip()
+
+
+class ModificarAdminDialog(QDialog):
+    """Ventana para editar el correo de un administrador."""
+
+    def __init__(self, email_actual: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Modificar administrador")
+        self.setMinimumWidth(380)
+        self.setStyleSheet(_DIALOG_STYLE)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(14)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        titulo = QLabel("✏️  Editar correo del administrador")
+        titulo.setStyleSheet("color: #f59e0b; font-size: 15px; font-weight: 700;")
+        layout.addWidget(titulo)
+
+        form = QFormLayout()
+        form.setSpacing(10)
+        self.email_edit = QLineEdit(email_actual or "")
+        form.addRow("Correo electrónico:", self.email_edit)
+        layout.addLayout(form)
+
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.button(QDialogButtonBox.Ok).setText("Guardar")
+        btns.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        layout.addWidget(btns)
+
+    def get_email(self):
+        return self.email_edit.text().strip()
+
+
+# ── Página principal ──────────────────────────────────────────────────────────
+
 class UsersPage(QWidget):
     def __init__(self):
         super().__init__()
 
-        # Scroll externo para toda la página
+        # ── Layout externo con scroll ────────────────────────────────────────
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
 
@@ -94,46 +239,33 @@ class UsersPage(QWidget):
         u_inner.setContentsMargins(14, 14, 14, 14)
         u_inner.setSpacing(8)
 
-        # Encabezado con título y botón eliminar
-        u_header_row = QHBoxLayout()
         u_title = QLabel("👤  Usuarios registrados")
         u_title.setStyleSheet("color: #38bdf8; font-size: 16px; font-weight: 700; border: none;")
-        u_header_row.addWidget(u_title)
-        u_header_row.addStretch()
+        u_inner.addWidget(u_title)
 
-        self.delete_user_btn = QPushButton("🗑  Eliminar usuario")
-        self.delete_user_btn.setCursor(Qt.PointingHandCursor)
-        self.delete_user_btn.setFixedHeight(34)
-        self.delete_user_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #7f1d1d;
-                border: 1px solid #ef4444;
-                border-radius: 8px;
-                color: #fca5a5;
-                font-size: 12px;
-                font-weight: 700;
-                padding: 0 14px;
-            }
-            QPushButton:hover {
-                background-color: #991b1b;
-                color: #ffffff;
-                border-color: #f87171;
-            }
-            QPushButton:disabled {
-                background-color: #1e293b;
-                border-color: #334155;
-                color: #475569;
-            }
-        """)
-        self.delete_user_btn.setEnabled(False)
+        # Fila de botones para usuarios
+        u_btn_row = QHBoxLayout()
+        u_btn_row.setSpacing(8)
+        u_btn_row.addStretch()
+
+        self.modify_user_btn = _make_btn("✏️  Modificar", _BTN_MODIFY)
+        self.modify_user_btn.clicked.connect(self._modificar_usuario)
+        u_btn_row.addWidget(self.modify_user_btn)
+
+        self.baja_user_btn = _make_btn("⛔  Dar de baja", _BTN_BAJA)
+        self.baja_user_btn.clicked.connect(self._toggle_baja_usuario)
+        u_btn_row.addWidget(self.baja_user_btn)
+
+        self.delete_user_btn = _make_btn("🗑  Eliminar", _BTN_DELETE)
         self.delete_user_btn.clicked.connect(self._confirmar_eliminar_usuario)
-        u_header_row.addWidget(self.delete_user_btn)
+        u_btn_row.addWidget(self.delete_user_btn)
 
-        self.user_table = _make_table(["ID", "NOMBRE", "ROL", "FECHA"], stretch_col=1)
+        u_inner.addLayout(u_btn_row)
+
+        # Tabla usuarios: ID, Nombre, Rol, Estado, Fecha
+        self.user_table = _make_table(["ID", "NOMBRE", "ROL", "ESTADO", "FECHA"], stretch_col=1)
         self.user_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.user_table.itemSelectionChanged.connect(self._on_user_selection_changed)
-
-        u_inner.addLayout(u_header_row)
         u_inner.addWidget(self.user_table)
         lay.addWidget(user_card)
 
@@ -150,34 +282,104 @@ class UsersPage(QWidget):
         a_desc.setWordWrap(True)
         a_desc.setStyleSheet("color: #64748b; font-size: 11px; border: none;")
 
-        self.admin_table = _make_table(["ID", "CORREO", "CONTRASEÑA"], stretch_col=1)
-        self.admin_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
         a_inner.addWidget(a_title)
         a_inner.addWidget(a_desc)
+
+        # Fila de botones para admins
+        a_btn_row = QHBoxLayout()
+        a_btn_row.setSpacing(8)
+        a_btn_row.addStretch()
+
+        self.modify_admin_btn = _make_btn("✏️  Modificar", _BTN_MODIFY)
+        self.modify_admin_btn.clicked.connect(self._modificar_admin)
+        a_btn_row.addWidget(self.modify_admin_btn)
+
+        self.baja_admin_btn = _make_btn("⛔  Dar de baja", _BTN_BAJA)
+        self.baja_admin_btn.clicked.connect(self._toggle_baja_admin)
+        a_btn_row.addWidget(self.baja_admin_btn)
+
+        self.delete_admin_btn = _make_btn("🗑  Eliminar", _BTN_DELETE)
+        self.delete_admin_btn.clicked.connect(self._confirmar_eliminar_admin)
+        a_btn_row.addWidget(self.delete_admin_btn)
+
+        a_inner.addLayout(a_btn_row)
+
+        # Tabla admins: ID, Correo, Contraseña, Estado, Fecha
+        self.admin_table = _make_table(["ID", "CORREO", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
+        self.admin_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.admin_table.itemSelectionChanged.connect(self._on_admin_selection_changed)
         a_inner.addWidget(self.admin_table)
         lay.addWidget(admin_card)
 
         lay.addStretch()
 
-    # ── Selección ────────────────────────────────────────────────────────────
-    def _on_user_selection_changed(self):
-        selected = self.user_table.selectedItems()
-        self.delete_user_btn.setEnabled(bool(selected))
+    # ── Helpers de estado ─────────────────────────────────────────────────────
 
-    # ── Eliminar usuario ─────────────────────────────────────────────────────
-    def _confirmar_eliminar_usuario(self):
+    def _get_selected_user(self):
+        """Devuelve (row, id_user, nombre, is_active) del usuario seleccionado o None."""
         row = self.user_table.currentRow()
         if row < 0:
-            return
-
+            return None
         id_item     = self.user_table.item(row, 0)
         nombre_item = self.user_table.item(row, 1)
-        if not id_item or not nombre_item:
-            return
+        estado_item = self.user_table.item(row, 3)
+        if not id_item:
+            return None
+        return (
+            row,
+            int(id_item.text()),
+            nombre_item.text() if nombre_item else "",
+            estado_item.text() if estado_item else "Activo",
+        )
 
-        user_id  = int(id_item.text())
-        nombre   = nombre_item.text()
+    def _get_selected_admin(self):
+        """Devuelve (row, id_admin, email, is_active) del admin seleccionado o None."""
+        row = self.admin_table.currentRow()
+        if row < 0:
+            return None
+        id_item     = self.admin_table.item(row, 0)
+        email_item  = self.admin_table.item(row, 1)
+        estado_item = self.admin_table.item(row, 3)
+        if not id_item:
+            return None
+        return (
+            row,
+            int(id_item.text()),
+            email_item.text() if email_item else "",
+            estado_item.text() if estado_item else "Activo",
+        )
+
+    # ── Selección ─────────────────────────────────────────────────────────────
+
+    def _on_user_selection_changed(self):
+        sel = bool(self.user_table.selectedItems())
+        self.delete_user_btn.setEnabled(sel)
+        self.baja_user_btn.setEnabled(sel)
+        self.modify_user_btn.setEnabled(sel)
+        if sel:
+            data = self._get_selected_user()
+            if data:
+                activo = data[3] == "Activo"
+                self.baja_user_btn.setText("✅  Reactivar" if not activo else "⛔  Dar de baja")
+
+    def _on_admin_selection_changed(self):
+        sel = bool(self.admin_table.selectedItems())
+        self.delete_admin_btn.setEnabled(sel)
+        self.baja_admin_btn.setEnabled(sel)
+        self.modify_admin_btn.setEnabled(sel)
+        if sel:
+            data = self._get_selected_admin()
+            if data:
+                activo = data[3] == "Activo"
+                self.baja_admin_btn.setText("✅  Reactivar" if not activo else "⛔  Dar de baja")
+
+    # ── Acciones de USUARIOS ──────────────────────────────────────────────────
+
+    def _confirmar_eliminar_usuario(self):
+        data = self._get_selected_user()
+        if not data:
+            return
+        _, user_id, nombre, _ = data
 
         msg = QMessageBox(self)
         msg.setWindowTitle("Confirmar eliminación")
@@ -190,57 +392,156 @@ class UsersPage(QWidget):
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
         msg.button(QMessageBox.Yes).setText("Eliminar")
         msg.button(QMessageBox.Cancel).setText("Cancelar")
-        msg.setStyleSheet("""
-            QMessageBox {
-                background-color: #0f172a;
-                color: #e2e8f0;
-            }
-            QLabel {
-                color: #e2e8f0;
-                font-size: 13px;
-            }
-            QPushButton {
-                background-color: #1e293b;
-                color: #e2e8f0;
-                border: 1px solid #334155;
-                border-radius: 6px;
-                padding: 6px 18px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background-color: #334155; }
-        """)
+        msg.setStyleSheet(_MSG_STYLE)
 
-        reply = msg.exec_()
-        if reply == QMessageBox.Yes:
-            self._eliminar_usuario(user_id, nombre)
+        if msg.exec_() == QMessageBox.Yes:
+            if eliminar_usuario_por_id(user_id):
+                self._notificar(f"✅  Usuario «{nombre}» eliminado correctamente.", ok=True)
+                self.refresh_data()
+            else:
+                self._notificar(f"❌  No se pudo eliminar a «{nombre}».", ok=False)
 
-    def _eliminar_usuario(self, user_id: int, nombre: str):
-        exito = eliminar_usuario_por_id(user_id)
-        if exito:
-            self._mostrar_notificacion(f"✅  Usuario «{nombre}» eliminado correctamente.", ok=True)
-            self.refresh_data()
+    def _toggle_baja_usuario(self):
+        data = self._get_selected_user()
+        if not data:
+            return
+        _, user_id, nombre, estado = data
+        activo = estado == "Activo"
+
+        accion = "reactivar" if not activo else "dar de baja"
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Confirmar acción")
+        msg.setText(f"¿Deseas <b>{accion}</b> al usuario <b>{nombre}</b>?")
+        if not activo:
+            msg.setInformativeText("El usuario podrá volver a iniciar sesión.")
         else:
-            self._mostrar_notificacion(f"❌  No se pudo eliminar a «{nombre}».", ok=False)
+            msg.setInformativeText("El usuario no podrá iniciar sesión hasta que sea reactivado.")
+        msg.setIcon(QMessageBox.Question)
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        msg.button(QMessageBox.Yes).setText("Confirmar")
+        msg.button(QMessageBox.Cancel).setText("Cancelar")
+        msg.setStyleSheet(_MSG_STYLE)
 
-    def _mostrar_notificacion(self, texto: str, ok: bool):
+        if msg.exec_() == QMessageBox.Yes:
+            ok = reactivar_usuario(user_id) if not activo else dar_de_baja_usuario(user_id)
+            if ok:
+                nuevo_estado = "reactivado" if not activo else "dado de baja"
+                self._notificar(f"✅  Usuario «{nombre}» {nuevo_estado} correctamente.", ok=True)
+                self.refresh_data()
+            else:
+                self._notificar(f"❌  No se pudo {accion} a «{nombre}».", ok=False)
+
+    def _modificar_usuario(self):
+        data = self._get_selected_user()
+        if not data:
+            return
+        _, user_id, nombre, _ = data
+
+        # Obtener número de cuenta actual
+        from database.consultas import obtener_usuario_por_id
+        info = obtener_usuario_por_id(user_id)
+        cuenta_actual = info.get("account_number", "") if info else ""
+
+        dlg = ModificarUsuarioDialog(nombre, cuenta_actual or "", self)
+        if dlg.exec_() == QDialog.Accepted:
+            nuevo_nombre, nueva_cuenta = dlg.get_datos()
+            if not nuevo_nombre:
+                self._notificar("❌  El nombre no puede estar vacío.", ok=False)
+                return
+            ok = modificar_usuario(user_id, nuevo_nombre, nueva_cuenta or None)
+            if ok:
+                self._notificar(f"✅  Usuario actualizado correctamente.", ok=True)
+                self.refresh_data()
+            else:
+                self._notificar("❌  No se pudo actualizar el usuario.", ok=False)
+
+    # ── Acciones de ADMINS ────────────────────────────────────────────────────
+
+    def _confirmar_eliminar_admin(self):
+        data = self._get_selected_admin()
+        if not data:
+            return
+        _, admin_id, email, _ = data
+
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Confirmar eliminación")
+        msg.setText(f"¿Eliminar al administrador <b>{email}</b> (ID: {admin_id})?")
+        msg.setInformativeText("Esta acción no se puede deshacer.")
+        msg.setIcon(QMessageBox.Warning)
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        msg.button(QMessageBox.Yes).setText("Eliminar")
+        msg.button(QMessageBox.Cancel).setText("Cancelar")
+        msg.setStyleSheet(_MSG_STYLE)
+
+        if msg.exec_() == QMessageBox.Yes:
+            if eliminar_admin_por_id(admin_id):
+                self._notificar(f"✅  Administrador «{email}» eliminado correctamente.", ok=True)
+                self.refresh_data()
+            else:
+                self._notificar(f"❌  No se pudo eliminar al administrador «{email}».", ok=False)
+
+    def _toggle_baja_admin(self):
+        data = self._get_selected_admin()
+        if not data:
+            return
+        _, admin_id, email, estado = data
+        activo = estado == "Activo"
+
+        accion = "reactivar" if not activo else "dar de baja"
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Confirmar acción")
+        msg.setText(f"¿Deseas <b>{accion}</b> al administrador <b>{email}</b>?")
+        if not activo:
+            msg.setInformativeText("El administrador podrá volver a iniciar sesión.")
+        else:
+            msg.setInformativeText("El administrador no podrá iniciar sesión hasta que sea reactivado.")
+        msg.setIcon(QMessageBox.Question)
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        msg.button(QMessageBox.Yes).setText("Confirmar")
+        msg.button(QMessageBox.Cancel).setText("Cancelar")
+        msg.setStyleSheet(_MSG_STYLE)
+
+        if msg.exec_() == QMessageBox.Yes:
+            ok = reactivar_admin(admin_id) if not activo else dar_de_baja_admin(admin_id)
+            if ok:
+                nuevo_estado = "reactivado" if not activo else "dado de baja"
+                self._notificar(f"✅  Administrador «{email}» {nuevo_estado} correctamente.", ok=True)
+                self.refresh_data()
+            else:
+                self._notificar(f"❌  No se pudo {accion} al administrador «{email}».", ok=False)
+
+    def _modificar_admin(self):
+        data = self._get_selected_admin()
+        if not data:
+            return
+        _, admin_id, email, _ = data
+
+        dlg = ModificarAdminDialog(email, self)
+        if dlg.exec_() == QDialog.Accepted:
+            nuevo_email = dlg.get_email()
+            if not nuevo_email:
+                self._notificar("❌  El correo no puede estar vacío.", ok=False)
+                return
+            ok = modificar_admin(admin_id, nuevo_email)
+            if ok:
+                self._notificar("✅  Administrador actualizado correctamente.", ok=True)
+                self.refresh_data()
+            else:
+                self._notificar("❌  No se pudo actualizar. El correo puede estar duplicado.", ok=False)
+
+    # ── Notificaciones ────────────────────────────────────────────────────────
+
+    def _notificar(self, texto: str, ok: bool):
         msg = QMessageBox(self)
         msg.setWindowTitle("Resultado")
         msg.setText(texto)
         msg.setIcon(QMessageBox.Information if ok else QMessageBox.Critical)
         msg.setStandardButtons(QMessageBox.Ok)
-        msg.setStyleSheet("""
-            QMessageBox { background-color: #0f172a; color: #e2e8f0; }
-            QLabel { color: #e2e8f0; font-size: 13px; }
-            QPushButton {
-                background-color: #1e293b; color: #e2e8f0;
-                border: 1px solid #334155; border-radius: 6px;
-                padding: 6px 18px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #334155; }
-        """)
+        msg.setStyleSheet(_MSG_STYLE)
         msg.exec_()
 
-    # ── Actualización de datos ────────────────────────────────────────────────
+    # ── Carga de datos ────────────────────────────────────────────────────────
+
     def refresh_data(self):
         self._load_users()
         self._load_admins()
@@ -249,19 +550,43 @@ class UsersPage(QWidget):
         users = obtener_lista_usuarios()
         self.user_table.setRowCount(len(users))
         for row, user in enumerate(users):
+            is_active = user.get("is_active", 1)
+            estado = "Activo" if is_active else "Baja"
+            color  = "#86efac" if is_active else "#f87171"
+
             self.user_table.setItem(row, 0, QTableWidgetItem(str(user.get("id", ""))))
             self.user_table.setItem(row, 1, QTableWidgetItem(str(user.get("nombre", ""))))
             self.user_table.setItem(row, 2, QTableWidgetItem(str(user.get("tipo_usuario", ""))))
-            self.user_table.setItem(row, 3, QTableWidgetItem(str(user.get("fecha_registro", ""))))
+
+            estado_item = QTableWidgetItem(estado)
+            estado_item.setForeground(__import__("PyQt5.QtGui", fromlist=["QColor"]).QColor(color))
+            self.user_table.setItem(row, 3, estado_item)
+            self.user_table.setItem(row, 4, QTableWidgetItem(str(user.get("fecha_registro", ""))))
+
         self.user_table.resizeRowsToContents()
-        self.delete_user_btn.setEnabled(False)
+        # Deshabilitar botones al refrescar
+        for btn in (self.delete_user_btn, self.baja_user_btn, self.modify_user_btn):
+            btn.setEnabled(False)
+        self.baja_user_btn.setText("⛔  Dar de baja")
 
     def _load_admins(self):
-        admins = _obtener_admins()
+        admins = obtener_lista_admins()
         self.admin_table.setRowCount(len(admins))
         for row, admin in enumerate(admins):
+            is_active = admin.get("is_active", 1)
+            estado = "Activo" if is_active else "Baja"
+            color  = "#86efac" if is_active else "#f87171"
+
             self.admin_table.setItem(row, 0, QTableWidgetItem(str(admin.get("id_admin", ""))))
             self.admin_table.setItem(row, 1, QTableWidgetItem(str(admin.get("email", ""))))
-            # Contraseña siempre enmascarada — nunca mostramos el hash
             self.admin_table.setItem(row, 2, QTableWidgetItem("••••••••••••"))
+
+            estado_item = QTableWidgetItem(estado)
+            estado_item.setForeground(__import__("PyQt5.QtGui", fromlist=["QColor"]).QColor(color))
+            self.admin_table.setItem(row, 3, estado_item)
+            self.admin_table.setItem(row, 4, QTableWidgetItem(str(admin.get("created_at", ""))))
+
         self.admin_table.resizeRowsToContents()
+        for btn in (self.delete_admin_btn, self.baja_admin_btn, self.modify_admin_btn):
+            btn.setEnabled(False)
+        self.baja_admin_btn.setText("⛔  Dar de baja")
