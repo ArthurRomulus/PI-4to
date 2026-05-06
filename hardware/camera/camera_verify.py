@@ -42,6 +42,7 @@ MIN_MARGIN = 0.08
 def _cargar_usuarios_db() -> list:
     """
     Retorna lista de (id_user, nombre, embedding_np) desde la base de datos.
+    Solo incluye usuarios activos (is_active = 1 o NULL).
     """
     try:
         from database.consultas import obtener_conexion
@@ -57,6 +58,7 @@ def _cargar_usuarios_db() -> list:
             FROM USERS u
             LEFT JOIN FACIAL_RECORDS f ON u.id_user = f.id_user
             WHERE u.id_user IS NOT NULL
+              AND (u.is_active IS NULL OR u.is_active = 1)
         """)
         datos = cursor.fetchall()
         conn.close()
