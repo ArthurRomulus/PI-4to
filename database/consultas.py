@@ -3,6 +3,8 @@ import pickle
 import sqlite3
 import os
 import numpy as np
+import random
+import datetime
 from config import DATABASE
 
 def obtener_conexion():
@@ -32,6 +34,59 @@ def crear_tablas():
 def hash_pin(pin):
     """Devuelve un hash SHA-256 para el PIN/contraseña."""
     return hashlib.sha256(pin.encode("utf-8")).hexdigest()
+
+
+def generar_numero_cuenta_unico():
+    """Genera un número de cuenta único en formato YYYYXXXX donde YYYY es el año actual y XXXX son números aleatorios."""
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return None
+        
+        cursor = conn.cursor()
+        
+        # Obtener el año actual
+        year = datetime.datetime.now().year
+        
+        # Generar números aleatorios únicos hasta encontrar uno disponible
+        max_attempts = 1000  # Evitar loop infinito
+        attempts = 0
+        
+        while attempts < max_attempts:
+            # Generar 4 dígitos aleatorios
+            random_digits = f"{random.randint(0, 9999):04d}"
+            account_number = f"{year}{random_digits}"
+            
+            # Verificar si ya existe en USERS
+            cursor.execute("SELECT COUNT(*) FROM USERS WHERE account_number = ?", (account_number,))
+            count = cursor.fetchone()[0]
+            
+            # Verificar si ya existe en ADMINS si la columna existe
+            cursor.execute("PRAGMA table_info(ADMINS)")
+            admin_columns = [col[1] for col in cursor.fetchall()]
+            if "account_number" in admin_columns:
+                cursor.execute("SELECT COUNT(*) FROM ADMINS WHERE account_number = ?", (account_number,))
+                count += cursor.fetchone()[0]
+            
+            if count == 0:
+                # Número único encontrado
+                conn.close()
+                return account_number
+            
+            attempts += 1
+        
+        # Si no se pudo generar después de muchos intentos, usar timestamp
+        timestamp = int(datetime.datetime.now().timestamp())
+        account_number = f"{year}{timestamp % 10000:04d}"
+        
+        conn.close()
+        return account_number
+        
+    except Exception as e:
+        print(f"Error generando número de cuenta: {e}")
+        if conn:
+            conn.close()
+        return None
 
 
 def verify_admin(email, pin):
@@ -102,6 +157,13 @@ def guardar_usuario(nombre, embedding, account_number=None, id_role=None):
         
         cursor = conn.cursor()
         
+        # Si no se proporciona account_number, generar uno único
+        if account_number is None:
+            account_number = generar_numero_cuenta_unico()
+            if account_number is None:
+                print("Error: No se pudo generar un número de cuenta único")
+                return False
+        
         # Si no se proporciona id_role, obtener el rol por defecto (usuario)
         if id_role is None:
             id_role = obtener_rol_por_nombre("usuario")
@@ -124,8 +186,8 @@ def guardar_usuario(nombre, embedding, account_number=None, id_role=None):
         
         conn.commit()
         conn.close()
-        print(f"Usuario '{nombre}' guardado exitosamente")
-        return user_id
+        print(f"Usuario '{nombre}' guardado exitosamente con número de cuenta: {account_number}")
+        return {"user_id": user_id, "account_number": account_number}
     except sqlite3.IntegrityError:
         print(f"Error: El usuario '{nombre}' ya existe")
         conn.close()
@@ -216,7 +278,7 @@ def obtener_usuarios():
         return []
 
 def obtener_lista_usuarios():
-    """Obtiene lista de usuarios (id_user, name, role_name, is_active, created_at) para la UI."""
+    """Obtiene lista de usuarios (id_user, name, role_name, is_active, created_at, account_number) para la UI."""
     try:
         conn = obtener_conexion()
         if conn is None:
@@ -224,7 +286,7 @@ def obtener_lista_usuarios():
         
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT u.id_user, u.name, r.role_name, u.is_active, u.created_at
+            SELECT u.id_user, u.name, r.role_name, u.is_active, u.created_at, u.account_number
             FROM USERS u
             LEFT JOIN ROLES r ON u.id_role = r.id_role
             ORDER BY u.created_at DESC
@@ -239,7 +301,8 @@ def obtener_lista_usuarios():
                 'nombre': row[1],
                 'tipo_usuario': row[2] or 'usuario',
                 'is_active': row[3] if row[3] is not None else 1,
-                'fecha_registro': row[4]
+                'fecha_registro': row[4],
+                'account_number': row[5] or 'N/A'
             })
         return resultado
     except Exception as e:
@@ -351,7 +414,7 @@ def obtener_historial_accesos(limite=50):
         
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT al.id_access, al.id_user, u.name, al.status, al.access_time
+            SELECT al.id_access, al.id_user, u.name, u.account_number, al.status, al.access_time
             FROM ACCESS_LOG al
             LEFT JOIN USERS u ON al.id_user = u.id_user
             ORDER BY al.access_time DESC
@@ -366,8 +429,9 @@ def obtener_historial_accesos(limite=50):
                 'id': row[0],
                 'id_user': row[1],
                 'nombre': row[2],
-                'status': row[3],
-                'fecha': row[4]
+                'account_number': row[3] or 'N/A',
+                'status': row[4],
+                'fecha': row[5]
             })
         return resultado
     except Exception as e:
@@ -376,7 +440,7 @@ def obtener_historial_accesos(limite=50):
 
 # ===== FUNCIONES PARA ADMINS =====
 
-def crear_admin(email, pin_hash, id_role=None, security_question=None, security_answer_hash=None):
+def crear_admin(email, pin_hash, id_role=None, security_question=None, security_answer_hash=None, account_number=None):
     """Crea un nuevo administrador."""
     try:
         conn = obtener_conexion()
@@ -385,6 +449,13 @@ def crear_admin(email, pin_hash, id_role=None, security_question=None, security_
         
         cursor = conn.cursor()
         
+        # Si no se proporciona account_number, generar uno único
+        if account_number is None:
+            account_number = generar_numero_cuenta_unico()
+            if account_number is None:
+                print("Error: No se pudo generar un número de cuenta único para admin")
+                return None
+        
         # Si no se proporciona id_role, obtener el rol admin
         if id_role is None:
             id_role = obtener_rol_por_nombre("admin")
@@ -392,14 +463,14 @@ def crear_admin(email, pin_hash, id_role=None, security_question=None, security_
                 id_role = crear_rol("admin")
         
         cursor.execute(
-            "INSERT INTO ADMINS (id_role, email, pin_hash, security_question, security_answer_hash) VALUES (?, ?, ?, ?, ?)",
-            (id_role, email, pin_hash, security_question, security_answer_hash)
+            "INSERT INTO ADMINS (id_role, email, account_number, pin_hash, security_question, security_answer_hash) VALUES (?, ?, ?, ?, ?, ?)",
+            (id_role, email, account_number, pin_hash, security_question, security_answer_hash)
         )
         conn.commit()
         admin_id = cursor.lastrowid
         conn.close()
-        print(f"Admin '{email}' creado exitosamente")
-        return admin_id
+        print(f"Admin '{email}' creado exitosamente con número de cuenta: {account_number}")
+        return {"admin_id": admin_id, "account_number": account_number}
     except sqlite3.IntegrityError:
         print(f"Error: El email '{email}' ya está registrado")
         return None
@@ -416,7 +487,7 @@ def obtener_admin_por_email(email):
         
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id_admin, id_role, email, pin_hash, security_question, security_answer_hash FROM ADMINS WHERE email = ?",
+            "SELECT id_admin, id_role, email, account_number, pin_hash, security_question, security_answer_hash FROM ADMINS WHERE email = ?",
             (email,)
         )
         resultado = cursor.fetchone()
@@ -427,9 +498,10 @@ def obtener_admin_por_email(email):
                 'id_admin': resultado[0],
                 'id_role': resultado[1],
                 'email': resultado[2],
-                'pin_hash': resultado[3],
-                'security_question': resultado[4],
-                'security_answer_hash': resultado[5]
+                'account_number': resultado[3],
+                'pin_hash': resultado[4],
+                'security_question': resultado[5],
+                'security_answer_hash': resultado[6]
             }
         return None
     except Exception as e:
@@ -824,6 +896,10 @@ def obtener_lista_admins():
         tiene_active  = "is_active"  in cols
 
         select_parts = ["id_admin", "email"]
+        if "account_number" in cols:
+            select_parts.append("account_number")
+        else:
+            select_parts.append("'' AS account_number")
         select_parts.append("is_active" if tiene_active else "1 AS is_active")
         select_parts.append("created_at" if tiene_created else "NULL AS created_at")
 
@@ -835,10 +911,11 @@ def obtener_lista_admins():
         resultado = []
         for r in rows:
             resultado.append({
-                'id_admin':   r[0],
-                'email':      r[1],
-                'is_active':  r[2] if r[2] is not None else 1,
-                'created_at': r[3],
+                'id_admin':     r[0],
+                'email':        r[1],
+                'account_number': r[2],
+                'is_active':    r[3] if r[3] is not None else 1,
+                'created_at':   r[4],
             })
         return resultado
     except Exception as e:

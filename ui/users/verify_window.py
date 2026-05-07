@@ -21,6 +21,7 @@ from PyQt5.QtCore import QTimer, Qt, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
 
 from hardware.camera.camera_verify import CameraThread
+from database.consultas import registrar_acceso
 
 try:
     from hardware.Motospasopaso import conceder_acceso_motor
@@ -407,6 +408,9 @@ class VerifyWindow(QWidget):
         self._stop_camera()
 
         if autorizado:
+            # Registrar acceso autorizado en la base de datos
+            registrar_acceso(nombre, status="AUTHORIZED")
+            
             # Ejecutar el proceso del motor en un hilo para no bloquear la interfaz
             threading.Thread(target=conceder_acceso_motor, daemon=True).start()
 
@@ -421,6 +425,9 @@ class VerifyWindow(QWidget):
                 QProgressBar::chunk { background-color: #22c55e; border-radius: 5px; }
             """)
         else:
+            # Registrar intento de acceso denegado en la base de datos
+            registrar_acceso(nombre if nombre else "UNKNOWN", status="DENIED")
+            
             self.status_label.setText("❌ ACCESO DENEGADO — USUARIO NO REGISTRADO")
             self.status_label.setStyleSheet(
                 f"color: {COLOR_ERROR}; font-size: 15px; font-weight: bold;"

@@ -262,9 +262,14 @@ class UsersPage(QWidget):
 
         u_inner.addLayout(u_btn_row)
 
-        # Tabla usuarios: ID, Nombre, Rol, Estado, Fecha
-        self.user_table = _make_table(["ID", "NOMBRE", "ROL", "ESTADO", "FECHA"], stretch_col=1)
-        self.user_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # Tabla usuarios: ID, Nombre, Cuenta, Rol, Estado, Fecha
+        self.user_table = _make_table(["ID", "NOMBRE", "CUENTA", "ROL", "ESTADO", "FECHA"], stretch_col=1)
+        self.user_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.user_table.setMaximumHeight(300)
+        self.user_table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.user_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.user_table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.user_table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.user_table.itemSelectionChanged.connect(self._on_user_selection_changed)
         u_inner.addWidget(self.user_table)
         lay.addWidget(user_card)
@@ -304,9 +309,14 @@ class UsersPage(QWidget):
 
         a_inner.addLayout(a_btn_row)
 
-        # Tabla admins: ID, Correo, Contraseña, Estado, Fecha
-        self.admin_table = _make_table(["ID", "CORREO", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
-        self.admin_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # Tabla admins: ID, Correo, Cuenta, Contraseña, Estado, Fecha
+        self.admin_table = _make_table(["ID", "CORREO", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
+        self.admin_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.admin_table.setMaximumHeight(260)
+        self.admin_table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.admin_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.admin_table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.admin_table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.admin_table.itemSelectionChanged.connect(self._on_admin_selection_changed)
         a_inner.addWidget(self.admin_table)
         lay.addWidget(admin_card)
@@ -339,7 +349,7 @@ class UsersPage(QWidget):
             return None
         id_item     = self.admin_table.item(row, 0)
         email_item  = self.admin_table.item(row, 1)
-        estado_item = self.admin_table.item(row, 3)
+        estado_item = self.admin_table.item(row, 4)
         if not id_item:
             return None
         return (
@@ -556,12 +566,13 @@ class UsersPage(QWidget):
 
             self.user_table.setItem(row, 0, QTableWidgetItem(str(user.get("id", ""))))
             self.user_table.setItem(row, 1, QTableWidgetItem(str(user.get("nombre", ""))))
-            self.user_table.setItem(row, 2, QTableWidgetItem(str(user.get("tipo_usuario", ""))))
+            self.user_table.setItem(row, 2, QTableWidgetItem(str(user.get("account_number", "N/A"))))
+            self.user_table.setItem(row, 3, QTableWidgetItem(str(user.get("tipo_usuario", ""))))
 
             estado_item = QTableWidgetItem(estado)
             estado_item.setForeground(__import__("PyQt5.QtGui", fromlist=["QColor"]).QColor(color))
-            self.user_table.setItem(row, 3, estado_item)
-            self.user_table.setItem(row, 4, QTableWidgetItem(str(user.get("fecha_registro", ""))))
+            self.user_table.setItem(row, 4, estado_item)
+            self.user_table.setItem(row, 5, QTableWidgetItem(str(user.get("fecha_registro", ""))))
 
         self.user_table.resizeRowsToContents()
         # Deshabilitar botones al refrescar
@@ -579,12 +590,13 @@ class UsersPage(QWidget):
 
             self.admin_table.setItem(row, 0, QTableWidgetItem(str(admin.get("id_admin", ""))))
             self.admin_table.setItem(row, 1, QTableWidgetItem(str(admin.get("email", ""))))
-            self.admin_table.setItem(row, 2, QTableWidgetItem("••••••••••••"))
+            self.admin_table.setItem(row, 2, QTableWidgetItem(str(admin.get("account_number", "N/A"))))
+            self.admin_table.setItem(row, 3, QTableWidgetItem("••••••••••••"))
 
             estado_item = QTableWidgetItem(estado)
             estado_item.setForeground(__import__("PyQt5.QtGui", fromlist=["QColor"]).QColor(color))
-            self.admin_table.setItem(row, 3, estado_item)
-            self.admin_table.setItem(row, 4, QTableWidgetItem(str(admin.get("created_at", ""))))
+            self.admin_table.setItem(row, 4, estado_item)
+            self.admin_table.setItem(row, 5, QTableWidgetItem(str(admin.get("created_at", ""))))
 
         self.admin_table.resizeRowsToContents()
         for btn in (self.delete_admin_btn, self.baja_admin_btn, self.modify_admin_btn):

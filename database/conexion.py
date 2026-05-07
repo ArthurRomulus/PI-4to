@@ -57,6 +57,7 @@ def crear_tablas():
             id_admin INTEGER PRIMARY KEY AUTOINCREMENT,
             id_role INTEGER,
             email TEXT NOT NULL,
+            account_number TEXT,
             pin_hash TEXT NOT NULL,
             security_question TEXT,
             security_answer_hash TEXT,
@@ -134,6 +135,10 @@ def migrar_columnas_seguridad(cursor):
             cursor.execute("ALTER TABLE ADMINS ADD COLUMN is_active INTEGER DEFAULT 1")
             cursor.execute("UPDATE ADMINS SET is_active = 1 WHERE is_active IS NULL")
             print("Columna is_active agregada a ADMINS")
+
+        if "account_number" not in columnas_admins:
+            cursor.execute("ALTER TABLE ADMINS ADD COLUMN account_number TEXT")
+            print("Columna account_number agregada a ADMINS")
 
         # ── Columnas de USERS ────────────────────────────────────────────────
         cursor.execute("PRAGMA table_info(USERS)")
