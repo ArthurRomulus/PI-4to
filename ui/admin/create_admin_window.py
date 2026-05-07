@@ -804,18 +804,18 @@ class CreateAdminWindow(QDialog):
             pin_hash = hash_pin(password)
             answer_hash = hash_pin(security_answer.lower().strip())
 
-            admin_id = crear_admin(
+            resultado = crear_admin(
                 email,
                 pin_hash,
                 security_question=security_question,
                 security_answer_hash=answer_hash
             )
 
-            if admin_id:
+            if resultado and isinstance(resultado, dict):
                 play_sound("registrado.mp3")
                 self.show_message(
                     "Éxito",
-                    f"Administrador creado exitosamente.\n\nCorreo: {email}\nID: {admin_id}"
+                    f"Administrador creado exitosamente.\n\nCorreo: {email}\nID: {resultado['admin_id']}\nNúmero de cuenta: {resultado['account_number']}"
                 )
                 self.close()
             else:

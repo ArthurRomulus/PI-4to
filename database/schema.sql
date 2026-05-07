@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS ADMINS (
     id_admin INTEGER PRIMARY KEY AUTOINCREMENT,
     id_role INTEGER,
     email TEXT NOT NULL UNIQUE,
+    account_number TEXT,
     pin_hash TEXT NOT NULL,
     security_question TEXT,
     security_answer_hash TEXT,

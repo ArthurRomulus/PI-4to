@@ -1053,13 +1053,14 @@ class RegisterPage(QWidget):
 
         resultado = guardar_usuario(nombre, self._pending_embedding)
 
-        if resultado:
+        if resultado and isinstance(resultado, dict):
             play_sound("registrado.mp3")
 
             self._show_message(
                 "Usuario registrado",
                 f"El usuario '{nombre}' fue registrado exitosamente.\n"
-                f"ID asignado: {resultado}",
+                f"Número de cuenta: {resultado['account_number']}\n"
+                f"ID asignado: {resultado['user_id']}",
                 "#ffffff"
             )
 
