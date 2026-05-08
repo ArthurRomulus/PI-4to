@@ -15,7 +15,7 @@ import sys
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from database.consultas import verificar_respuesta_seguridad, tiene_pregunta_seguridad, hash_pin, obtener_pregunta_seguridad
+from database.consultas import verificar_respuesta_seguridad, tiene_pregunta_seguridad, hash_pin, obtener_pregunta_seguridad, SECURITY_QUESTIONS
 
 
 def asset_path(filename):
@@ -179,12 +179,7 @@ class QuestionSelector(QFrame):
             }
         """)
 
-        self.combo.addItems([
-            "¿Ciudad donde se conocieron tus padres?",
-            "¿Ciudad donde naciste?",
-            "¿Profesor favorito en primaria?",
-            "¿Nombre de tu primera mascota?",
-        ])
+        self.combo.addItems(SECURITY_QUESTIONS)
 
         layout.addWidget(self.combo)
 
@@ -195,7 +190,7 @@ class ForgotPasswordWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setFixedSize(480, 850)
-        self.email = None  # Email del usuario que quiere recuperar
+        self.account_number = None  # Email del usuario que quiere recuperar
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -247,7 +242,7 @@ class ForgotPasswordWindow(QMainWindow):
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color:white; font-size:26px; font-weight:800; background:transparent;")
 
-        subtitle = QLabel("Ingresa tu correo electrónico y responde la pregunta de seguridad\n"
+        subtitle = QLabel("Ingresa tu numero de cuenta y responde la pregunta de seguridad\n"
             "que configuraste al crear tu cuenta."
         )
         subtitle.setAlignment(Qt.AlignCenter)
@@ -255,8 +250,8 @@ class ForgotPasswordWindow(QMainWindow):
         subtitle.setStyleSheet("color:#4B3E60; font-size:14px; background:transparent;")
 
         # Campo de email
-        self.email_input = InputField("Correo electrónico")
-        self.email_input.input.setPlaceholderText("tu@email.com")
+        self.email_input = InputField("Número de cuenta")
+        self.email_input.input.setPlaceholderText("Ej. 20261010")
         
         # Selector de pregunta
         self.selector = QuestionSelector()
@@ -329,7 +324,7 @@ class ForgotPasswordWindow(QMainWindow):
         card_layout.addSpacing(20)
         card_layout.addWidget(back, alignment=Qt.AlignCenter)
 
-    # 🔥 SOLO ARREGLÉ ESTO
+    
     def go_back(self):
         from ui.admin.login_window import LoginWindow
         self.login = LoginWindow()
@@ -337,50 +332,43 @@ class ForgotPasswordWindow(QMainWindow):
         self.close()
 
     def verify(self):
-        # Obtener email
-        email = self.email_input.input.text().strip()
-        
-        if not email:
-            QMessageBox.warning(self, "Error", "Ingresa tu correo electrónico")
+        account_number = self.email_input.input.text().strip()
+
+        if not account_number:
+            QMessageBox.warning(self, "Error", "Ingresa tu número de cuenta.")
             return
-        
-        # Verificar que el admin existe y tiene pregunta de seguridad configurada
-        if not tiene_pregunta_seguridad(email):
+
+        if not tiene_pregunta_seguridad(account_number):
             QMessageBox.warning(
-                self, 
-                "Sin configuración", 
-                "Este correo no tiene una pregunta de seguridad configurada.\n"
+                self,
+                "Sin configuración",
+                "Este número de cuenta no tiene una pregunta de seguridad configurada.\n"
                 "Contacta al administrador del sistema."
             )
             return
-        
-        # Obtener la pregunta guardada en la BD y seleccionarla automáticamente
-        saved_question = obtener_pregunta_seguridad(email)
+
+        saved_question = obtener_pregunta_seguridad(account_number)
         if saved_question:
-            # Buscar y seleccionar la pregunta guardada
             index = self.selector.combo.findText(saved_question)
             if index >= 0:
                 self.selector.combo.setCurrentIndex(index)
-        
-        # Obtener la pregunta seleccionada (la guardada o la que eligió el usuario)
+
         question = self.selector.combo.currentText()
         answer = self.input.input.text().strip()
 
         if not answer:
-            QMessageBox.warning(self, "Error", "Escribe una respuesta")
+            QMessageBox.warning(self, "Error", "Escribe una respuesta.")
             return
 
-        # Verificar contra la base de datos
-        if verificar_respuesta_seguridad(email, question, answer):
-            # Pasar el email a la ventana de cambio de contraseña
+        if verificar_respuesta_seguridad(account_number, question, answer):
             from ui.admin.change_password_window import ChangePasswordWindow
-            self.change = ChangePasswordWindow(email=email)
+            self.change = ChangePasswordWindow(account_number=account_number)
             self.change.show()
             self.close()
         else:
             QMessageBox.critical(
-                self, 
-                "Error", 
+                self,
+                "Error",
                 "La respuesta es incorrecta. Intenta de nuevo."
             )
 
