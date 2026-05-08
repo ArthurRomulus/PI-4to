@@ -41,7 +41,7 @@ from ui.sound_manager import play_sound
 from ui.admin.privacy_notice import PrivacyNoticeDialog
 
 
-DUPLICATE_COSINE_THRESHOLD = 0.70
+DUPLICATE_COSINE_THRESHOLD = 0.78
 CAPTURE_HOLD_SECONDS = 3
 FPS_MS = 30
 
@@ -100,7 +100,12 @@ class _RegisterCameraThread(QThread):
                 frame = cv2.flip(frame, 1)
 
                 det = self._face_detector.detect_and_validate(frame)
-                is_ok = det["face_inside_oval"] and det["face_distance_ok"]
+                is_occluded = det.get("face_occluded", False)
+                is_ok = (
+                    det["face_inside_oval"] and
+                    det["face_distance_ok"] and
+                    not is_occluded
+                )
 
                 self.face_ok.emit(is_ok)
 
