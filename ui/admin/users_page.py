@@ -178,7 +178,7 @@ class ModificarUsuarioDialog(QDialog):
 
 
 class ModificarAdminDialog(QDialog):
-    """Ventana para editar el correo de un administrador."""
+    """Ventana para editar el numero de cuenta de un administrador."""
 
     def __init__(self, email_actual: str, parent=None):
         super().__init__(parent)
@@ -334,7 +334,7 @@ class UsersPage(QWidget):
 
         # ── Campo de búsqueda de admins ─────────────────────────────────────────
         self.admin_search = QLineEdit()
-        self.admin_search.setPlaceholderText("🔍  Buscar por correo, ID o cuenta...")
+        self.admin_search.setPlaceholderText("🔍  Buscar por ID o cuenta...")
         self.admin_search.setClearButtonEnabled(True)
         self.admin_search.setFixedHeight(32)
         self.admin_search.setStyleSheet("""
@@ -352,7 +352,7 @@ class UsersPage(QWidget):
         a_inner.addWidget(self.admin_search)
 
         # Tabla admins: ID, Correo, Cuenta, Contraseña, Estado, Fecha
-        self.admin_table = _make_table(["ID", "CORREO", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
+        self.admin_table = _make_table(["ID", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
         self.admin_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.admin_table.setMaximumHeight(260)
         self.admin_table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -609,7 +609,7 @@ class UsersPage(QWidget):
         self._populate_user_table(filtered)
 
     def _filter_admins(self, text: str):
-        """Filtra la tabla de admins por ID, correo o número de cuenta."""
+        """Filtra la tabla de admins por ID, número de cuenta."""
         query = text.strip().lower()
         if not query:
             self._populate_admin_table(self._all_admins)
