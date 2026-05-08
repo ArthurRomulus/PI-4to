@@ -352,7 +352,7 @@ class UsersPage(QWidget):
         a_inner.addWidget(self.admin_search)
 
         # Tabla admins: ID, Correo, Cuenta, Contraseña, Estado, Fecha
-        self.admin_table = _make_table(["ID", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
+        self.admin_table = _make_table(["ID", "NOMBRE", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
         self.admin_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.admin_table.setMaximumHeight(260)
         self.admin_table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
