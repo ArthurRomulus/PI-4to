@@ -332,7 +332,6 @@ class UsersPage(QWidget):
 
         a_inner.addLayout(a_btn_row)
 
-<<<<<<< HEAD
         # ── Campo de búsqueda de admins ─────────────────────────────────────────
         self.admin_search = QLineEdit()
         self.admin_search.setPlaceholderText("🔍  Buscar por correo, ID o cuenta...")
@@ -354,10 +353,6 @@ class UsersPage(QWidget):
 
         # Tabla admins: ID, Correo, Cuenta, Contraseña, Estado, Fecha
         self.admin_table = _make_table(["ID", "CORREO", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
-=======
-        # Tabla admins: ID, Nombre, Cuenta, Contraseña, Estado, Fecha
-        self.admin_table = _make_table(["ID", "NOMBRE", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
->>>>>>> dbb245ba0f905474d15605f089f0d834d3425828
         self.admin_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.admin_table.setMaximumHeight(260)
         self.admin_table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
