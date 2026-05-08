@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QIcon, QPixmap, QColor, QPainter
@@ -23,7 +24,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from database.consultas import crear_admin, obtener_admin_por_email, hash_pin, crear_tablas
+from database.consultas import crear_admin, obtener_admin_por_nombre, hash_pin, crear_tablas, SECURITY_QUESTIONS
 from ui.sound_manager import play_sound
 
 
@@ -264,13 +265,7 @@ class IconComboBox(QFrame):
 
         self.combo = QComboBox()
         self.combo.addItem("Seleccione una pregunta")
-        self.combo.addItems([
-            "¿Ciudad donde naciste?",
-            "¿Nombre de tu primera mascota?",
-            "¿Profesor favorito en primaria?",
-            "¿Ciudad donde se conocieron tus padres?",
-            "¿Comida favorita de tu infancia?",
-        ])
+        self.combo.addItems(SECURITY_QUESTIONS)
 
         layout.addWidget(self.combo)
 
@@ -472,12 +467,28 @@ class CreateAdminWindow(QDialog):
         # =====================================================
         # FORMULARIO
         # =====================================================
-        self.email_input = self.add_labeled_input(
+        self.nombre_input = self.add_labeled_input(
             card_layout,
-            "CORREO ELECTRÓNICO",
-            "email.png",
-            "admin@gmail.com"
+            "NOMBRE",
+            "name.png",
+            "Juan Perez"
         )
+        # AGREGAR ESTO justo después
+        self._nombre_error_lbl = QLabel("")
+        self._nombre_error_lbl.setVisible(False)
+        self._nombre_error_lbl.setStyleSheet("""
+            QLabel {
+                color: #ff6b7c;
+                font-size: 11px;
+                font-weight: 800;
+                background: transparent;
+                border: none;
+            }
+        """)
+        card_layout.addWidget(self._nombre_error_lbl)
+
+        # Conectar validación en tiempo real
+        self.nombre_input.input.textChanged.connect(self._on_nombre_changed)
 
         self.password_input = self.add_labeled_input(
             card_layout,
@@ -754,25 +765,44 @@ class CreateAdminWindow(QDialog):
         """)
 
         msg.exec_()
+    
+    def _validate_nombre(self, nombre: str) -> tuple:
+        if not nombre:
+            return False, "El nombre es requerido"
+        if not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$", nombre):
+            return False, "Solo se permiten letras y espacios"
+        palabras = nombre.strip().split()
+        if len(palabras) < 3:
+            return False, "Debe contener al menos 3 palabras"
+        return True, ""
+
+    def _on_nombre_changed(self, text: str):
+        es_valido, mensaje = self._validate_nombre(text.strip())
+        if text and not es_valido:
+            self._nombre_error_lbl.setText(mensaje)
+            self._nombre_error_lbl.setVisible(True)
+        else:
+            self._nombre_error_lbl.setVisible(False)
 
     # =========================================================
     # CREAR ADMIN
     # =========================================================
     def create_admin(self):
-        email = self.email_input.text().strip()
+        nombre = self.nombre_input.text().strip()
         password = self.password_input.text().strip()
         password_confirm = self.password_confirm_input.text().strip()
         security_question = self.question_combo.currentText()
         security_answer = self.answer_input.text().strip()
 
-        if not email or not password or not password_confirm:
+        es_valido, mensaje_error = self._validate_nombre(nombre)
+        if not es_valido:
             play_sound("registrado.mp3")
-            self.show_message("Campos incompletos", "Por favor complete todos los campos.")
+            self.show_message("Nombre inválido", mensaje_error)
             return
 
-        if "@" not in email or "." not in email:
+        if not password or not password_confirm:
             play_sound("registrado.mp3")
-            self.show_message("Email inválido", "Ingresa un correo electrónico válido.")
+            self.show_message("Campos incompletos", "Por favor complete todos los campos.")
             return
 
         if len(password) < 6:
@@ -795,9 +825,9 @@ class CreateAdminWindow(QDialog):
             self.show_message("Respuesta requerida", "Por favor proporciona una respuesta de seguridad.")
             return
 
-        if obtener_admin_por_email(email):
+        if obtener_admin_por_nombre(nombre):
             play_sound("registrado.mp3")
-            self.show_message("Email registrado", f"El correo '{email}' ya está registrado.")
+            self.show_message("Nombre registrado", f"El nombre '{nombre}' ya está registrado.")
             return
 
         try:
@@ -805,7 +835,7 @@ class CreateAdminWindow(QDialog):
             answer_hash = hash_pin(security_answer.lower().strip())
 
             resultado = crear_admin(
-                email,
+                nombre,
                 pin_hash,
                 security_question=security_question,
                 security_answer_hash=answer_hash
@@ -815,7 +845,7 @@ class CreateAdminWindow(QDialog):
                 play_sound("registrado.mp3")
                 self.show_message(
                     "Éxito",
-                    f"Administrador creado exitosamente.\n\nCorreo: {email}\nID: {resultado['admin_id']}\nNúmero de cuenta: {resultado['account_number']}"
+                    f"Administrador creado exitosamente.\n\nNombre: {nombre}\nID: {resultado['admin_id']}\nNúmero de cuenta: {resultado['account_number']}"
                 )
                 self.close()
             else:

@@ -190,14 +190,14 @@ class ModificarAdminDialog(QDialog):
         layout.setSpacing(14)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        titulo = QLabel("✏️  Editar correo del administrador")
+        titulo = QLabel("✏️  Editar nombre del administrador")
         titulo.setStyleSheet("color: #f59e0b; font-size: 15px; font-weight: 700;")
         layout.addWidget(titulo)
 
         form = QFormLayout()
         form.setSpacing(10)
-        self.email_edit = QLineEdit(email_actual or "")
-        form.addRow("Correo electrónico:", self.email_edit)
+        self.nombre_edit = QLineEdit(email_actual or "")
+        form.addRow("Nombre:", self.nombre_edit)
         layout.addLayout(form)
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -207,8 +207,8 @@ class ModificarAdminDialog(QDialog):
         btns.rejected.connect(self.reject)
         layout.addWidget(btns)
 
-    def get_email(self):
-        return self.email_edit.text().strip()
+    def get_nombre(self):
+        return self.nombre_edit.text().strip()
 
 
 # ── Página principal ──────────────────────────────────────────────────────────
@@ -332,6 +332,7 @@ class UsersPage(QWidget):
 
         a_inner.addLayout(a_btn_row)
 
+<<<<<<< HEAD
         # ── Campo de búsqueda de admins ─────────────────────────────────────────
         self.admin_search = QLineEdit()
         self.admin_search.setPlaceholderText("🔍  Buscar por correo, ID o cuenta...")
@@ -353,6 +354,10 @@ class UsersPage(QWidget):
 
         # Tabla admins: ID, Correo, Cuenta, Contraseña, Estado, Fecha
         self.admin_table = _make_table(["ID", "CORREO", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
+=======
+        # Tabla admins: ID, Nombre, Cuenta, Contraseña, Estado, Fecha
+        self.admin_table = _make_table(["ID", "NOMBRE", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
+>>>>>>> dbb245ba0f905474d15605f089f0d834d3425828
         self.admin_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.admin_table.setMaximumHeight(260)
         self.admin_table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -374,7 +379,7 @@ class UsersPage(QWidget):
             return None
         id_item     = self.user_table.item(row, 0)
         nombre_item = self.user_table.item(row, 1)
-        estado_item = self.user_table.item(row, 3)
+        estado_item = self.user_table.item(row, 4)
         if not id_item:
             return None
         return (
@@ -385,19 +390,19 @@ class UsersPage(QWidget):
         )
 
     def _get_selected_admin(self):
-        """Devuelve (row, id_admin, email, is_active) del admin seleccionado o None."""
+        """Devuelve (row, id_admin, nombre, is_active) del admin seleccionado o None."""
         row = self.admin_table.currentRow()
         if row < 0:
             return None
         id_item     = self.admin_table.item(row, 0)
-        email_item  = self.admin_table.item(row, 1)
+        nombre_item = self.admin_table.item(row, 1)
         estado_item = self.admin_table.item(row, 4)
         if not id_item:
             return None
         return (
             row,
             int(id_item.text()),
-            email_item.text() if email_item else "",
+            nombre_item.text() if nombre_item else "",
             estado_item.text() if estado_item else "Activo",
         )
 
@@ -513,11 +518,11 @@ class UsersPage(QWidget):
         data = self._get_selected_admin()
         if not data:
             return
-        _, admin_id, email, _ = data
+        _, admin_id, nombre, _ = data
 
         msg = QMessageBox(self)
         msg.setWindowTitle("Confirmar eliminación")
-        msg.setText(f"¿Eliminar al administrador <b>{email}</b> (ID: {admin_id})?")
+        msg.setText(f"¿Eliminar al administrador <b>{nombre}</b> (ID: {admin_id})?")
         msg.setInformativeText("Esta acción no se puede deshacer.")
         msg.setIcon(QMessageBox.Warning)
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
@@ -527,22 +532,22 @@ class UsersPage(QWidget):
 
         if msg.exec_() == QMessageBox.Yes:
             if eliminar_admin_por_id(admin_id):
-                self._notificar(f"✅  Administrador «{email}» eliminado correctamente.", ok=True)
+                self._notificar(f"✅  Administrador «{nombre}» eliminado correctamente.", ok=True)
                 self.refresh_data()
             else:
-                self._notificar(f"❌  No se pudo eliminar al administrador «{email}».", ok=False)
+                self._notificar(f"❌  No se pudo eliminar al administrador «{nombre}».", ok=False)
 
     def _toggle_baja_admin(self):
         data = self._get_selected_admin()
         if not data:
             return
-        _, admin_id, email, estado = data
+        _, admin_id, nombre, estado = data
         activo = estado == "Activo"
 
         accion = "reactivar" if not activo else "dar de baja"
         msg = QMessageBox(self)
         msg.setWindowTitle("Confirmar acción")
-        msg.setText(f"¿Deseas <b>{accion}</b> al administrador <b>{email}</b>?")
+        msg.setText(f"¿Deseas <b>{accion}</b> al administrador <b>{nombre}</b>?")
         if not activo:
             msg.setInformativeText("El administrador podrá volver a iniciar sesión.")
         else:
@@ -557,29 +562,29 @@ class UsersPage(QWidget):
             ok = reactivar_admin(admin_id) if not activo else dar_de_baja_admin(admin_id)
             if ok:
                 nuevo_estado = "reactivado" if not activo else "dado de baja"
-                self._notificar(f"✅  Administrador «{email}» {nuevo_estado} correctamente.", ok=True)
+                self._notificar(f"✅  Administrador «{nombre}» {nuevo_estado} correctamente.", ok=True)
                 self.refresh_data()
             else:
-                self._notificar(f"❌  No se pudo {accion} al administrador «{email}».", ok=False)
+                self._notificar(f"❌  No se pudo {accion} al administrador «{nombre}».", ok=False)
 
     def _modificar_admin(self):
         data = self._get_selected_admin()
         if not data:
             return
-        _, admin_id, email, _ = data
+        _, admin_id, nombre, _ = data
 
-        dlg = ModificarAdminDialog(email, self)
+        dlg = ModificarAdminDialog(nombre, self)
         if dlg.exec_() == QDialog.Accepted:
-            nuevo_email = dlg.get_email()
-            if not nuevo_email:
-                self._notificar("❌  El correo no puede estar vacío.", ok=False)
-                return
-            ok = modificar_admin(admin_id, nuevo_email)
+            nuevo_nombre = dlg.get_nombre()
+            if not nuevo_nombre:
+                    self._notificar("❌  El nombre no puede estar vacío.", ok=False)
+                    return
+            ok = modificar_admin(admin_id, nuevo_nombre)
             if ok:
                 self._notificar("✅  Administrador actualizado correctamente.", ok=True)
                 self.refresh_data()
             else:
-                self._notificar("❌  No se pudo actualizar. El correo puede estar duplicado.", ok=False)
+                    self._notificar("❌  No se pudo actualizar. El nombre puede estar duplicado.", ok=False)
 
     # ── Notificaciones ────────────────────────────────────────────────────────
 
@@ -679,7 +684,7 @@ class UsersPage(QWidget):
             color  = "#86efac" if is_active else "#f87171"
 
             self.admin_table.setItem(row, 0, QTableWidgetItem(str(admin.get("id_admin", ""))))
-            self.admin_table.setItem(row, 1, QTableWidgetItem(str(admin.get("email", ""))))
+            self.admin_table.setItem(row, 1, QTableWidgetItem(str(admin.get("nombre", ""))))
             self.admin_table.setItem(row, 2, QTableWidgetItem(str(admin.get("account_number", "N/A"))))
             self.admin_table.setItem(row, 3, QTableWidgetItem("••••••••••••"))
 
