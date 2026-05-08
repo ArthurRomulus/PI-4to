@@ -29,14 +29,19 @@ from hardware.face_embedder import (
 
 # ── Configuración ──────────────────────────────────────────────────────────────
 HOLD_SECONDS = 3
-FPS_SLEEP_MS = 30
+FPS_SLEEP_MS = 60
 
 # Umbral de similitud coseno para autorizar acceso.
-# 0.70 tolera variaciones naturales de expresión y peinado sin sacrificar seguridad.
-# El chequeo de margen (MIN_MARGIN) añade una capa extra cuando hay varios usuarios.
-COSINE_THRESHOLD = 0.70
-EUCLIDEAN_THRESHOLD = 0.45
-MIN_MARGIN = 0.08
+# Con promedio de embeddings de varios frames el usuario real marca 0.90+.
+# 0.88 es lo suficientemente estricto para rechazar impostores (0.78-0.85)
+# sin rechazar al usuario legítimo cuando hay variación de iluminación.
+COSINE_THRESHOLD    = 0.88
+EUCLIDEAN_THRESHOLD = 0.38
+MIN_MARGIN          = 0.12
+
+# Umbral más estricto cuando hay un único usuario en la DB:
+# sin margen de comparación, exigimos mayor certeza.
+COSINE_THRESHOLD_SINGLE = 0.90
 
 
 def _cargar_usuarios_db() -> list:
@@ -133,8 +138,8 @@ def _reconocer(embedding_actual: np.ndarray, usuarios: list):
         )
 
         if len(resultados_cosine) == 1:
-            # Si solo hay un usuario en DB, exigir score alto
-            if best_score >= COSINE_THRESHOLD:
+            # Un solo usuario: umbral más alto porque no hay margen de comparación
+            if best_score >= COSINE_THRESHOLD_SINGLE:
                 print(
                     f"[Reconocimiento] AUTORIZADO: {best['nombre']} "
                     f"(ID={best['id_user']}, score={best_score:.3f})"
@@ -172,7 +177,8 @@ def _reconocer(embedding_actual: np.ndarray, usuarios: list):
         )
 
         if len(resultados_euclidean) == 1:
-            if best_dist <= EUCLIDEAN_THRESHOLD:
+            # Un solo usuario: umbral más estricto (sin margen de comparación)
+            if best_dist <= EUCLIDEAN_THRESHOLD * 0.92:
                 print(
                     f"[Reconocimiento] AUTORIZADO: {best['nombre']} "
                     f"(ID={best['id_user']}, dist={best_dist:.3f})"
@@ -223,6 +229,7 @@ class CameraThread(QThread):
         self._hold_frames = 0
         self._total_frames_needed = int(HOLD_SECONDS * 1000 / FPS_SLEEP_MS)
         self._verification_done = False
+        self._emb_buffer = []   # acumula embeddings durante el hold
 
         self._display_id = "unknown"
 
@@ -261,7 +268,8 @@ class CameraThread(QThread):
 
                 is_aligned = (
                     detection['face_inside_oval'] and
-                    detection['face_distance_ok']
+                    detection['face_distance_ok'] and
+                    not detection.get('face_occluded', False)
                 )
                 self.face_aligned.emit(is_aligned)
 
@@ -274,34 +282,55 @@ class CameraThread(QThread):
                         )
                         self.hold_progress.emit(progress)
 
+                        # ―― Acumular embedding en cada frame alineado ――――――――――――――――――
+                        if len(usuarios) > 0:
+                            crop_hint = detection.get('face_crop_hint')
+                            face_rect  = detection.get('face_rect')
+                            face_crop  = None
+                            if crop_hint:
+                                cx, cy, cw, ch = crop_hint
+                                fc = frame[cy:cy+ch, cx:cx+cw]
+                                if fc.size > 0:
+                                    face_crop = fc
+                            if face_crop is None and face_rect:
+                                x, y, w, h = face_rect
+                                fc = frame[y:y+h, x:x+w]
+                                if fc.size > 0:
+                                    face_crop = fc
+                            if face_crop is not None:
+                                emb_frame = compute_face_embedding(face_crop)
+                                if emb_frame is not None:
+                                    self._emb_buffer.append(emb_frame)
+
                         frame = self._draw_progress_arc(frame, detection, progress)
 
                         if self._hold_frames >= self._total_frames_needed:
                             self._verification_done = True
                             autorizado, nombre, id_user = False, "", None
 
-                            if len(usuarios) > 0:
-                                # Preferir crop anclado en ojos (invariante al pelo)
-                                crop_hint = detection.get('face_crop_hint')
-                                face_rect  = detection.get('face_rect')
-                                if crop_hint:
-                                    cx, cy, cw, ch = crop_hint
-                                    face_crop = frame[cy:cy+ch, cx:cx+cw]
-                                elif face_rect:
-                                    x, y, w, h = face_rect
-                                    face_crop = frame[y:y+h, x:x+w]
-                                else:
-                                    face_crop = None
-
-                                if face_crop is not None and face_crop.size > 0:
-                                    emb = compute_face_embedding(face_crop)
-                                    autorizado, nombre, id_user = _reconocer(emb, usuarios)
+                            if len(usuarios) > 0 and self._emb_buffer:
+                                # Promediar todos los embeddings capturados
+                                arr     = np.array(self._emb_buffer, dtype=np.float32)
+                                emb_avg = arr.mean(axis=0)
+                                norm    = np.linalg.norm(emb_avg)
+                                if norm > 0:
+                                    emb_avg = emb_avg / norm
+                                print(
+                                    f"[CameraThread] Promediando {len(self._emb_buffer)} "
+                                    f"embeddings para verificación"
+                                )
+                                autorizado, nombre, id_user = _reconocer(
+                                    emb_avg.astype(np.float32), usuarios
+                                )
 
                             self._display_id = str(id_user) if id_user is not None else "unknown"
                             self.recognition_result.emit(autorizado, nombre)
                     else:
                         if self._hold_frames > 0:
                             self._hold_frames = max(0, self._hold_frames - 2)
+                            # Al perder alineación, descartar embeddings recientes
+                            if self._hold_frames == 0:
+                                self._emb_buffer.clear()
                             progress = int(self._hold_frames * 100 / self._total_frames_needed)
                             self.hold_progress.emit(progress)
 

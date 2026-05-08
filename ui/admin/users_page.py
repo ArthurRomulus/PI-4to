@@ -178,7 +178,7 @@ class ModificarUsuarioDialog(QDialog):
 
 
 class ModificarAdminDialog(QDialog):
-    """Ventana para editar el correo de un administrador."""
+    """Ventana para editar el numero de cuenta de un administrador."""
 
     def __init__(self, email_actual: str, parent=None):
         super().__init__(parent)
@@ -216,6 +216,10 @@ class ModificarAdminDialog(QDialog):
 class UsersPage(QWidget):
     def __init__(self):
         super().__init__()
+
+        # Datos completos para filtrado
+        self._all_users = []
+        self._all_admins = []
 
         # ── Layout externo con scroll ────────────────────────────────────────
         outer = QVBoxLayout(self)
@@ -261,6 +265,25 @@ class UsersPage(QWidget):
         u_btn_row.addWidget(self.delete_user_btn)
 
         u_inner.addLayout(u_btn_row)
+
+        # ── Campo de búsqueda de usuarios ────────────────────────────────────────
+        self.user_search = QLineEdit()
+        self.user_search.setPlaceholderText("🔍  Buscar por nombre, ID o cuenta...")
+        self.user_search.setClearButtonEnabled(True)
+        self.user_search.setFixedHeight(32)
+        self.user_search.setStyleSheet("""
+            QLineEdit {
+                background-color: #0f172a;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                color: #e2e8f0;
+                font-size: 12px;
+                padding: 0 10px;
+            }
+            QLineEdit:focus { border-color: #38bdf8; }
+        """)
+        self.user_search.textChanged.connect(self._filter_users)
+        u_inner.addWidget(self.user_search)
 
         # Tabla usuarios: ID, Nombre, Cuenta, Rol, Estado, Fecha
         self.user_table = _make_table(["ID", "NOMBRE", "CUENTA", "ROL", "ESTADO", "FECHA"], stretch_col=1)
@@ -309,7 +332,26 @@ class UsersPage(QWidget):
 
         a_inner.addLayout(a_btn_row)
 
-        # Tabla admins: ID, Nombre, Cuenta, Contraseña, Estado, Fecha
+        # ── Campo de búsqueda de admins ─────────────────────────────────────────
+        self.admin_search = QLineEdit()
+        self.admin_search.setPlaceholderText("🔍  Buscar por ID o cuenta...")
+        self.admin_search.setClearButtonEnabled(True)
+        self.admin_search.setFixedHeight(32)
+        self.admin_search.setStyleSheet("""
+            QLineEdit {
+                background-color: #0f172a;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                color: #e2e8f0;
+                font-size: 12px;
+                padding: 0 10px;
+            }
+            QLineEdit:focus { border-color: #f59e0b; }
+        """)
+        self.admin_search.textChanged.connect(self._filter_admins)
+        a_inner.addWidget(self.admin_search)
+
+        # Tabla admins: ID, Correo, Cuenta, Contraseña, Estado, Fecha
         self.admin_table = _make_table(["ID", "NOMBRE", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA"], stretch_col=1)
         self.admin_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.admin_table.setMaximumHeight(260)
@@ -550,6 +592,36 @@ class UsersPage(QWidget):
         msg.setStyleSheet(_MSG_STYLE)
         msg.exec_()
 
+    # ── Filtrado de búsqueda ────────────────────────────────────────────────
+
+    def _filter_users(self, text: str):
+        """Filtra la tabla de usuarios por ID, nombre o número de cuenta."""
+        query = text.strip().lower()
+        if not query:
+            self._populate_user_table(self._all_users)
+            return
+        filtered = [
+            u for u in self._all_users
+            if query in str(u.get("id", "")).lower()
+            or query in str(u.get("nombre", "")).lower()
+            or query in str(u.get("account_number", "")).lower()
+        ]
+        self._populate_user_table(filtered)
+
+    def _filter_admins(self, text: str):
+        """Filtra la tabla de admins por ID, número de cuenta."""
+        query = text.strip().lower()
+        if not query:
+            self._populate_admin_table(self._all_admins)
+            return
+        filtered = [
+            a for a in self._all_admins
+            if query in str(a.get("id_admin", "")).lower()
+            or query in str(a.get("email", "")).lower()
+            or query in str(a.get("account_number", "")).lower()
+        ]
+        self._populate_admin_table(filtered)
+
     # ── Carga de datos ────────────────────────────────────────────────────────
 
     def refresh_data(self):
@@ -557,7 +629,16 @@ class UsersPage(QWidget):
         self._load_admins()
 
     def _load_users(self):
-        users = obtener_lista_usuarios()
+        self._all_users = obtener_lista_usuarios()
+        # Reaplicar filtro activo si hay texto en el buscador
+        query = self.user_search.text().strip()
+        if query:
+            self._filter_users(query)
+        else:
+            self._populate_user_table(self._all_users)
+
+    def _populate_user_table(self, users):
+        """Llena la tabla de usuarios con la lista proporcionada."""
         self.user_table.setRowCount(len(users))
         for row, user in enumerate(users):
             is_active = user.get("is_active", 1)
@@ -581,7 +662,16 @@ class UsersPage(QWidget):
         self.baja_user_btn.setText("⛔  Dar de baja")
 
     def _load_admins(self):
-        admins = obtener_lista_admins()
+        self._all_admins = obtener_lista_admins()
+        # Reaplicar filtro activo si hay texto en el buscador
+        query = self.admin_search.text().strip()
+        if query:
+            self._filter_admins(query)
+        else:
+            self._populate_admin_table(self._all_admins)
+
+    def _populate_admin_table(self, admins):
+        """Llena la tabla de admins con la lista proporcionada."""
         self.admin_table.setRowCount(len(admins))
         for row, admin in enumerate(admins):
             is_active = admin.get("is_active", 1)
