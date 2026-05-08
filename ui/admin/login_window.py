@@ -357,7 +357,7 @@ class LoginWindow(QMainWindow):
         form_layout.setContentsMargins(24, 22, 24, 22)
         form_layout.setSpacing(0)
 
-        user_label = QLabel("Correo electrónico")
+        user_label = QLabel("Numero de cuenta")
         user_label.setStyleSheet("""
             color: rgba(255,255,255,0.92);
             font-size: 13px;
@@ -367,7 +367,7 @@ class LoginWindow(QMainWindow):
         """)
 
         self.user_input = IconInput(
-            placeholder="admin@local",
+            placeholder="Ej. 20261010",
             left_icon="name.png"
         )
 
@@ -457,10 +457,10 @@ class LoginWindow(QMainWindow):
             self.create_admin_btn.hide()
 
     def handle_login(self):
-        correo = self.user_input.input.text().strip()
+        num_cuenta = self.user_input.input.text().strip()
         password = self.pass_input.input.text().strip()
 
-        if not correo or not password:
+        if not num_cuenta or not password:
             QMessageBox.warning(self, "Campos incompletos", "Complete todos los campos.")
             return
 
@@ -468,8 +468,8 @@ class LoginWindow(QMainWindow):
         self.login_btn.setText("Ingresando...")
 
         from database.consultas import admin_esta_activo
-        if verify_admin(correo, password):
-            if not admin_esta_activo(correo):
+        if verify_admin(num_cuenta, password):
+            if not admin_esta_activo(num_cuenta):
                 QMessageBox.critical(
                     self,
                     "Cuenta desactivada",
@@ -479,15 +479,15 @@ class LoginWindow(QMainWindow):
                 self.login_btn.setEnabled(True)
                 self.login_btn.setText("Ingresar  →")
                 return
-            self.open_admin_panel(correo)
+            self.open_admin_panel(num_cuenta)
         else:
-            QMessageBox.critical(self, "Acceso denegado", "Correo o contraseña incorrectos.")
+            QMessageBox.critical(self, "Acceso denegado", "Numero de cuenta o contraseña incorrectos.")
             self.login_btn.setEnabled(True)
             self.login_btn.setText("Ingresar  →")
 
 
-    def open_admin_panel(self, admin_email):
-        self.dashboard_panel = DashboardPanel(admin_email)
+    def open_admin_panel(self, account_number):
+        self.dashboard_panel = DashboardPanel(account_number)
         self.dashboard_panel.show()
         self.close()
 

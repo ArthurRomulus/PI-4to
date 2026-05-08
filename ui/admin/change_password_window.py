@@ -181,9 +181,9 @@ class PasswordInput(QFrame):
 
 
 class ChangePasswordWindow(QMainWindow):
-    def __init__(self, email=None):
+    def __init__(self, account_number=None):
         super().__init__()
-        self.email = email  # Email del usuario que va a cambiar contraseña
+        self.account_number = account_number
         self.setWindowTitle("Cambiar contraseña")
         self.setFixedSize(480, 800)
 
@@ -363,10 +363,10 @@ class ChangePasswordWindow(QMainWindow):
             )
             return
 
-        # Si tenemos el email, actualizar en la base de datos
-        if self.email:
+        # Si tenemos el número de cuenta, actualizar en la base de datos
+        if self.account_number:
             nuevo_pin_hash = hash_pin(password1)
-            if actualizar_pin_admin(self.email, nuevo_pin_hash):
+            if actualizar_pin_admin(self.account_number, nuevo_pin_hash):
                 QMessageBox.information(
                     self,
                     "Éxito",
