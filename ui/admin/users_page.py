@@ -305,7 +305,7 @@ class UsersPage(QWidget):
 
         # ── Campo de búsqueda de admins ─────────────────────────────────────────
         self.admin_search = QLineEdit()
-        self.admin_search.setPlaceholderText("🔍  Buscar por ID o cuenta...")
+        self.admin_search.setPlaceholderText("🔍  Buscar por nombre, ID o cuenta...")
         self.admin_search.setClearButtonEnabled(True)
         self.admin_search.setFixedHeight(32)
         self.admin_search.setStyleSheet("""
@@ -558,7 +558,7 @@ class UsersPage(QWidget):
         self._populate_user_table(filtered)
 
     def _filter_admins(self, text: str):
-        """Filtra la tabla de admins por ID, número de cuenta."""
+        """Filtra la tabla de admins por nombre, ID o número de cuenta."""
         query = text.strip().lower()
         if not query:
             self._populate_admin_table(self._all_admins)
@@ -566,7 +566,7 @@ class UsersPage(QWidget):
         filtered = [
             a for a in self._all_admins
             if query in str(a.get("id_admin", "")).lower()
-            or query in str(a.get("email", "")).lower()
+            or query in str(a.get("nombre", "")).lower()
             or query in str(a.get("account_number", "")).lower()
         ]
         self._populate_admin_table(filtered)
