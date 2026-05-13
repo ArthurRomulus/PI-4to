@@ -15,6 +15,8 @@ from PyQt5.QtWidgets import (
     QFrame,
     QComboBox,
     QGraphicsDropShadowEffect,
+    QWidget,
+    QScrollArea,
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -855,3 +857,349 @@ class CreateAdminWindow(QDialog):
         except Exception as e:
             play_sound("registrado.mp3")
             self.show_message("Error", f"Error al crear administrador: {str(e)}")
+
+
+# =========================================================
+# PÁGINA INLINE CREAR ADMINISTRADOR (QWidget)
+# =========================================================
+class CreateAdminPage(QWidget):
+    """Versión embebida en el QStackedWidget, sin abrir ventana extra."""
+
+    def __init__(self, on_back=None):
+        super().__init__()
+        self._on_back = on_back
+        self._pending_embedding = None
+        self._build_ui()
+        self.setup_database()
+
+    def setup_database(self):
+        crear_tablas()
+
+    # ---------------------------------------------------------
+    # UI
+    # ---------------------------------------------------------
+    def _build_ui(self):
+        self.setObjectName("CreateAdminPage")
+        self.setStyleSheet("""
+            QWidget#CreateAdminPage { background: #080d13; }
+            QLabel { background: transparent; border: none; }
+        """)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("""
+            QScrollArea { border: none; background: #080d13; }
+            QScrollBar:vertical { background: #111820; width: 6px; }
+            QScrollBar::handle:vertical { background: #2a3d52; border-radius: 3px; }
+        """)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        outer.addWidget(scroll)
+
+        container = QWidget()
+        container.setStyleSheet("background: #080d13;")
+        scroll.setWidget(container)
+
+        lay = QVBoxLayout(container)
+        lay.setContentsMargins(8, 8, 8, 8)
+        lay.setSpacing(0)
+
+        # ---------- outer_frame ----------
+        outer_frame = QFrame()
+        outer_frame.setObjectName("OuterFrame2")
+        outer_frame.setStyleSheet("""
+            QFrame#OuterFrame2 {
+                background-color: #0b131d;
+                border: 1px solid #426079;
+                border-radius: 11px;
+            }
+        """)
+
+        of_shadow = QGraphicsDropShadowEffect()
+        of_shadow.setBlurRadius(35)
+        of_shadow.setOffset(0, 12)
+        of_shadow.setColor(Qt.black)
+        outer_frame.setGraphicsEffect(of_shadow)
+
+        lay.addWidget(outer_frame)
+
+        outer_layout = QVBoxLayout(outer_frame)
+        outer_layout.setContentsMargins(16, 14, 16, 14)
+        outer_layout.setSpacing(0)
+
+        # ---------- card ----------
+        card = QFrame()
+        card.setObjectName("Card2")
+        card.setStyleSheet("""
+            QFrame#Card2 {
+                background-color: #101720;
+                border: 1px solid #273545;
+                border-radius: 8px;
+            }
+        """)
+
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(32, 24, 32, 20)
+        card_layout.setSpacing(0)
+
+        # icon
+        top_icon_box = QFrame()
+        top_icon_box.setFixedSize(72, 72)
+        top_icon_box.setObjectName("TopIconBox2")
+        top_icon_box.setStyleSheet("""
+            QFrame#TopIconBox2 {
+                background-color: #1d2838;
+                border: 1px solid #455875;
+                border-radius: 14px;
+            }
+        """)
+        top_icon_layout = QVBoxLayout(top_icon_box)
+        top_icon_layout.setContentsMargins(0, 0, 0, 0)
+        top_icon_lbl = QLabel()
+        top_icon_lbl.setAlignment(Qt.AlignCenter)
+        top_icon_lbl.setStyleSheet("background: transparent; border: none;")
+        admin_path = asset_path("createadmin.png")
+        if os.path.exists(admin_path):
+            pix = QPixmap(admin_path)
+            if not pix.isNull():
+                top_icon_lbl.setPixmap(pix.scaled(52, 52, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            else:
+                top_icon_lbl.setText("🛡")
+        else:
+            top_icon_lbl.setText("🛡")
+        top_icon_layout.addWidget(top_icon_lbl)
+
+        icon_row = QHBoxLayout()
+        icon_row.addStretch()
+        icon_row.addWidget(top_icon_box)
+        icon_row.addStretch()
+        card_layout.addLayout(icon_row)
+        card_layout.addSpacing(28)
+
+        title = QLabel("Crear Administrador")
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("""
+            color: #ffffff; background: transparent; border: none;
+            font-size: 20px; font-weight: 900;
+        """)
+        card_layout.addWidget(title)
+        card_layout.addSpacing(6)
+
+        subtitle = QLabel("Configure los accesos para un nuevo\nperfil de seguridad")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet("""
+            color: #b2bdcc; background: transparent; border: none;
+            font-size: 12px; font-weight: 700;
+        """)
+        card_layout.addWidget(subtitle)
+        card_layout.addSpacing(22)
+
+        # ---------- form ----------
+        self.nombre_input = self._add_input(card_layout, "NOMBRE", "name.png", "Juan Perez")
+        self._nombre_error_lbl = QLabel("")
+        self._nombre_error_lbl.setVisible(False)
+        self._nombre_error_lbl.setStyleSheet("""
+            color: #ff6b7c; font-size: 11px; font-weight: 800;
+            background: transparent; border: none;
+        """)
+        card_layout.addWidget(self._nombre_error_lbl)
+        self.nombre_input.input.textChanged.connect(self._on_nombre_changed)
+
+        self.password_input = self._add_input(
+            card_layout, "CONTRASEÑA", "pass.png", "••••••••",
+            is_password=True, show_eye=True
+        )
+        self.password_confirm_input = self._add_input(
+            card_layout, "CONFIRMAR CONTRASEÑA", "pass.png", "••••••••",
+            is_password=True, show_eye=True
+        )
+        self.question_combo = self._add_combo(card_layout, "PREGUNTA DE SEGURIDAD", "question.png")
+        self.answer_input = self._add_input(
+            card_layout, "RESPUESTA DE SEGURIDAD", "llave.png", "Su respuesta secreta"
+        )
+
+        card_layout.addSpacing(18)
+
+        # ---------- buttons ----------
+        self.create_button = QPushButton("Crear Administrador    ›")
+        self.create_button.setFixedHeight(52)
+        self.create_button.setCursor(Qt.PointingHandCursor)
+        self.create_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4c8dff; border: none; border-radius: 8px;
+                color: #174ea6; font-size: 13px; font-weight: 900;
+            }
+            QPushButton:hover { background-color: #6aa1ff; color: #ffffff; }
+            QPushButton:pressed { background-color: #3677e8; padding-top: 2px; }
+        """)
+        self.create_button.clicked.connect(self.create_admin)
+        card_layout.addWidget(self.create_button)
+
+        card_layout.addSpacing(12)
+
+        self.back_button = QPushButton("← Volver al Panel")
+        self.back_button.setFixedHeight(48)
+        self.back_button.setCursor(Qt.PointingHandCursor)
+        self.back_button.setStyleSheet("""
+            QPushButton {
+                background-color: #1d252f; border: none; border-radius: 7px;
+                color: #ffffff; font-size: 13px; font-weight: 900;
+            }
+            QPushButton:hover { background-color: #26313d; }
+            QPushButton:pressed { background-color: #171e27; padding-top: 2px; }
+        """)
+        self.back_button.clicked.connect(self._go_back)
+        card_layout.addWidget(self.back_button)
+
+        card_layout.addSpacing(16)
+
+        outer_layout.addWidget(card)
+        lay.addSpacing(8)
+
+    # ---------------------------------------------------------
+    # Helpers
+    # ---------------------------------------------------------
+    def _add_input(self, parent_layout, label_text, icon_name, placeholder,
+                   is_password=False, show_eye=False):
+        lbl = QLabel(label_text)
+        lbl.setStyleSheet("""
+            color: #ffffff; background: transparent; border: none;
+            font-size: 10px; font-weight: 900; letter-spacing: 1px;
+        """)
+        parent_layout.addWidget(lbl)
+        parent_layout.addSpacing(7)
+        w = IconInput(
+            icon_name=icon_name,
+            placeholder=placeholder,
+            is_password=is_password,
+            show_eye=show_eye
+        )
+        parent_layout.addWidget(w)
+        parent_layout.addSpacing(14)
+        return w
+
+    def _add_combo(self, parent_layout, label_text, icon_name):
+        lbl = QLabel(label_text)
+        lbl.setStyleSheet("""
+            color: #ffffff; background: transparent; border: none;
+            font-size: 10px; font-weight: 900; letter-spacing: 1px;
+        """)
+        parent_layout.addWidget(lbl)
+        parent_layout.addSpacing(7)
+        w = IconComboBox(icon_name=icon_name)
+        parent_layout.addWidget(w)
+        parent_layout.addSpacing(14)
+        return w
+
+    def _go_back(self):
+        if self._on_back:
+            self._on_back()
+
+    def _validate_nombre(self, nombre: str) -> tuple:
+        if not nombre:
+            return False, "El nombre es requerido"
+        if not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$", nombre):
+            return False, "Solo se permiten letras y espacios"
+        palabras = nombre.strip().split()
+        if len(palabras) < 3:
+            return False, "Debe contener al menos 3 palabras"
+        return True, ""
+
+    def _on_nombre_changed(self, text: str):
+        es_valido, mensaje = self._validate_nombre(text.strip())
+        if text and not es_valido:
+            self._nombre_error_lbl.setText(mensaje)
+            self._nombre_error_lbl.setVisible(True)
+        else:
+            self._nombre_error_lbl.setVisible(False)
+
+    # ---------------------------------------------------------
+    # Mensaje
+    # ---------------------------------------------------------
+    def _show_msg(self, title, text):
+        msg = QMessageBox(self)
+        msg.setWindowTitle(title)
+        msg.setText(text)
+        msg.setIcon(QMessageBox.NoIcon)
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.setStyleSheet("""
+            QMessageBox { background-color: #0f1720; }
+            QLabel { color: #e7edf7; font-size: 13px; font-weight: 600; }
+            QPushButton {
+                background-color: #4c8dff; color: #ffffff; border: none;
+                border-radius: 7px; padding: 8px 22px;
+                font-size: 12px; font-weight: 800; min-width: 80px;
+            }
+            QPushButton:hover { background-color: #6aa1ff; }
+        """)
+        msg.exec_()
+
+    # ---------------------------------------------------------
+    # Crear admin
+    # ---------------------------------------------------------
+    def create_admin(self):
+        nombre = self.nombre_input.text().strip()
+        password = self.password_input.text().strip()
+        password_confirm = self.password_confirm_input.text().strip()
+        security_question = self.question_combo.currentText()
+        security_answer = self.answer_input.text().strip()
+
+        es_valido, mensaje_error = self._validate_nombre(nombre)
+        if not es_valido:
+            self._show_msg("Nombre inválido", mensaje_error)
+            return
+
+        if not password or not password_confirm:
+            self._show_msg("Campos incompletos", "Por favor complete todos los campos.")
+            return
+
+        if len(password) < 6:
+            self._show_msg("Contraseña débil", "La contraseña debe tener al menos 6 caracteres.")
+            return
+
+        if password != password_confirm:
+            self._show_msg("Contraseñas no coinciden", "Las contraseñas no son iguales.")
+            return
+
+        if self.question_combo.currentIndex() == 0:
+            self._show_msg("Pregunta requerida", "Selecciona una pregunta de seguridad.")
+            return
+
+        if not security_answer:
+            self._show_msg("Respuesta requerida", "Por favor proporciona una respuesta de seguridad.")
+            return
+
+        if obtener_admin_por_nombre(nombre):
+            self._show_msg("Nombre registrado", f"El nombre '{nombre}' ya está registrado.")
+            return
+
+        try:
+            pin_hash = hash_pin(password)
+            answer_hash = hash_pin(security_answer.lower().strip())
+            resultado = crear_admin(
+                nombre,
+                pin_hash,
+                security_question=security_question,
+                security_answer_hash=answer_hash
+            )
+            if resultado and isinstance(resultado, dict):
+                play_sound("registrado.mp3")
+                self._show_msg(
+                    "Éxito",
+                    f"Administrador creado exitosamente.\n\nNombre: {nombre}\n"
+                    f"ID: {resultado['admin_id']}\nNúmero de cuenta: {resultado['account_number']}"
+                )
+                # Limpiar formulario
+                self.nombre_input.clear()
+                self.password_input.clear()
+                self.password_confirm_input.clear()
+                self.question_combo.setCurrentIndex(0)
+                self.answer_input.clear()
+                self._go_back()
+            else:
+                self._show_msg("Error", "No se pudo crear el administrador.")
+        except Exception as e:
+            self._show_msg("Error", f"Error al crear administrador: {str(e)}")

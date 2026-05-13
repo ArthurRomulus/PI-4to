@@ -22,12 +22,23 @@ from ui.admin.dashboard_page import DashboardPage
 from ui.admin.hamburger_menu import AdminHamburgerMenu
 from ui.admin.registerpage import RegisterPage
 from ui.admin.users_page import UsersPage
+from ui.admin.create_admin_window import CreateAdminPage
 
 
 class DashboardPanel(QMainWindow):
     def __init__(self, admin_email="admin"):
         super().__init__()
         self.admin_email = admin_email
+
+        # Obtener datos del admin logueado
+        try:
+            from database.consultas import obtener_admin_por_account_number
+            info = obtener_admin_por_account_number(admin_email)
+            self.admin_nombre = info.get("nombre", "Administrador") if info else "Administrador"
+        except Exception:
+            self.admin_nombre = "Administrador"
+        self.admin_cuenta = admin_email
+
         self.setWindowTitle("Admin Panel")
         self.setFixedSize(480, 800)
         self.setStyleSheet("background: #0f172a;")
@@ -124,11 +135,15 @@ class DashboardPanel(QMainWindow):
         self.user_history = UsersPage()
         self.access_history = AccessPage()
         self.register_page = RegisterPage()
+        self.create_admin_page = CreateAdminPage(
+            on_back=lambda: self._change_page(0)
+        )
 
-        self.pages.addWidget(self.dashboard)
-        self.pages.addWidget(self.user_history)
-        self.pages.addWidget(self.access_history)
-        self.pages.addWidget(self.register_page)
+        self.pages.addWidget(self.dashboard)           # 0
+        self.pages.addWidget(self.user_history)        # 1
+        self.pages.addWidget(self.access_history)      # 2
+        self.pages.addWidget(self.register_page)       # 3
+        self.pages.addWidget(self.create_admin_page)   # 4
 
         self.root.addWidget(self.pages)
 
@@ -137,6 +152,8 @@ class DashboardPanel(QMainWindow):
             parent_widget=self,
             on_change_page=self._change_page,
             on_close_panel=self.close,
+            admin_nombre=self.admin_nombre,
+            admin_cuenta=self.admin_cuenta,
         )
         self.hamburger_menu.resize(self.width(), self.height())
 
@@ -150,9 +167,10 @@ class DashboardPanel(QMainWindow):
             "Historial de usuarios",
             "Registro de acceso",
             "Registro de usuarios",
+            "Crear Administrador",
         ]
         self.pages.setCurrentIndex(index)
-        self.title_label.setText(titles[index])
+        self.title_label.setText(titles[index] if index < len(titles) else "")
         self.hamburger_menu.set_active(index)
         self.refresh_current_page()
         self.hamburger_menu.hide()

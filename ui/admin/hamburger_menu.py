@@ -12,7 +12,6 @@ from PyQt5.QtWidgets import (
     QGraphicsDropShadowEffect,
 )
 
-from .create_admin_window import CreateAdminWindow
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -202,10 +201,13 @@ class _LogoutButton(QPushButton):
 class AdminHamburgerMenu:
     """Drawer del menú hamburguesa separado del panel principal."""
 
-    def __init__(self, parent_widget, on_change_page, on_close_panel):
+    def __init__(self, parent_widget, on_change_page, on_close_panel,
+                 admin_nombre="Administrador", admin_cuenta=""):
         self.parent_widget = parent_widget
         self.on_change_page = on_change_page
         self.on_close_panel = on_close_panel
+        self._admin_nombre = admin_nombre
+        self._admin_cuenta = admin_cuenta
 
         self.drawer_width = 288
 
@@ -254,7 +256,7 @@ class AdminHamburgerMenu:
         # TARJETA ADMIN SUPERIOR
         # =====================================================
         admin_card = QFrame()
-        admin_card.setFixedHeight(60)
+        admin_card.setFixedHeight(72)
         admin_card.setObjectName("AdminCard")
         admin_card.setStyleSheet("""
             QFrame#AdminCard {
@@ -268,32 +270,11 @@ class AdminHamburgerMenu:
         admin_card_layout.setContentsMargins(12, 8, 12, 8)
         admin_card_layout.setSpacing(10)
 
-        avatar_box = QLabel()
-        avatar_box.setFixedSize(36, 36)
-        avatar_box.setAlignment(Qt.AlignCenter)
-        avatar_box.setStyleSheet("""
-            QLabel {
-                background-color: #0c2d48;
-                border: 2px solid #1677ff;
-                border-radius: 18px;
-                color: #ffffff;
-                font-size: 14px;
-                font-weight: 900;
-            }
-        """)
-
-        # Cambia admin_avatar.png por el nombre de tu foto si tienes una.
-        avatar = load_avatar("admin_avatar.png", 36)
-        if not avatar.isNull():
-            avatar_box.setPixmap(avatar)
-        else:
-            avatar_box.setText("A")
-
         admin_texts = QVBoxLayout()
         admin_texts.setContentsMargins(0, 0, 0, 0)
-        admin_texts.setSpacing(1)
+        admin_texts.setSpacing(2)
 
-        admin_role = QLabel("ADMINISTRADOR SENIOR")
+        admin_role = QLabel("ADMINISTRADOR")
         admin_role.setStyleSheet("""
             QLabel {
                 color: #9aa8b8;
@@ -305,7 +286,7 @@ class AdminHamburgerMenu:
             }
         """)
 
-        admin_name = QLabel("Alex Mercer")
+        admin_name = QLabel(self._admin_nombre)
         admin_name.setStyleSheet("""
             QLabel {
                 color: #e4edf7;
@@ -316,10 +297,23 @@ class AdminHamburgerMenu:
             }
         """)
 
+        cuenta_txt = self._admin_cuenta if self._admin_cuenta else "—"
+        admin_acct = QLabel(f"Cuenta: {cuenta_txt}")
+        admin_acct.setStyleSheet("""
+            QLabel {
+                color: #4d8cff;
+                background: transparent;
+                border: none;
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: 0.4px;
+            }
+        """)
+
         admin_texts.addWidget(admin_role)
         admin_texts.addWidget(admin_name)
+        admin_texts.addWidget(admin_acct)
 
-        admin_card_layout.addWidget(avatar_box)
         admin_card_layout.addLayout(admin_texts)
         admin_card_layout.addStretch()
 
@@ -340,13 +334,14 @@ class AdminHamburgerMenu:
             self.btn_users,
             self.btn_access,
             self.btn_register,
+            self.btn_create_admin,
         ]
 
         self.btn_dashboard.clicked.connect(lambda: self._change_page(0))
         self.btn_users.clicked.connect(lambda: self._change_page(1))
         self.btn_access.clicked.connect(lambda: self._change_page(2))
         self.btn_register.clicked.connect(lambda: self._change_page(3))
-        self.btn_create_admin.clicked.connect(self.open_create_admin)
+        self.btn_create_admin.clicked.connect(lambda: self._change_page(4))
 
         drawer_layout.addWidget(self.btn_dashboard)
         drawer_layout.addSpacing(8)
@@ -480,9 +475,8 @@ class AdminHamburgerMenu:
         self.on_change_page(index)
 
     def open_create_admin(self):
-        self.create_admin_window = CreateAdminWindow()
-        self.create_admin_window.exec_()
-        self.hide()
+        """Deprecated: now handled via inline page navigation."""
+        self._change_page(4)
 
     def _go_back_main(self):
         from ui.users.main_window import MainWindow
@@ -498,8 +492,6 @@ class AdminHamburgerMenu:
     def set_active(self, index):
         for i, btn in enumerate(self.page_buttons):
             btn.setChecked(i == index)
-
-        self.btn_create_admin.setChecked(False)
 
     def toggle(self):
         if self.overlay.isVisible():
