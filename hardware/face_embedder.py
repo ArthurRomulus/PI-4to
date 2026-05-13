@@ -1,163 +1,249 @@
 """
-face_embedder.py
-Genera embeddings faciales usando LBP (Local Binary Patterns) + HOG
-sin depender de la librería face_recognition.
+face_embedder.py  v4 — YuNet + SFace alineado
 
-El embedding resultante es un vector numpy float32 de dimensión fija
-que puede compararse con distancia coseno o euclidiana.
+Dos modelos:
+  1. YuNet  (FaceDetectorYN)    — detector de cara + 5 keypoints de landmarks.
+  2. SFace  (FaceRecognizerSF)  — embeddings 128-dim.
 
-Mejoras de robustez v2:
-  - CLAHE en lugar de equalizeHist (iluminación variable)
-  - Suavizado Gaussiano antes de LBP (menos sensible a expresiones)
-  - Se descarta el 15% superior (zona del cabello)
-  - LBP multi-escala (radio 1 y radio 2) para textura más rica
+Flujo:
+  extract_embedding(full_frame, face_rect)
+    → YuNet detecta la cara en el frame completo
+    → alignCrop() alinea la cara con los 5 landmarks (ojos, nariz, boca)
+    → SFace genera el embedding del recorte alineado de 112×112
+
+Sin alineación, SFace produce scores 0.30–0.80 para la misma persona.
+Con alineación, produce scores consistentes 0.70–0.95 para mismo usuario
+y 0.00–0.35 para usuarios diferentes → discriminación clara.
+
+Umbrales ajustados para alineación correcta:
+  Mismo usuario   → coseno ≥ 0.60  (típicamente 0.70–0.95)
+  Usuario diferente → coseno < 0.40 (típicamente 0.00–0.35)
 """
 
 import cv2
 import numpy as np
+import os
+import threading
+import urllib.request
+
+# ── Dimensión del embedding ────────────────────────────────────────────────────
+EMBEDDING_DIM = 128
+
+# ── Rutas y URLs de modelos ───────────────────────────────────────────────────
+_MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
+
+_SFACE_PATH = os.path.join(_MODEL_DIR, "face_recognition_sface_2021dec.onnx")
+_SFACE_URL  = (
+    "https://github.com/opencv/opencv_zoo/raw/main/models/"
+    "face_recognition_sface/face_recognition_sface_2021dec.onnx"
+)
+
+_YUNET_PATH = os.path.join(_MODEL_DIR, "face_detection_yunet_2023mar.onnx")
+_YUNET_URL  = (
+    "https://github.com/opencv/opencv_zoo/raw/main/models/"
+    "face_detection_yunet/face_detection_yunet_2023mar.onnx"
+)
+
+# ── Estado global ─────────────────────────────────────────────────────────────
+_recognizer    = None   # FaceRecognizerSF (SFace)
+_yunet         = None   # FaceDetectorYN   (YuNet)
+_sface_lock    = threading.Lock()
+_yunet_lock    = threading.Lock()
 
 
-# Dimensión del embedding final
-EMBEDDING_DIM = 256
+# ── Cargadores ────────────────────────────────────────────────────────────────
+
+def _download(url: str, path: str, name: str) -> bool:
+    """Descarga un modelo si no existe. Retorna True si quedó disponible."""
+    if os.path.exists(path):
+        return True
+    print(f"[FaceEmbedder] Descargando {name}…")
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        urllib.request.urlretrieve(url, path)
+        print(f"[FaceEmbedder] {name} descargado.")
+        return True
+    except Exception as e:
+        print(f"[FaceEmbedder] ERROR descargando {name}: {e}")
+        return False
 
 
-def _lbp_histogram(gray_patch: np.ndarray, num_points: int = 8, radius: int = 1) -> np.ndarray:
+def _load_recognizer():
+    """Carga SFace (descarga si falta). Thread-safe."""
+    global _recognizer
+    if _recognizer is not None:
+        return _recognizer
+    with _sface_lock:
+        if _recognizer is not None:
+            return _recognizer
+        if not _download(_SFACE_URL, _SFACE_PATH, "SFace (~33 MB)"):
+            return None
+        try:
+            _recognizer = cv2.FaceRecognizerSF.create(_SFACE_PATH, "")
+            print("[FaceEmbedder] FaceRecognizerSF (SFace 128-dim) listo.")
+            return _recognizer
+        except Exception as e:
+            print(f"[FaceEmbedder] ERROR cargando SFace: {e}")
+            return None
+
+
+def _load_yunet(width: int = 640, height: int = 480):
+    """Carga YuNet (descarga si falta). Thread-safe."""
+    global _yunet
+    if _yunet is not None:
+        _yunet.setInputSize((width, height))
+        return _yunet
+    with _yunet_lock:
+        if _yunet is not None:
+            _yunet.setInputSize((width, height))
+            return _yunet
+        if not _download(_YUNET_URL, _YUNET_PATH, "YuNet (~220 KB)"):
+            return None
+        try:
+            _yunet = cv2.FaceDetectorYN.create(
+                _YUNET_PATH, "",
+                (width, height),
+                score_threshold=0.55,
+                nms_threshold=0.3,
+                top_k=5000,
+            )
+            print("[FaceEmbedder] YuNet (FaceDetectorYN) listo.")
+            return _yunet
+        except Exception as e:
+            print(f"[FaceEmbedder] ERROR cargando YuNet: {e}")
+            return None
+
+
+# Precarga ambos modelos en background al importar el módulo
+def _preload():
+    _load_recognizer()
+    _load_yunet()
+
+threading.Thread(target=_preload, daemon=True).start()
+
+
+# ── API pública ───────────────────────────────────────────────────────────────
+
+def extract_embedding(full_frame: np.ndarray, face_rect: tuple) -> np.ndarray:
     """
-    Calcula el histograma LBP de un parche en escala de grises.
-    Implementación manual que NO requiere scikit-image.
+    Extrae un embedding facial ALINEADO usando YuNet + SFace.
+
+    Parámetros:
+        full_frame : frame BGR completo de la cámara.
+        face_rect  : (x, y, w, h) del bounding-box facial (de Haar/FaceDetector).
+
+    Flujo:
+        1. YuNet detecta la cara en el frame completo.
+        2. Se selecciona la detección más cercana a face_rect.
+        3. FaceRecognizerSF.alignCrop() alinea la cara (112×112) con los
+           5 landmarks (ojos, nariz, esquinas de boca).
+        4. FaceRecognizerSF.feature() genera el embedding de 128-dim.
+        5. Si YuNet no detecta ninguna cara → fallback a crop+resize.
+
+    Retorna np.ndarray float32 (128,) o None si falla.
     """
-    h, w = gray_patch.shape
-    lbp = np.zeros((h, w), dtype=np.uint8)
+    if full_frame is None or full_frame.size == 0 or face_rect is None:
+        return None
 
-    for bit, (dy, dx) in enumerate([
-        (-radius, 0), (-radius, radius), (0, radius), (radius, radius),
-        (radius, 0), (radius, -radius), (0, -radius), (-radius, -radius)
-    ]):
-        shifted = np.zeros_like(gray_patch)
-        # Recorte de origen y destino
-        sy = max(dy, 0); ey = h + min(dy, 0)
-        sx = max(dx, 0); ex = w + min(dx, 0)
-        dy_neg = max(-dy, 0); dy_pos = h - max(dy, 0)
-        dx_neg = max(-dx, 0); dx_pos = w - max(dx, 0)
-        shifted[dy_neg:dy_pos, dx_neg:dx_pos] = gray_patch[sy:ey, sx:ex]
-        lbp |= ((shifted >= gray_patch).astype(np.uint8) << bit)
+    rec = _load_recognizer()
+    if rec is None:
+        return None
 
-    hist, _ = np.histogram(lbp.ravel(), bins=32, range=(0, 256))
-    return hist.astype(np.float32)
+    h_fr, w_fr = full_frame.shape[:2]
+    det = _load_yunet(w_fr, h_fr)
 
+    if det is not None:
+        try:
+            det.setInputSize((w_fr, h_fr))
+            _, faces = det.detect(full_frame)
 
-def _hog_simple(gray_patch: np.ndarray, cell_size: int = 16) -> np.ndarray:
-    """
-    HOG simplificado: gradientes en celdas de cell_size x cell_size,
-    histograma de 8 orientaciones por celda.
-    """
-    resized = cv2.resize(gray_patch, (64, 64))
-    gx = cv2.Sobel(resized, cv2.CV_32F, 1, 0, ksize=3)
-    gy = cv2.Sobel(resized, cv2.CV_32F, 0, 1, ksize=3)
-    mag = np.sqrt(gx**2 + gy**2)
-    angle = np.arctan2(gy, gx) * (180.0 / np.pi) % 180.0
+            if faces is not None and len(faces) > 0:
+                # Elegir la detección más cercana al face_rect de Haar
+                x_ref, y_ref, w_ref, h_ref = face_rect
+                cx_ref = x_ref + w_ref / 2
+                cy_ref = y_ref + h_ref / 2
 
-    n_cells_y = 64 // cell_size
-    n_cells_x = 64 // cell_size
-    n_bins = 8
-    hog_feat = []
-    for cy in range(n_cells_y):
-        for cx in range(n_cells_x):
-            cell_mag = mag[cy*cell_size:(cy+1)*cell_size, cx*cell_size:(cx+1)*cell_size]
-            cell_ang = angle[cy*cell_size:(cy+1)*cell_size, cx*cell_size:(cx+1)*cell_size]
-            hist, _ = np.histogram(cell_ang.ravel(), bins=n_bins, range=(0, 180),
-                                   weights=cell_mag.ravel())
-            hog_feat.append(hist)
-    return np.concatenate(hog_feat).astype(np.float32)
+                best_face = None
+                best_dist = float("inf")
+                for face in faces:
+                    fx, fy, fw, fh = face[:4]
+                    dist = (fx + fw / 2 - cx_ref) ** 2 + (fy + fh / 2 - cy_ref) ** 2
+                    if dist < best_dist:
+                        best_dist = dist
+                        best_face = face
+
+                if best_face is not None:
+                    aligned = rec.alignCrop(full_frame, best_face)   # 112×112 BGR
+                    feat    = rec.feature(aligned)
+                    return np.array(feat, dtype=np.float32).flatten()
+        except Exception as e:
+            print(f"[FaceEmbedder] YuNet/alignCrop error: {e}")
+
+    # ── Fallback: crop directo (sin alineación) ──────────────────────────────
+    x, y, w, h = face_rect
+    crop = full_frame[y:y + h, x:x + w]
+    return compute_face_embedding(crop)
 
 
 def compute_face_embedding(face_bgr: np.ndarray) -> np.ndarray:
     """
-    Dado un recorte de cara (BGR), retorna un embedding normalizado
-    de dimensión EMBEDDING_DIM.
-
-    Args:
-        face_bgr: Imagen BGR del recorte de cara (cualquier tamaño).
-
-    Returns:
-        np.ndarray float32 de forma (EMBEDDING_DIM,), normalizado a norma 1.
-        Retorna None si el recorte es inválido.
+    Embedding SFace de un recorte BGR (sin alineación).
+    Usar extract_embedding() cuando el frame completo esté disponible.
     """
     if face_bgr is None or face_bgr.size == 0:
         return None
-
+    rec = _load_recognizer()
+    if rec is None:
+        return None
     try:
-        face_bgr = cv2.resize(face_bgr, (128, 128))
-        gray = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2GRAY)
-
-        # ── CLAHE: robustez ante iluminación variable ─────────────────────────
-        # Mejor que equalizeHist porque adapta el contraste por zonas locales,
-        # reduciendo el impacto de sombras o luz directa en la cara.
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        gray = clahe.apply(gray)
-
-        # ── Suavizado Gaussiano ───────────────────────────────────────────────
-        # Reduce la sensibilidad a cambios de textura fina causados por
-        # expresiones faciales (muecas, caras raras) sin borrar la estructura.
-        gray_smooth = cv2.GaussianBlur(gray, (3, 3), 0.8)
-
-        # ── Excluir zona del cabello (top 15%) ───────────────────────────────
-        # El cabello cambia entre intentos (peinado distinto); ignorar esa
-        # franja hace el embedding más invariante al peinado.
-        h_img = gray_smooth.shape[0]
-        hair_cut = int(h_img * 0.15)
-        face_core = gray_smooth[hair_cut:, :]   # región ojos → barbilla
-
-        # ── LBP multi-escala ─────────────────────────────────────────────────
-        # Radio 1 (textura fina): sensible a detalles pequeños de la piel.
-        lbp_r1 = _lbp_histogram(face_core, num_points=8, radius=1)   # 32-dim
-        # Radio 2 (textura media): captura contornos de ojos, nariz y boca,
-        # que son más estables que los detalles finos al hacer expresiones.
-        lbp_r2 = _lbp_histogram(face_core, num_points=8, radius=2)   # 32-dim
-
-        # ── HOG: gradientes de forma ──────────────────────────────────────────
-        # Captura la estructura geométrica facial global; más estable que LBP
-        # ante pequeñas variaciones de expresión.
-        hog_feat = _hog_simple(gray_smooth, cell_size=16)             # 128-dim
-
-        # ── Intensidades medias por bloque ────────────────────────────────────
-        # Información de bajo nivel sobre la distribución de brillo en la cara.
-        small = cv2.resize(face_core, (8, 8)).astype(np.float32).ravel()  # 64-dim
-
-        # 32 + 32 + 128 + 64 = 256 dims == EMBEDDING_DIM exacto
-        embedding = np.concatenate([lbp_r1, lbp_r2, hog_feat, small])
-
-        # Rellenar o truncar hasta EMBEDDING_DIM (seguridad)
-        if embedding.shape[0] < EMBEDDING_DIM:
-            embedding = np.pad(embedding, (0, EMBEDDING_DIM - embedding.shape[0]))
-        else:
-            embedding = embedding[:EMBEDDING_DIM]
-
-        norm = np.linalg.norm(embedding)
-        if norm > 0:
-            embedding = embedding / norm
-
-        return embedding.astype(np.float32)
+        aligned = cv2.resize(face_bgr, (112, 112))
+        feat    = rec.feature(aligned)
+        return np.array(feat, dtype=np.float32).flatten()
     except Exception as e:
         print(f"[FaceEmbedder] Error generando embedding: {e}")
         return None
 
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-    """Similitud coseno entre dos vectores (mayor = más parecido, máx 1.0)."""
+    """
+    Similitud coseno entre dos embeddings SFace.
+    Usa FaceRecognizerSF.match(FR_COSINE) cuando está disponible.
+    Rango: -0.3 (personas distintas) … 0.95 (misma persona).
+    """
     if a is None or b is None:
         return 0.0
-    a_norm = np.linalg.norm(a)
-    b_norm = np.linalg.norm(b)
-    if a_norm == 0 or b_norm == 0:
+    rec = _load_recognizer()
+    if rec is not None:
+        try:
+            return float(rec.match(
+                a.reshape(1, -1).astype(np.float32),
+                b.reshape(1, -1).astype(np.float32),
+                cv2.FaceRecognizerSF.FR_COSINE,
+            ))
+        except Exception:
+            pass
+    na, nb = np.linalg.norm(a), np.linalg.norm(b)
+    if na == 0 or nb == 0:
         return 0.0
-    return float(np.dot(a, b) / (a_norm * b_norm))
+    return float(np.dot(a, b) / (na * nb))
 
 
 def euclidean_distance(a: np.ndarray, b: np.ndarray) -> float:
-    """Distancia euclidiana entre dos vectores (menor = más parecido)."""
+    """
+    Distancia L2-norm entre dos embeddings SFace.
+    Umbral recomendado para mismo usuario: ≤ 1.128
+    """
     if a is None or b is None:
-        return float('inf')
-    # Asegurar misma dimensión
-    min_len = min(len(a), len(b))
-    return float(np.linalg.norm(a[:min_len] - b[:min_len]))
+        return float("inf")
+    rec = _load_recognizer()
+    if rec is not None:
+        try:
+            return float(rec.match(
+                a.reshape(1, -1).astype(np.float32),
+                b.reshape(1, -1).astype(np.float32),
+                cv2.FaceRecognizerSF.FR_NORM_L2,
+            ))
+        except Exception:
+            pass
+    m = min(len(a), len(b))
+    return float(np.linalg.norm(a[:m] - b[:m]))

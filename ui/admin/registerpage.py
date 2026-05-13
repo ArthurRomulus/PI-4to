@@ -35,15 +35,16 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from hardware.face_detection import FaceDetector
-from hardware.face_embedder import compute_face_embedding, cosine_similarity
+from hardware.face_embedder import compute_face_embedding, cosine_similarity, extract_embedding
 from database.consultas import guardar_usuario, obtener_usuarios
 from ui.sound_manager import play_sound
 from ui.admin.privacy_notice import PrivacyNoticeDialog
 
 
-DUPLICATE_COSINE_THRESHOLD = 0.78
+# Umbral para SFace ALINEADO (128-dim). Rango mismo usuario: 0.70-0.95
+DUPLICATE_COSINE_THRESHOLD = 0.60
 CAPTURE_HOLD_SECONDS = 3
-FPS_MS = 30
+FPS_MS = 25   # ~40 FPS
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -78,6 +79,12 @@ class _RegisterCameraThread(QThread):
         if not cam.isOpened():
             self.error.emit("No se pudo abrir la cámara.")
             return
+
+        # Optimizar cámara para mayor FPS y menor latencia
+        cam.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
+        cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        cam.set(cv2.CAP_PROP_FPS,          30)
+        cam.set(cv2.CAP_PROP_BUFFERSIZE,   1)
 
         self.msleep(500)
         fail_count = 0
@@ -120,23 +127,11 @@ class _RegisterCameraThread(QThread):
 
                         self.progress.emit(pct)
 
-                        crop_hint = det.get("face_crop_hint")
+                        # Embedding ALINEADO con YuNet
                         face_rect = det.get("face_rect")
                         emb_frame = None
-
-                        if crop_hint:
-                            cx2, cy2, cw2, ch2 = crop_hint
-                            crop = frame[cy2:cy2 + ch2, cx2:cx2 + cw2]
-
-                            if crop.size > 0:
-                                emb_frame = compute_face_embedding(crop)
-
-                        if emb_frame is None and face_rect:
-                            x2, y2, w2, h2 = face_rect
-                            crop = frame[y2:y2 + h2, x2:x2 + w2]
-
-                            if crop.size > 0:
-                                emb_frame = compute_face_embedding(crop)
+                        if face_rect is not None:
+                            emb_frame = extract_embedding(frame, face_rect)
 
                         if emb_frame is not None:
                             self._emb_buffer.append(emb_frame)
@@ -1004,10 +999,15 @@ class RegisterPage(QWidget):
     # ─────────────────────────────────────────────────────────────────────────
     def _check_duplicate_embedding(self, nuevo_embedding) -> tuple:
         try:
+            from hardware.face_embedder import EMBEDDING_DIM
             usuarios = obtener_usuarios()
 
             for nombre_db, emb_db in usuarios:
                 if not isinstance(emb_db, np.ndarray):
+                    continue
+
+                # Ignorar embeddings del sistema anterior (256-dim LBP+HOG)
+                if emb_db.flatten().shape[0] != EMBEDDING_DIM:
                     continue
 
                 score = cosine_similarity(nuevo_embedding, emb_db)

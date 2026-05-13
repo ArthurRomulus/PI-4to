@@ -759,6 +759,62 @@ def limpiar_embeddings_invalidos():
         print(f"Error limpiando embeddings: {e}")
         return False
 
+def migrar_embeddings_sface():
+    """
+    Migración al sistema SFace (128-dim).
+
+    Borra los registros faciales con embeddings de 256-dim (sistema anterior
+    LBP+HOG) de la tabla FACIAL_RECORDS. Los usuarios en USERS se conservan
+    para que puedan re-registrar su rostro con el nuevo sistema.
+
+    Esta función es idempotente: si ya se migró, no hace nada.
+    """
+    NUEVO_DIM = 128
+    try:
+        conn = obtener_conexion()
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT u.id_user, u.name, f.face_encoding
+            FROM USERS u
+            JOIN FACIAL_RECORDS f ON u.id_user = f.id_user
+        """)
+        datos = cursor.fetchall()
+
+        migrados = 0
+        for id_user, nombre, emb_pickle in datos:
+            try:
+                emb = pickle.loads(emb_pickle)
+                if isinstance(emb, np.ndarray) and emb.flatten().shape[0] != NUEVO_DIM:
+                    cursor.execute(
+                        "DELETE FROM FACIAL_RECORDS WHERE id_user = ?", (id_user,)
+                    )
+                    print(
+                        f"[Migración] Registro facial obsoleto eliminado para '{nombre}' "
+                        f"(dim={emb.flatten().shape[0]}). Re-registre el rostro."
+                    )
+                    migrados += 1
+            except Exception:
+                # Embedding corrupto: también eliminar
+                cursor.execute(
+                    "DELETE FROM FACIAL_RECORDS WHERE id_user = ?", (id_user,)
+                )
+                migrados += 1
+
+        conn.commit()
+        conn.close()
+        if migrados:
+            print(
+                f"[Migración] {migrados} registro(s) facial(es) obsoleto(s) eliminados. "
+                "Los usuarios deben re-registrar su rostro."
+            )
+        return True
+    except Exception as e:
+        print(f"[Migración] Error: {e}")
+        return False
+
 def eliminar_usuario_por_nombre(nombre):
     """Elimina un usuario por nombre."""
     try:
