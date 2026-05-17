@@ -260,36 +260,41 @@ class MainWindow(QMainWindow):
     def _update_datetime(self):
         now = datetime.now()
 
+        # Use numeric indices instead of locale-dependent names
         dias = {
-            "Monday": "LUNES",
-            "Tuesday": "MARTES",
-            "Wednesday": "MIÉRCOLES",
-            "Thursday": "JUEVES",
-            "Friday": "VIERNES",
-            "Saturday": "SÁBADO",
-            "Sunday": "DOMINGO"
+            0: "LUNES",
+            1: "MARTES",
+            2: "MIÉRCOLES",
+            3: "JUEVES",
+            4: "VIERNES",
+            5: "SÁBADO",
+            6: "DOMINGO"
         }
 
         meses = {
-            "January": "ENERO",
-            "February": "FEBRERO",
-            "March": "MARZO",
-            "April": "ABRIL",
-            "May": "MAYO",
-            "June": "JUNIO",
-            "July": "JULIO",
-            "August": "AGOSTO",
-            "September": "SEPTIEMBRE",
-            "October": "OCTUBRE",
-            "November": "NOVIEMBRE",
-            "December": "DICIEMBRE"
+            1: "ENERO",
+            2: "FEBRERO",
+            3: "MARZO",
+            4: "ABRIL",
+            5: "MAYO",
+            6: "JUNIO",
+            7: "JULIO",
+            8: "AGOSTO",
+            9: "SEPTIEMBRE",
+            10: "OCTUBRE",
+            11: "NOVIEMBRE",
+            12: "DICIEMBRE"
         }
 
         self.time_label.setText(now.strftime("%I:%M"))
-        self.ampm_label.setText(now.strftime("%p"))
+        # Normalize AM/PM to uppercase without periods to keep UI consistent
+        ampm = now.strftime("%p").upper().replace(".", "")
+        self.ampm_label.setText(ampm)
 
-        dia = dias[now.strftime("%A")]
-        mes = meses[now.strftime("%B")]
+        weekday_index = now.weekday()  # Monday == 0
+        month_index = now.month
+        dia = dias.get(weekday_index, "")
+        mes = meses.get(month_index, "")
         self.date_label.setText(f"{dia}, {now.day:02d} DE {mes}")
 
     def open_verify(self):

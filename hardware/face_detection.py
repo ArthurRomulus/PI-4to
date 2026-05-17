@@ -19,19 +19,54 @@ class FaceDetector:
     """
 
     def __init__(self):
-        data = cv2.data.haarcascades
+        import os
 
-        self.face_cascade = cv2.CascadeClassifier(
-            data + "haarcascade_frontalface_default.xml"
-        )
-        self.eye_cascade = cv2.CascadeClassifier(
-            data + "haarcascade_eye.xml"
-        )
+        # Intentar localizar la carpeta de haarcascades de OpenCV en varias ubicaciones
+        possible_dirs = []
+        data_attr = getattr(cv2, 'data', None)
+        if data_attr is not None and hasattr(data_attr, 'haarcascades'):
+            possible_dirs.append(data_attr.haarcascades)
 
-        # Cascade para detección de boca/sonrisa (cubrebocas)
-        _mouth_path = data + "haarcascade_smile.xml"
-        self.mouth_cascade = cv2.CascadeClassifier(_mouth_path)
-        self._mouth_ok = not self.mouth_cascade.empty()
+        # directorio relativo al paquete cv2
+        try:
+            cv2_pkg_dir = os.path.dirname(cv2.__file__)
+            possible_dirs.append(os.path.join(cv2_pkg_dir, 'data', 'haarcascades'))
+        except Exception:
+            pass
+
+        # rutas comunes del sistema
+        possible_dirs.extend([
+            '/usr/share/opencv4/haarcascades',
+            '/usr/share/opencv/haarcascades',
+            '/usr/local/share/opencv4/haarcascades',
+            '/usr/local/share/opencv/haarcascades',
+        ])
+
+        face_xml = 'haarcascade_frontalface_default.xml'
+        eye_xml = 'haarcascade_eye.xml'
+        mouth_xml = 'haarcascade_smile.xml'
+
+        found_dir = None
+        for d in possible_dirs:
+            try:
+                if d and os.path.isdir(d) and os.path.exists(os.path.join(d, face_xml)):
+                    found_dir = d
+                    break
+            except Exception:
+                continue
+
+        if found_dir is None:
+            print('[FaceDetector] WARNING: Haarcascade folder not found in expected locations; face/eye/mouth cascades may be unavailable')
+            # Create empty classifiers (will be empty and detection will return nothing)
+            self.face_cascade = cv2.CascadeClassifier()
+            self.eye_cascade = cv2.CascadeClassifier()
+            self.mouth_cascade = cv2.CascadeClassifier()
+            self._mouth_ok = False
+        else:
+            self.face_cascade = cv2.CascadeClassifier(os.path.join(found_dir, face_xml))
+            self.eye_cascade = cv2.CascadeClassifier(os.path.join(found_dir, eye_xml))
+            self.mouth_cascade = cv2.CascadeClassifier(os.path.join(found_dir, mouth_xml))
+            self._mouth_ok = not self.mouth_cascade.empty()
 
     # ── API pública ──────────────────────────────────────────────────────────
 

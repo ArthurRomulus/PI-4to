@@ -46,9 +46,15 @@ class ScanLineWidget(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self._scan_y = 0
         self._direction = 1
-        self._anim = QTimer(self)
-        self._anim.timeout.connect(self._tick)
-        self._anim.start(16)
+        self._anim = None
+
+    def showEvent(self, event):
+        """Iniciar timer solo cuando el widget se muestre."""
+        super().showEvent(event)
+        if self._anim is None:
+            self._anim = QTimer(self)
+            self._anim.timeout.connect(self._tick)
+            self._anim.start(16)
 
     def _tick(self):
         self._scan_y += self._direction * 3
@@ -181,6 +187,7 @@ class VerifyWindow(QWidget):
         self._result_shown = False
         self._result_banner = None
         self._countdown_timer = None
+        self._countdown_secs = 0
 
         self.setWindowTitle("Verificación Biométrica")
         self.setMinimumSize(480, 760)
@@ -188,6 +195,13 @@ class VerifyWindow(QWidget):
 
         self._build_ui()
         self._start_clock()
+        self._init_timers()  # Inicializar timers en el thread principal
+
+    def _init_timers(self):
+        """Crear timers en el thread principal."""
+        self._countdown_timer = QTimer(self)
+        self._countdown_timer.timeout.connect(self._tick_countdown)
+        self._countdown_timer.setSingleShot(False)
 
     # ── UI ─────────────────────────────────────────────────────────────────────
     def _build_ui(self):
@@ -444,11 +458,12 @@ class VerifyWindow(QWidget):
 
         # Countdown para quitar el banner (5 s) — la ventana NO se cierra
         self._countdown_secs = 3
-        self.countdown_label.setText(f"Proximo intento en en {self._countdown_secs} segundos...")
+        self.countdown_label.setText("Proximo intento en en {} segundos...".format(self._countdown_secs))
         self.countdown_label.setVisible(True)
-        self._countdown_timer = QTimer(self)
-        self._countdown_timer.timeout.connect(self._tick_countdown)
-        self._countdown_timer.start(1000)
+        
+        # Iniciar countdown (timer ya fue creado en _init_timers)
+        if self._countdown_timer:
+            self._countdown_timer.start(1000)
 
     
 

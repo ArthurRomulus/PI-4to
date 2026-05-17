@@ -1,7 +1,14 @@
 """
-camera_verify.py  v4 - Soporte picamera2
+camera_verify.py  v4
 Hilo de camara para Raspberry Pi con libcamera (picamera2).
 Deteccion facial y verificacion usando SFace (128-dim).
+
+Flujo:
+  1. Detecta cara con Haar Cascade.
+  2. Verifica que la cara este dentro del ovalo, a distancia OK y sin oclusion.
+  3. Acumula embeddings SFace durante 3 s de cara alineada.
+  4. Promedia embeddings y compara contra la DB.
+  5. Emite recognition_result(True, nombre) o recognition_result(False, "").
 """
 
 import numpy as np
@@ -14,19 +21,27 @@ from PyQt5.QtGui import QImage, QPixmap
 from hardware.face_detection import FaceDetector
 from hardware.face_embedder import (
     extract_embedding,
+    compute_face_embedding,
     cosine_similarity,
+    euclidean_distance,
     EMBEDDING_DIM,
 )
 
+# Configuracion
 HOLD_SECONDS = 3
 FPS_SLEEP_MS = 25
+
+# Umbrales SFace ALINEADO
 COSINE_THRESHOLD        = 0.60
 COSINE_THRESHOLD_SINGLE = 0.60
 MIN_MARGIN              = 0.20
 
 
 def _cargar_usuarios_db() -> list:
-    """Retorna lista de (id_user, nombre, embedding_np) desde la DB."""
+    """
+    Retorna lista de (id_user, nombre, embedding_np) desde la DB.
+    Solo incluye usuarios activos con embeddings compatibles (128-dim SFace).
+    """
     try:
         from database.consultas import obtener_conexion
         import pickle
@@ -63,7 +78,9 @@ def _cargar_usuarios_db() -> list:
             if emb.shape[0] != EMBEDDING_DIM:
                 print(
                     "[CameraThread] Embedding incompatible para '{}' "
-                    "(dim={}, esperado={})".format(row[1], emb.shape[0], EMBEDDING_DIM)
+                    "(dim={}, esperado={}). Re-registre al usuario.".format(
+                        row[1], emb.shape[0], EMBEDDING_DIM
+                    )
                 )
                 continue
 
@@ -77,7 +94,12 @@ def _cargar_usuarios_db() -> list:
 
 
 def _reconocer(embedding_actual: np.ndarray, usuarios: list):
-    """Compara embedding contra usuarios en la DB."""
+    """
+    Compara embedding_actual contra todos los usuarios de la DB.
+
+    Retorna (True, nombre, id_user) si hay match confiable,
+            (False, "", None) si no.
+    """
     if embedding_actual is None or not usuarios:
         return False, "", None
 
@@ -92,7 +114,7 @@ def _reconocer(embedding_actual: np.ndarray, usuarios: list):
         resultados.append({"id_user": id_user, "nombre": nombre, "score": score})
 
     if not resultados:
-        print("[Reconocimiento] DENEGADO - sin resultados")
+        print("[Reconocimiento] DENEGADO — sin resultados comparables")
         return False, "", None
 
     resultados.sort(key=lambda x: x["score"], reverse=True)
@@ -104,26 +126,38 @@ def _reconocer(embedding_actual: np.ndarray, usuarios: list):
     margin       = best_score - second_score if second else best_score
 
     print(
-        "[Reconocimiento] Mejor: {} (score={:.3f}, margin={:.3f})".format(
-            best['nombre'], best_score, margin
-        )
+        f"[Reconocimiento] Mejor: {best['nombre']} "
+        f"(ID={best['id_user']}, score={best_score:.3f}, margin={margin:.3f})"
     )
 
+    # Un solo usuario en DB: no hay margen de comparación → umbral más bajo
     if len(resultados) == 1:
         if best_score >= COSINE_THRESHOLD_SINGLE:
-            print("[Reconocimiento] AUTORIZADO: {}".format(best["nombre"]))
+            print(f"[Reconocimiento] AUTORIZADO: {best['nombre']}")
             return True, best["nombre"], best["id_user"]
     else:
         if best_score >= COSINE_THRESHOLD and margin >= MIN_MARGIN:
-            print("[Reconocimiento] AUTORIZADO: {}".format(best["nombre"]))
+            print(f"[Reconocimiento] AUTORIZADO: {best['nombre']}")
             return True, best["nombre"], best["id_user"]
 
-    print("[Reconocimiento] DENEGADO - {}".format(best['nombre']))
+    print(
+        f"[Reconocimiento] DENEGADO — '{best['nombre']}' "
+        f"(score={best_score:.3f}, margin={margin:.3f})"
+    )
     return False, "", None
 
 
 class CameraThread(QThread):
-    """Hilo de captura con picamera2 para Raspberry Pi."""
+    """
+    Hilo de captura de cámara con detección y reconocimiento facial (SFace).
+
+    Señales:
+      frame_updated(QPixmap)        — Frame procesado listo para mostrar.
+      error_occurred(str)           — Error fatal en la cámara.
+      face_aligned(bool)            — True cuando cara está en posición OK.
+      hold_progress(int)            — Progreso del timer 0–100.
+      recognition_result(bool, str) — (autorizado, nombre_o_vacío).
+    """
     frame_updated      = pyqtSignal(QPixmap)
     error_occurred     = pyqtSignal(str)
     face_aligned       = pyqtSignal(bool)
@@ -132,8 +166,7 @@ class CameraThread(QThread):
 
     def __init__(self, width: int = 400):
         super().__init__()
-        self.picam2        = None
-        self.camera_cv2    = None
+        self.camera        = None
         self.running       = False
         self.face_detector = FaceDetector()
         self.target_width  = width
@@ -146,88 +179,116 @@ class CameraThread(QThread):
 
     def run(self):
         self.running = True
-        camera_source = None
-        
         try:
-            # Intentar picamera2 primero
-            try:
-                print("[CameraThread] Intentando picamera2...")
-                from picamera2 import Picamera2
+            # Intentar abrir la cámara con V4L2 directo (sin GStreamer)
+            def try_open_sources():
+                import os
+                import glob
                 
-                self.picam2 = Picamera2()
-                config = self.picam2.create_video_configuration(
-                    main={"size": (480, 360)},
-                    controls={"FrameRate": 24}
-                )
-                self.picam2.configure(config)
-                self.picam2.start()
-                camera_source = "picamera2"
-                print("[CameraThread] Camara: picamera2 OK")
+                errors = []
                 
-            except Exception as e:
-                print("[CameraThread] picamera2 fallido: {}".format(str(e)))
-                self.picam2 = None
+                # Primero: Intentar dispositivos /dev/video* directamente
+                devs = sorted(glob.glob('/dev/video*'))
+                if not devs:
+                    errors.append("No se encontraron dispositivos /dev/video*")
+                    print("[CameraThread] No hay dispositivos /dev/video*")
                 
-                # Fallback OpenCV V4L2
-                print("[CameraThread] Intentando OpenCV V4L2...")
-                for idx in range(0, 3):
-                    self.camera_cv2 = cv2.VideoCapture(idx, cv2.CAP_V4L2)
-                    if self.camera_cv2.isOpened():
-                        self.camera_cv2.set(cv2.CAP_PROP_FRAME_WIDTH, 480)
-                        self.camera_cv2.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
-                        self.camera_cv2.set(cv2.CAP_PROP_FPS, 24)
-                        time.sleep(0.3)
-                        camera_source = "cv2-{}".format(idx)
-                        print("[CameraThread] Camara: OpenCV indice {}".format(idx))
-                        break
+                for d in devs:
+                    # Validar permisos antes de intentar abrir
+                    if not os.access(d, os.R_OK):
+                        continue  # Saltar sin reportar, hay muchos dispositivos
+                    
+                    try:
+                        # Forzar V4L2 puro - deshabilitar GStreamer
+                        cap = cv2.VideoCapture(d, cv2.CAP_V4L2)
+                        
+                        # Pequeño sleep para que se inicialice
+                        import time
+                        time.sleep(0.2)
+                        
+                        # Intentar capturar un frame para validar
+                        ret, frame = cap.read()
+                        
+                        if ret and frame is not None:
+                            print("[CameraThread] Camara OK en {}".format(d))
+                            return cap, d
+                        else:
+                            cap.release()
+                            
+                    except Exception as e:
+                        try:
+                            cap.release()
+                        except:
+                            pass
                 
-                if not self.camera_cv2 or not self.camera_cv2.isOpened():
-                    self.error_occurred.emit(
-                        "No se pudo acceder a la camara. "
-                        "Verifica: 1) Conectada 2) Permisos 3) No bloqueada"
-                    )
-                    return
+                # Fallback: intentar índices 0-2 puro V4L2
+                for idx in [0, 1, 2]:
+                    try:
+                        cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
+                        import time
+                        time.sleep(0.2)
+                        ret, frame = cap.read()
+                        
+                        if ret and frame is not None:
+                            print("[CameraThread] Camara OK en indice {}".format(idx))
+                            return cap, "video{}".format(idx)
+                        else:
+                            cap.release()
+                    except:
+                        pass
+                
+                return None, errors
+
+            self.camera, result = try_open_sources()
+            
+            if self.camera is None or not self.camera.isOpened():
+                error_msg = "No se pudo abrir la camara. Verifica: 1) Conectada, 2) Permisos (sudo usermod -aG video pi), 3) No bloqueada"
+                print("[CameraThread] Error: {}".format(error_msg))
+                self.error_occurred.emit(error_msg)
+                return
+            
+            print("[CameraThread] Camara abierta correctamente")
+
+            # Configurar propiedades basicas - resolucion baja para Raspberry Pi
+            print("[CameraThread] Configurando camara...")
+            self.camera.set(cv2.CAP_PROP_FRAME_WIDTH,  480)
+            self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
+            self.camera.set(cv2.CAP_PROP_FPS, 24)
+            self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            
+            actual_w = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
+            actual_h = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            actual_fps = int(self.camera.get(cv2.CAP_PROP_FPS))
+            print("[CameraThread] Resolucion: {}x{} @ {} FPS".format(actual_w, actual_h, actual_fps))
+
+            self.msleep(300)
 
             usuarios = _cargar_usuarios_db()
-            print("[CameraThread] {} usuario(s) en BD".format(len(usuarios)))
+            print("[CameraThread] {} usuario(s) cargado(s) desde la DB".format(len(usuarios)))
 
             _fail_count = 0
-            frame_count = 0
+            _fail_threshold = 30
 
             while self.running:
-                # Capturar frame
-                if self.picam2:
-                    try:
-                        array = self.picam2.capture_array()
-                        if array is None or array.size == 0:
-                            _fail_count += 1
-                            if _fail_count > 30:
-                                self.error_occurred.emit("Camara: captura nula")
-                                break
-                            time.sleep(FPS_SLEEP_MS / 1000.0)
-                            continue
-                        # picamera2 devuelve RGB, convertir a BGR para OpenCV
-                        frame = cv2.cvtColor(array, cv2.COLOR_RGB2BGR)
-                    except Exception as e:
-                        _fail_count += 1
-                        if _fail_count > 30:
-                            self.error_occurred.emit("Error: {}".format(str(e)))
-                            break
-                        time.sleep(FPS_SLEEP_MS / 1000.0)
-                        continue
-                else:
-                    ret, frame = self.camera_cv2.read()
-                    if not ret or frame is None:
-                        _fail_count += 1
-                        if _fail_count > 30:
-                            self.error_occurred.emit("Camara desconectada")
-                            break
-                        time.sleep(FPS_SLEEP_MS / 1000.0)
-                        continue
+                ret, frame = self.camera.read()
+                if not ret or frame is None:
+                    _fail_count += 1
+                    if _fail_count == 1:
+                        print("[CameraThread] Fallo captura de frame #{}" .format(_fail_count))
+                    
+                    if _fail_count > _fail_threshold:
+                        error_msg = "Camara desconectada o bloqueada despues de {} intentos".format(_fail_count)
+                        print("[CameraThread] Error: {}".format(error_msg))
+                        self.error_occurred.emit(error_msg)
+                        break
+                    self.msleep(FPS_SLEEP_MS)
+                    continue
 
                 _fail_count = 0
-                frame_count += 1
-                
+                    self.msleep(FPS_SLEEP_MS)
+                    continue
+
+                _fail_count = 0
                 frame = cv2.flip(frame, 1)
                 detection = self.face_detector.detect_and_validate(frame)
 
@@ -247,6 +308,7 @@ class CameraThread(QThread):
                         )
                         self.hold_progress.emit(progress)
 
+                        # Embedding ALINEADO: pass el frame completo + face_rect
                         if usuarios:
                             face_rect = detection.get("face_rect")
                             if face_rect is not None:
@@ -264,9 +326,8 @@ class CameraThread(QThread):
                                 arr     = np.array(self._emb_buffer, dtype=np.float32)
                                 emb_avg = arr.mean(axis=0)
                                 print(
-                                    "[CameraThread] Promediando {} embeddings".format(
-                                        len(self._emb_buffer)
-                                    )
+                                    f"[CameraThread] Promediando {len(self._emb_buffer)} "
+                                    "embeddings para verificación"
                                 )
                                 autorizado, nombre, id_user = _reconocer(emb_avg, usuarios)
 
@@ -293,29 +354,18 @@ class CameraThread(QThread):
                     self.target_width, Qt.SmoothTransformation
                 )
                 self.frame_updated.emit(pix)
-                time.sleep(FPS_SLEEP_MS / 1000.0)
+                self.msleep(FPS_SLEEP_MS)
 
         except Exception as e:
-            self.error_occurred.emit("Error: {}".format(str(e)))
+            self.error_occurred.emit(f"Error en captura de cámara: {str(e)}")
         finally:
-            self._cleanup()
+            if self.camera:
+                self.camera.release()
 
-    def _cleanup(self):
-        """Liberar recursos."""
-        if self.picam2:
-            try:
-                self.picam2.stop()
-                self.picam2.close()
-            except:
-                pass
-        if self.camera_cv2:
-            try:
-                self.camera_cv2.release()
-            except:
-                pass
+    # ── Helpers de dibujo ────────────────────────────────────────────────────
 
     def _draw_progress_arc(self, frame: np.ndarray, detection: dict, progress: int) -> np.ndarray:
-        """Dibuja arco de progreso."""
+        """Dibuja un arco de progreso alrededor del óvalo facial."""
         try:
             cx, cy = detection["oval_center"]
             ax, ay = detection["oval_axes"]
@@ -325,9 +375,9 @@ class CameraThread(QThread):
             if angle_end > 0:
                 cv2.ellipse(frame, (cx, cy), (ax + 6, ay + 6), -90, 0, angle_end, (0, 220, 220), 5)
 
-            secs_left = max(0, HOLD_SECONDS - int(self._hold_frames / (1000.0 / FPS_SLEEP_MS)))
+            secs_left = max(0, HOLD_SECONDS - int(self._hold_frames / (1000 / FPS_SLEEP_MS)))
             cv2.putText(
-                frame, "{}s".format(secs_left), (cx - 18, cy + 8),
+                frame, f"{secs_left}s", (cx - 18, cy + 8),
                 cv2.FONT_HERSHEY_DUPLEX, 1.0, (0, 220, 220), 2
             )
         except Exception:
@@ -335,14 +385,14 @@ class CameraThread(QThread):
         return frame
 
     def _draw_id_label(self, frame: np.ndarray, detection: dict) -> np.ndarray:
-        """Dibuja ID del usuario."""
+        """Dibuja el ID del usuario sobre el bounding-box."""
         try:
             face_rect = detection.get("face_rect")
             if face_rect is None:
                 return frame
 
             x, y, w, _ = face_rect
-            label      = "ID: {}".format(self._display_id)
+            label      = f"ID: {self._display_id}"
             font       = cv2.FONT_HERSHEY_SIMPLEX
             scale      = 0.55
 
@@ -365,7 +415,6 @@ class CameraThread(QThread):
 
     def stop(self):
         self.running = False
-        self._cleanup()
-
-    def wait(self):
-        super().wait()
+        if self.camera:
+            self.camera.release()
+        self.wait()
