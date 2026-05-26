@@ -1,4 +1,5 @@
 import os
+from turtle import width
 
 from PyQt5.QtCore import QPropertyAnimation, QRect, QSize, Qt
 from PyQt5.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
@@ -216,15 +217,23 @@ class AdminHamburgerMenu:
         # =====================================================
         self.overlay = QWidget(parent_widget)
         self.overlay.hide()
+        
+        self.overlay.setGeometry(
+            0,
+            0,
+            parent_widget.width(),
+            parent_widget.height()
+        )
 
-        overlay_layout = QHBoxLayout(self.overlay)
-        overlay_layout.setContentsMargins(0, 0, 0, 0)
-        overlay_layout.setSpacing(0)
+        self.overlay.setStyleSheet("""
+            background: transparent;
+        """)
+        
 
         # =====================================================
         # DRAWER
         # =====================================================
-        self.drawer = QFrame()
+        self.drawer = QFrame(self.overlay)
         self.drawer.setFixedWidth(self.drawer_width)
         self.drawer.setGeometry(
             -self.drawer_width,
@@ -252,6 +261,44 @@ class AdminHamburgerMenu:
         drawer_layout.setContentsMargins(24, 52, 14, 26)
         drawer_layout.setSpacing(0)
 
+        # =====================================================
+        # HEADER SUPERIOR
+        # =====================================================
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(0, 0, 0, 0)
+
+        # BOTÓN BACK
+        self.close_btn = QPushButton("←")
+        self.close_btn.setCursor(Qt.PointingHandCursor)
+        self.close_btn.setFixedSize(34, 34)
+        self.close_btn.clicked.connect(self.hide)
+
+        self.close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                color: #94a3b8;
+                font-size: 20px;
+                padding-bottom: 2px;
+                font-weight: bold;
+                border-radius: 17px;
+            }
+
+            QPushButton:hover {
+                background-color: rgba(255,255,255,0.06);
+                color: white;
+            }
+        """)
+
+        
+
+        header_layout.addWidget(self.close_btn)
+        header_layout.addSpacing(10)
+        header_layout.addStretch()
+
+        drawer_layout.addLayout(header_layout)
+        drawer_layout.addSpacing(24)
+        
         # =====================================================
         # TARJETA ADMIN SUPERIOR
         # =====================================================
@@ -445,19 +492,25 @@ class AdminHamburgerMenu:
         drawer_layout.addLayout(footer_row)
 
         # =====================================================
-        # ÁREA OSCURA PARA CERRAR
+        # ÁREA TRANSPARENTE PARA CERRAR
         # =====================================================
-        self.dim_area = QPushButton("")
+        self.dim_area = QPushButton(self.overlay)
+
+        self.dim_area.setGeometry(
+            self.drawer_width,
+            0,
+            parent_widget.width() - self.drawer_width,
+            parent_widget.height()
+        )
+
         self.dim_area.setStyleSheet("""
             QPushButton {
-                background-color: rgba(2, 6, 23, 0.62);
+                background: transparent;
                 border: none;
             }
         """)
-        self.dim_area.clicked.connect(self.hide)
 
-        overlay_layout.addWidget(self.drawer)
-        overlay_layout.addWidget(self.dim_area)
+        self.dim_area.clicked.connect(self.hide)
 
         # =====================================================
         # ANIMACIÓN
@@ -488,6 +541,20 @@ class AdminHamburgerMenu:
 
     def resize(self, width, height):
         self.overlay.setGeometry(0, 0, width, height)
+
+        self.drawer.setGeometry(
+            self.drawer.x(),
+            0,
+            self.drawer_width,
+            height
+        )
+
+        self.dim_area.setGeometry(
+            self.drawer_width,
+            0,
+            width - self.drawer_width,
+            height
+        )
 
     def set_active(self, index):
         for i, btn in enumerate(self.page_buttons):
