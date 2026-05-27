@@ -149,44 +149,25 @@ class CameraThread(QThread):
         camera_source = None
         
         try:
-            # Intentar picamera2 primero
+            print("[CameraThread] Intentando picamera2...")
             try:
-                print("[CameraThread] Intentando picamera2...")
                 from picamera2 import Picamera2
-                
-                self.picam2 = Picamera2()
-                config = self.picam2.create_video_configuration(
-                    main={"size": (480, 360)},
-                    controls={"FrameRate": 24}
-                )
-                self.picam2.configure(config)
-                self.picam2.start()
-                camera_source = "picamera2"
-                print("[CameraThread] Camara: picamera2 OK")
-                
             except Exception as e:
-                print("[CameraThread] picamera2 fallido: {}".format(str(e)))
-                self.picam2 = None
-                
-                # Fallback OpenCV V4L2
-                print("[CameraThread] Intentando OpenCV V4L2...")
-                for idx in range(0, 3):
-                    self.camera_cv2 = cv2.VideoCapture(idx, cv2.CAP_V4L2)
-                    if self.camera_cv2.isOpened():
-                        self.camera_cv2.set(cv2.CAP_PROP_FRAME_WIDTH, 480)
-                        self.camera_cv2.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
-                        self.camera_cv2.set(cv2.CAP_PROP_FPS, 24)
-                        time.sleep(0.3)
-                        camera_source = "cv2-{}".format(idx)
-                        print("[CameraThread] Camara: OpenCV indice {}".format(idx))
-                        break
-                
-                if not self.camera_cv2 or not self.camera_cv2.isOpened():
-                    self.error_occurred.emit(
-                        "No se pudo acceder a la camara. "
-                        "Verifica: 1) Conectada 2) Permisos 3) No bloqueada"
-                    )
-                    return
+                self.error_occurred.emit(
+                    "picamera2 no está instalado. Esta pantalla solo funciona en Raspberry Pi. "
+                    "Detalle: {}".format(str(e))
+                )
+                return
+
+            self.picam2 = Picamera2()
+            config = self.picam2.create_video_configuration(
+                main={"size": (480, 360)},
+                controls={"FrameRate": 24}
+            )
+            self.picam2.configure(config)
+            self.picam2.start()
+            camera_source = "picamera2"
+            print("[CameraThread] Camara: picamera2 OK")
 
             usuarios = _cargar_usuarios_db()
             print("[CameraThread] {} usuario(s) en BD".format(len(usuarios)))
@@ -215,16 +196,6 @@ class CameraThread(QThread):
                             break
                         time.sleep(FPS_SLEEP_MS / 1000.0)
                         continue
-                else:
-                    ret, frame = self.camera_cv2.read()
-                    if not ret or frame is None:
-                        _fail_count += 1
-                        if _fail_count > 30:
-                            self.error_occurred.emit("Camara desconectada")
-                            break
-                        time.sleep(FPS_SLEEP_MS / 1000.0)
-                        continue
-
                 _fail_count = 0
                 frame_count += 1
                 
@@ -306,11 +277,6 @@ class CameraThread(QThread):
             try:
                 self.picam2.stop()
                 self.picam2.close()
-            except:
-                pass
-        if self.camera_cv2:
-            try:
-                self.camera_cv2.release()
             except:
                 pass
 
