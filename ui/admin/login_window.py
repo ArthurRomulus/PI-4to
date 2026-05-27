@@ -50,8 +50,8 @@ class GlassCard(QFrame):
         super().__init__()
         self.setStyleSheet("""
             QFrame {
-                background: rgba(255, 255, 255, 0.15);
-                border: 1px solid rgba(255, 255, 255, 0.22);
+                background: rgba(8, 18, 30, 0.76);
+                border: 1px solid rgba(0, 240, 230, 0.22);
                 border-radius: 34px;
             }
         """)
@@ -65,8 +65,8 @@ class IconInput(QFrame):
         self.setFixedHeight(58)
         self.setStyleSheet("""
             QFrame {
-                background: rgba(255, 255, 255, 0.90);
-                border: 1px solid rgba(255, 255, 255, 0.30);
+                background: rgba(240, 249, 255, 0.95);
+                border: 1px solid rgba(0, 240, 230, 0.20);
                 border-radius: 18px;
             }
         """)
@@ -95,13 +95,13 @@ class IconInput(QFrame):
             QLineEdit {
                 background: transparent;
                 border: none;
-                color: #5D4E6F;
+                color: #0b2237;
                 font-size: 15px;
                 font-weight: 700;
                 padding: 0;
             }
             QLineEdit::placeholder {
-                color: #A295B5;
+                color: #6a879a;
             }
         """)
 
@@ -156,17 +156,17 @@ class GradientButton(QPushButton):
                 font-weight: 800;
                 background: qlineargradient(
                     x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #7E18E6,
-                    stop:0.5 #A944F0,
-                    stop:1 #C06AF3
+                    stop:0 #00f0e6,
+                    stop:0.5 #1b95ff,
+                    stop:1 #1451c8
                 );
             }
             QPushButton:hover {
                 background: qlineargradient(
                     x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #7113D6,
-                    stop:0.5 #9C39E8,
-                    stop:1 #B95EEF
+                    stop:0 #32fff2,
+                    stop:0.5 #3ba6ff,
+                    stop:1 #1b66e1
                     
                 );
             }
@@ -174,15 +174,15 @@ class GradientButton(QPushButton):
                 padding-top: 1px;
             }
             QPushButton:disabled {
-                background: #A58BBB;
+                background: #577089;
                 color: rgba(255,255,255,0.85);
             }
         """)
 
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(34)
-        shadow.setOffset(0, 12)
-        shadow.setColor(QColor(105, 26, 190, 120))
+        shadow.setBlurRadius(14)
+        shadow.setOffset(0, 5)
+        shadow.setColor(QColor(0, 0, 0, 80))
         self.setGraphicsEffect(shadow)
 
 
@@ -193,15 +193,15 @@ class SecondaryOutlineButton(QPushButton):
         self.setFixedHeight(50)
         self.setStyleSheet("""
             QPushButton {
-                background: rgba(255,255,255,0.07);
-                border: 1.5px solid rgba(255,255,255,0.42);
+                background: rgba(9, 25, 39, 0.70);
+                border: 1.5px solid rgba(0, 240, 230, 0.35);
                 border-radius: 25px;
-                color: white;
+                color: rgba(227, 246, 255, 0.98);
                 font-size: 15px;
                 font-weight: 800;
             }
             QPushButton:hover {
-                background: rgba(255,255,255,0.16);
+                background: rgba(15, 43, 64, 0.92);
             }
             QPushButton:pressed {
                 padding-top: 1px;
@@ -220,7 +220,7 @@ class LoginWindow(QMainWindow):
 
         central.setStyleSheet("""
             QWidget {
-                background: #18131E;
+                background: #071826;
             }
         """)
 
@@ -235,10 +235,10 @@ class LoginWindow(QMainWindow):
                 border-radius: 18px;
                 background: qlineargradient(
                     x1:0, y1:0, x2:1, y2:1,
-                    stop:0   #6F22DA,
-                    stop:0.32 #9646E8,
-                    stop:0.66 #B369F0,
-                    stop:1   #8740E3
+                    stop:0   #081622,
+                    stop:0.34 #0b1f33,
+                    stop:0.68 #0e2b43,
+                    stop:1   #0a1624
                 );
             }
         """)
@@ -267,9 +267,9 @@ class LoginWindow(QMainWindow):
         """)
 
         icon_shadow = QGraphicsDropShadowEffect(icon_circle)
-        icon_shadow.setBlurRadius(34)
-        icon_shadow.setOffset(0, 8)
-        icon_shadow.setColor(QColor(126, 40, 190, 80))
+        icon_shadow.setBlurRadius(14)
+        icon_shadow.setOffset(0, 4)
+        icon_shadow.setColor(QColor(0, 0, 0, 70))
         icon_circle.setGraphicsEffect(icon_shadow)
 
         top_icon_path = asset_path("block.png")
@@ -288,10 +288,10 @@ class LoginWindow(QMainWindow):
                         font-weight: 800;
                         background: qradialgradient(
                             cx:0.5, cy:0.45, radius:0.92,
-                            stop:0 rgba(255,255,255,0.20),
-                            stop:1 rgba(255,255,255,0.07)
+                            stop:0 rgba(0,240,230,0.24),
+                            stop:1 rgba(22,74,121,0.16)
                         );
-                        border: 2px solid rgba(255,255,255,0.13);
+                        border: 2px solid rgba(0,240,230,0.20);
                         border-radius: 65px;
                     }
                 """)
@@ -304,10 +304,10 @@ class LoginWindow(QMainWindow):
                     font-weight: 800;
                     background: qradialgradient(
                         cx:0.5, cy:0.45, radius:0.92,
-                        stop:0 rgba(255,255,255,0.20),
-                        stop:1 rgba(255,255,255,0.07)
+                        stop:0 rgba(0,240,230,0.24),
+                        stop:1 rgba(22,74,121,0.16)
                     );
-                    border: 2px solid rgba(255,255,255,0.13);
+                    border: 2px solid rgba(0,240,230,0.20);
                     border-radius: 65px;
                 }
             """)
@@ -318,7 +318,7 @@ class LoginWindow(QMainWindow):
         title = QLabel("Login")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
-            color: white;
+            color: rgba(227, 246, 255, 0.98);
             font-size: 29px;
             font-weight: 800;
             background: transparent;
@@ -331,7 +331,7 @@ class LoginWindow(QMainWindow):
         )
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("""
-            color: rgba(255, 255, 255, 0.88);
+            color: rgba(195, 219, 232, 0.94);
             font-size: 15px;
             font-weight: 600;
             line-height: 1.5;
@@ -348,9 +348,9 @@ class LoginWindow(QMainWindow):
         form_card.setFixedHeight(334)
 
         form_shadow = QGraphicsDropShadowEffect(form_card)
-        form_shadow.setBlurRadius(36)
-        form_shadow.setOffset(0, 12)
-        form_shadow.setColor(QColor(46, 16, 76, 75))
+        form_shadow.setBlurRadius(16)
+        form_shadow.setOffset(0, 5)
+        form_shadow.setColor(QColor(0, 0, 0, 75))
         form_card.setGraphicsEffect(form_shadow)
 
         form_layout = QVBoxLayout(form_card)
@@ -359,7 +359,7 @@ class LoginWindow(QMainWindow):
 
         user_label = QLabel("Numero de cuenta")
         user_label.setStyleSheet("""
-            color: rgba(255,255,255,0.92);
+            color: rgba(227, 246, 255, 0.94);
             font-size: 13px;
             font-weight: 700;
             background: transparent;
@@ -373,7 +373,7 @@ class LoginWindow(QMainWindow):
 
         pass_label = QLabel("Contraseña")
         pass_label.setStyleSheet("""
-            color: rgba(255,255,255,0.92);
+            color: rgba(227, 246, 255, 0.94);
             font-size: 13px;
             font-weight: 700;
             background: transparent;
@@ -397,12 +397,12 @@ class LoginWindow(QMainWindow):
                 background: transparent;
                 border: none;
                 padding-top:20px;
-                color: white;
+                color: rgba(0, 240, 230, 0.95);
                 font-size: 13px;
                 font-weight: 800;
             }
             QPushButton:hover {
-                color: rgba(255,255,255,0.82);
+                color: rgba(174, 240, 255, 0.98);
                 text-decoration: underline;
             }
         """)
@@ -414,12 +414,12 @@ class LoginWindow(QMainWindow):
             QPushButton {
                 background: transparent;
                 border: none;
-                color: white;
+                color: rgba(165, 225, 255, 0.96);
                 font-size: 13px;
                 font-weight: 800;
             }
             QPushButton:hover {
-                color: rgba(255,255,255,0.82);
+                color: rgba(0, 240, 230, 0.98);
                 text-decoration: underline;
             }
         """)

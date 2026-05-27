@@ -32,10 +32,10 @@ class BackgroundWidget(QWidget):
             y = (self.height() - scaled.height()) // 2
             painter.drawPixmap(x, y, scaled)
         else:
-            painter.fillRect(self.rect(), QColor("#c084fc"))
+            painter.fillRect(self.rect(), QColor("#071826"))
 
-        # capa suave encima para dar el look morado uniforme
-        painter.fillRect(self.rect(), QColor(170, 110, 255, 35))
+        painter.fillRect(self.rect(), QColor(5, 27, 43, 140))
+        painter.fillRect(self.rect(), QColor(0, 240, 230, 18))
 
 
 class MainWindow(QMainWindow):
@@ -79,7 +79,7 @@ class MainWindow(QMainWindow):
         self.time_label = QLabel("12:45")
         self.time_label.setStyleSheet("""
             QLabel {
-                color: rgba(18, 10, 45, 0.95);
+                color: rgba(210, 242, 255, 0.98);
                 font-size: 64px;
                 font-weight: 300;
                 background: transparent;
@@ -89,7 +89,7 @@ class MainWindow(QMainWindow):
         self.ampm_label = QLabel("PM")
         self.ampm_label.setStyleSheet("""
             QLabel {
-                color: rgba(109, 54, 199, 0.95);
+                color: rgba(0, 240, 230, 0.95);
                 font-size: 28px;
                 font-weight: 700;
                 padding-top: 18px;
@@ -114,8 +114,8 @@ class MainWindow(QMainWindow):
         date_capsule = QFrame()
         date_capsule.setStyleSheet("""
             QFrame {
-                background: rgba(255, 255, 255, 0.15);
-                border: 1px solid rgba(121, 70, 201, 0.55);
+                background: rgba(8, 20, 34, 0.72);
+                border: 1px solid rgba(0, 240, 230, 0.32);
                 border-radius: 15px;
             }
         """)
@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
         self.date_label = QLabel("LUNES, 23 DE OCTUBRE")
         self.date_label.setStyleSheet("""
             QLabel {
-                color: rgba(112, 58, 191, 0.95);
+                color: rgba(165, 225, 255, 0.95);
                 font-size: 12px;
                 font-weight: 700;
                 letter-spacing: 2px;
@@ -151,7 +151,7 @@ class MainWindow(QMainWindow):
         self.title_label.setAlignment(Qt.AlignCenter)
         self.title_label.setStyleSheet("""
             QLabel {
-                color: rgba(18, 10, 45, 0.98);
+                color: rgba(227, 246, 255, 0.98);
                 font-size: 42px;
                 font-weight: 800;
                 background: transparent;
@@ -167,7 +167,7 @@ class MainWindow(QMainWindow):
         self.subtitle_label.setAlignment(Qt.AlignCenter)
         self.subtitle_label.setStyleSheet("""
             QLabel {
-                color: rgba(28, 15, 56, 0.95);
+                color: rgba(196, 224, 238, 0.95);
                 font-size: 14px;
                 font-weight: 500;
                 background: transparent;
@@ -184,7 +184,12 @@ class MainWindow(QMainWindow):
         self.btn_verify.clicked.connect(self.open_verify)
         self.btn_verify.setStyleSheet("""
             QPushButton {
-                background: rgba(122, 70, 230, 0.58);
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(0, 240, 230, 0.82),
+                    stop:0.55 rgba(21, 146, 255, 0.80),
+                    stop:1 rgba(17, 105, 202, 0.84)
+                );
                 border: none;
                 border-radius: 18px;
                 color: white;
@@ -193,17 +198,22 @@ class MainWindow(QMainWindow):
                 padding-bottom: 2px;
             }
             QPushButton:hover {
-                background: rgba(122, 70, 230, 0.72);
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(0, 240, 230, 0.95),
+                    stop:0.55 rgba(33, 162, 255, 0.92),
+                    stop:1 rgba(24, 116, 214, 0.95)
+                );
             }
             QPushButton:pressed {
-                background: rgba(103, 53, 212, 0.85);
+                background: rgba(11, 110, 176, 0.96);
             }
         """)
 
         shadow1 = QGraphicsDropShadowEffect(self)
-        shadow1.setBlurRadius(24)
-        shadow1.setOffset(0, 8)
-        shadow1.setColor(QColor(95, 45, 185, 100))
+        shadow1.setBlurRadius(12)
+        shadow1.setOffset(0, 4)
+        shadow1.setColor(QColor(0, 0, 0, 70))
         self.btn_verify.setGraphicsEffect(shadow1)
 
         verify_wrap = QHBoxLayout()
@@ -224,18 +234,18 @@ class MainWindow(QMainWindow):
         self.btn_admin.clicked.connect(self.open_admin)
         self.btn_admin.setStyleSheet("""
             QPushButton {
-                background: rgba(66, 79, 106, 0.88);
-                border: 2px solid rgba(134, 145, 165, 0.65);
+                background: rgba(8, 25, 40, 0.88);
+                border: 2px solid rgba(0, 240, 230, 0.42);
                 border-radius: 14px;
-                color: rgba(255, 255, 255, 0.95);
+                color: rgba(227, 246, 255, 0.98);
                 font-size: 15px;
                 font-weight: 800;
             }
             QPushButton:hover {
-                background: rgba(78, 92, 120, 0.95);
+                background: rgba(12, 38, 58, 0.95);
             }
             QPushButton:pressed {
-                background: rgba(53, 65, 90, 1);
+                background: rgba(6, 20, 32, 1);
             }
         """)
 
