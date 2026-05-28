@@ -150,24 +150,36 @@ class CameraThread(QThread):
         
         try:
             print("[CameraThread] Intentando picamera2...")
+            self.picam2 = None
             try:
                 from picamera2 import Picamera2
-            except Exception as e:
-                self.error_occurred.emit(
-                    "picamera2 no está instalado. Esta pantalla solo funciona en Raspberry Pi. "
-                    "Detalle: {}".format(str(e))
+                self.picam2 = Picamera2()
+                config = self.picam2.create_video_configuration(
+                    main={"size": (480, 360)},
+                    controls={"FrameRate": 24}
                 )
-                return
+                self.picam2.configure(config)
+                self.picam2.start()
+                camera_source = "picamera2"
+                print("[CameraThread] Camara: picamera2 OK")
+            except Exception as e:
+                print("[CameraThread] picamera2 no disponible, intentando fallback V4L2: {}".format(str(e)))
+                self.picam2 = None
 
-            self.picam2 = Picamera2()
-            config = self.picam2.create_video_configuration(
-                main={"size": (480, 360)},
-                controls={"FrameRate": 24}
-            )
-            self.picam2.configure(config)
-            self.picam2.start()
-            camera_source = "picamera2"
-            print("[CameraThread] Camara: picamera2 OK")
+            if self.picam2 is None:
+                self.camera_cv2 = cv2.VideoCapture(0, cv2.CAP_V4L2)
+                if self.camera_cv2.isOpened():
+                    self.camera_cv2.set(cv2.CAP_PROP_FRAME_WIDTH, 480)
+                    self.camera_cv2.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
+                    self.camera_cv2.set(cv2.CAP_PROP_FPS, 24)
+                    camera_source = "v4l2"
+                    print("[CameraThread] Camara: V4L2 OK")
+                else:
+                    self.error_occurred.emit(
+                        "No se pudo iniciar la cámara con picamera2 ni V4L2. "
+                        "Verifique la conexión física y los permisos."
+                    )
+                    return
 
             usuarios = _cargar_usuarios_db()
             print("[CameraThread] {} usuario(s) en BD".format(len(usuarios)))
@@ -196,6 +208,19 @@ class CameraThread(QThread):
                             break
                         time.sleep(FPS_SLEEP_MS / 1000.0)
                         continue
+                elif self.camera_cv2:
+                    ret, frame = self.camera_cv2.read()
+                    if not ret or frame is None:
+                        _fail_count += 1
+                        if _fail_count > 30:
+                            self.error_occurred.emit("Camara: captura fallida")
+                            break
+                        time.sleep(FPS_SLEEP_MS / 1000.0)
+                        continue
+                else:
+                    self.error_occurred.emit("Camara no inicializada")
+                    break
+
                 _fail_count = 0
                 frame_count += 1
                 
@@ -277,6 +302,11 @@ class CameraThread(QThread):
             try:
                 self.picam2.stop()
                 self.picam2.close()
+            except:
+                pass
+        if self.camera_cv2:
+            try:
+                self.camera_cv2.release()
             except:
                 pass
 
