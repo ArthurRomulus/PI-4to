@@ -50,11 +50,14 @@ class VirtualKeyboardInstaller(QObject):
         if self._keyboard_cmd is None:
             return False
 
-        if event.type() == QEvent.FocusIn and isinstance(obj, QLineEdit):
-            self._delay_close_timer.stop()
-            self._open_keyboard()
-        elif event.type() == QEvent.FocusOut and isinstance(obj, QLineEdit):
-            self._delay_close_timer.start(150)
+        if event.type() in (QEvent.FocusIn, QEvent.MouseButtonPress, QEvent.KeyPress):
+            focus_widget = QApplication.focusWidget()
+            if isinstance(focus_widget, QLineEdit):
+                self._delay_close_timer.stop()
+                self._open_keyboard()
+        elif event.type() == QEvent.FocusOut:
+            if isinstance(obj, QLineEdit) or isinstance(QApplication.focusWidget(), QLineEdit):
+                self._delay_close_timer.start(150)
 
         return False
 
