@@ -29,7 +29,9 @@ import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(15, GPIO.OUT)
+GPIO.setup(14, GPIO.OUT)
 GPIO.output(15, GPIO.LOW)
+GPIO.output(14, GPIO.LOW)
 
 
 def _blink_denied_led() -> None:
@@ -39,6 +41,15 @@ def _blink_denied_led() -> None:
         GPIO.output(15, GPIO.LOW)
     except Exception as e:
         print(f"Error al encender LED de denegado: {e}")
+
+
+def _blink_authorized_led() -> None:
+    try:
+        GPIO.output(14, GPIO.HIGH)
+        time.sleep(2)
+        GPIO.output(14, GPIO.LOW)
+    except Exception as e:
+        print(f"Error al encender LED de autorizado: {e}")
 
 
 try:
@@ -486,6 +497,7 @@ class VerifyWindow(QWidget):
             
             # Ejecutar el proceso del motor en un hilo para no bloquear la interfaz
             threading.Thread(target=conceder_acceso_motor, daemon=True).start()
+            threading.Thread(target=_blink_authorized_led, daemon=True).start()
 
             self.status_label.setText(f"✅ ACCESO AUTORIZADO — {nombre.upper()}")
             self.status_label.setStyleSheet(
