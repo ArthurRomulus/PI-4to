@@ -18,7 +18,7 @@ from hardware.face_embedder import (
     EMBEDDING_DIM,
 )
 
-HOLD_SECONDS = 3
+HOLD_SECONDS = 1
 FPS_SLEEP_MS = 25
 COSINE_THRESHOLD        = 0.60
 COSINE_THRESHOLD_SINGLE = 0.60

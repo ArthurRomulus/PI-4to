@@ -13,6 +13,7 @@ Flujo de UI:
 
 import datetime
 import threading
+import time
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -23,6 +24,22 @@ from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
 
 from hardware.camera.camera_verify import CameraThread
 from database.consultas import registrar_acceso
+
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(15, GPIO.OUT)
+GPIO.output(15, GPIO.LOW)
+
+
+def _blink_denied_led() -> None:
+    try:
+        GPIO.output(15, GPIO.HIGH)
+        time.sleep(2)
+        GPIO.output(15, GPIO.LOW)
+    except Exception as e:
+        print(f"Error al encender LED de denegado: {e}")
+
 
 try:
     from hardware.Motospasopaso import conceder_acceso_motor, indicar_acceso_denegado
@@ -486,6 +503,7 @@ class VerifyWindow(QWidget):
 
             # Encender LED rojo al denegar el acceso
             threading.Thread(target=indicar_acceso_denegado, daemon=True).start()
+            threading.Thread(target=_blink_denied_led, daemon=True).start()
             
             self.status_label.setText("❌ ACCESO DENEGADO — USUARIO NO REGISTRADO")
             self.status_label.setStyleSheet(
@@ -501,9 +519,9 @@ class VerifyWindow(QWidget):
         # Mostrar banner sobre la cámara
         self._mostrar_banner(autorizado, nombre)
 
-        # Countdown para quitar el banner (5 s) — la ventana NO se cierra
-        self._countdown_secs = 3
-        self.countdown_label.setText("Proximo intento en en {} segundos...".format(self._countdown_secs))
+        # Countdown para quitar el banner rápido — la ventana NO se cierra
+        self._countdown_secs = 1
+        self.countdown_label.setText("Proximo intento en {} segundos...".format(self._countdown_secs))
         self.countdown_label.setVisible(True)
         
         # Iniciar countdown (timer ya fue creado en _init_timers)
