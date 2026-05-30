@@ -84,10 +84,19 @@ class KeyboardManager:
         """Muestra el teclado para un QLineEdit específico"""
         keyboard = self.get_keyboard()
         if keyboard:
-            keyboard.show_with_target(line_edit)
+            installer = self.keyboard_installer
+            if installer is not None and hasattr(installer, "show_keyboard_for"):
+                installer.show_keyboard_for(line_edit)
+            else:
+                keyboard.show_with_target(line_edit)
     
     def hide_keyboard(self):
         """Oculta el teclado virtual"""
+        installer = self.keyboard_installer
+        if installer is not None and hasattr(installer, "hide_keyboard"):
+            installer.hide_keyboard()
+            return
+
         keyboard = self.get_keyboard()
         if keyboard:
             keyboard.hide()
