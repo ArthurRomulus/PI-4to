@@ -25,16 +25,25 @@ from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
 from hardware.camera.camera_verify import CameraThread
 from database.consultas import registrar_acceso
 
-import RPi.GPIO as GPIO
-
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(15, GPIO.OUT)
-GPIO.setup(14, GPIO.OUT)
-GPIO.output(15, GPIO.LOW)
-GPIO.output(14, GPIO.LOW)
+# Importar RPi.GPIO con manejo de excepciones para compatibilidad con Windows/otras plataformas
+try:
+    import RPi.GPIO as GPIO
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(15, GPIO.OUT)
+    GPIO.setup(14, GPIO.OUT)
+    GPIO.output(15, GPIO.LOW)
+    GPIO.output(14, GPIO.LOW)
+    _gpio_available = True
+except ImportError:
+    GPIO = None
+    _gpio_available = False
+    print("Warning: RPi.GPIO no está disponible. Los LEDs se simularán.")
 
 
 def _blink_denied_led() -> None:
+    if not _gpio_available:
+        print("Mock: LED rojo activado (simulado) - Acceso denegado")
+        return
     try:
         GPIO.output(15, GPIO.HIGH)
         time.sleep(2)
@@ -44,6 +53,9 @@ def _blink_denied_led() -> None:
 
 
 def _blink_authorized_led() -> None:
+    if not _gpio_available:
+        print("Mock: LED verde activado (simulado) - Acceso autorizado")
+        return
     try:
         GPIO.output(14, GPIO.HIGH)
         time.sleep(2)

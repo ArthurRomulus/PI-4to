@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QObject, QEvent, QTimer, Qt
+from PyQt5.QtCore import QObject, QEvent, QTimer, Qt, QRect
 from PyQt5.QtWidgets import (
     QApplication,
     QLineEdit,
@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QGridLayout,
     QSizePolicy,
+    QMainWindow,
 )
 from PyQt5.QtGui import QFont
 
@@ -22,6 +23,15 @@ class VirtualKeyboard(QWidget):
         self.current_widget = None
         self.shift_active = False
         self.caps_mode = False
+        
+        # Variables para desplazamiento de ventana
+        self.target_window = None
+        self.original_geometry = None
+        self.current_offset = 0
+        self.animation_timer = None
+        self.animation_progress = 0
+        self.animation_start_offset = 0
+        self.animation_target_offset = 0
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setFixedHeight(300)
@@ -235,10 +245,88 @@ class VirtualKeyboard(QWidget):
         self.set_target(widget)
         if not self.isVisible():
             self._position_keyboard(widget)
+            self._scroll_window_up(widget)
             self.show()
         else:
             self._position_keyboard(widget)
+            self._scroll_window_up(widget)
             self.raise_()
+
+    def _scroll_window_up(self, widget: QLineEdit):
+        """Desplaza la ventana hacia arriba si el input está bajo el teclado."""
+        window = widget.window()
+        if window is None or not isinstance(window, QMainWindow):
+            return
+        
+        # Guardar geometría original si no la tenemos
+        if self.original_geometry is None:
+            self.original_geometry = window.frameGeometry()
+        
+        self.target_window = window
+        
+        # Calcular posición del widget en coordinadas de pantalla
+        widget_global_pos = widget.mapToGlobal(widget.rect().bottomLeft())
+        widget_bottom = widget_global_pos.y()
+        
+        # Calcular donde estará el teclado
+        keyboard_top = self.y()
+        
+        # Calcular cuánto espacio necesitamos
+        gap = 10  # Espacio mínimo entre input y teclado
+        needed_space = widget_bottom + gap - keyboard_top
+        
+        if needed_space > 0:
+            # Desplazar la ventana hacia arriba
+            new_offset = self.current_offset + needed_space
+            self._animate_window_offset(window, new_offset)
+        elif self.current_offset > 0:
+            # Si no necesitamos desplazamiento y había previo, volver a original
+            self._animate_window_offset(window, 0)
+    
+    def _animate_window_offset(self, window, target_offset):
+        """Anima el desplazamiento de la ventana."""
+        # Detener animación previa si existe
+        if self.animation_timer is not None:
+            self.animation_timer.stop()
+        
+        # Cancelar si el offset es el mismo
+        if self.current_offset == target_offset:
+            return
+        
+        self.animation_start_offset = self.current_offset
+        self.animation_target_offset = target_offset
+        self.animation_progress = 0
+        
+        # Crear timer para la animación
+        self.animation_timer = QTimer(self)
+        self.animation_timer.setInterval(16)  # ~60 FPS
+        
+        def animate_step():
+            self.animation_progress += 16 / 300  # 300ms duración
+            
+            if self.animation_progress >= 1.0:
+                # Animación terminada
+                self.animation_progress = 1.0
+                self.animation_timer.stop()
+                self.animation_timer = None
+            
+            # Easing: ease out cubic
+            t = self.animation_progress
+            eased_t = 1 - (1 - t) ** 3
+            
+            # Calcular offset interpolado
+            current = self.animation_start_offset + (self.animation_target_offset - self.animation_start_offset) * eased_t
+            
+            # Actualizar posición
+            if self.target_window is not None and self.original_geometry is not None:
+                new_y = self.original_geometry.y() - int(current)
+                self.target_window.move(self.original_geometry.x(), new_y)
+            
+            if self.animation_progress >= 1.0:
+                self.current_offset = self.animation_target_offset
+        
+        self.animation_timer.timeout.connect(animate_step)
+        self.animation_timer.start()
 
     def _position_keyboard(self, widget: QLineEdit):
         window = widget.window()
@@ -261,6 +349,9 @@ class VirtualKeyboard(QWidget):
             return
         self.hide()
         self.current_widget = None
+        # Restaurar ventana a posición original
+        if self.target_window is not None and self.original_geometry is not None:
+            self._animate_window_offset(self.target_window, 0)
 
 
 class VirtualKeyboardInstaller(QObject):
@@ -289,3 +380,6 @@ class VirtualKeyboardInstaller(QObject):
         self._delay_close_timer.stop()
         self.keyboard.hide()
         self.keyboard.current_widget = None
+        # Restaurar ventana original si existe desplazamiento
+        if self.keyboard.target_window is not None and self.keyboard.original_geometry is not None:
+            self.keyboard.target_window.move(self.keyboard.original_geometry.x(), self.keyboard.original_geometry.y())
