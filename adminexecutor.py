@@ -8,6 +8,8 @@ if ROOT_DIR not in sys.path:
 
 from dashboard_panel import DashboardPanel
 from database.consultas import crear_tablas, limpiar_embeddings_invalidos, migrar_embeddings_sface
+from ui.keyboard_manager import VirtualKeyboardInstaller
+from ui.keyboard_helper import KeyboardManager
 
 
 def main():
@@ -16,6 +18,13 @@ def main():
     migrar_embeddings_sface()  # Limpia embeddings 256-dim del sistema anterior
 
     app = QApplication(sys.argv)
+
+    # Instalar teclado virtual global para el panel admin
+    keyboard_installer = VirtualKeyboardInstaller(app)
+    app.installEventFilter(keyboard_installer)
+    app.aboutToQuit.connect(keyboard_installer.cleanup)
+    KeyboardManager().set_installer(keyboard_installer)
+
     window = DashboardPanel()
     window.show()
     sys.exit(app.exec_())
