@@ -18,6 +18,7 @@ from hardware.face_embedder import (
     cosine_similarity,
     EMBEDDING_DIM,
 )
+from config import CAMARA_INDEX
 
 HOLD_SECONDS = 1
 FPS_SLEEP_MS = 25
@@ -151,9 +152,11 @@ class CameraThread(QThread):
 
         try:
             print("[CameraThread] Intentando webcam USB...")
-            self.webcam = WebcamManager(index=0, width=480, height=360, fps=24)
+            self.webcam = WebcamManager(index=CAMARA_INDEX, width=480, height=360, fps=24)
             if not self.webcam.iniciar_camara():
-                self.error_occurred.emit("No se detectó webcam. Revisa conexión USB o permisos.")
+                self.error_occurred.emit(
+                    "No se detectó webcam. Revisa conexión USB, permisos o CAMARA_INDEX en config.py."
+                )
                 return
 
             usuarios = _cargar_usuarios_db()
@@ -167,7 +170,9 @@ class CameraThread(QThread):
                 if not ret or frame is None:
                     _fail_count += 1
                     if _fail_count > 30:
-                        self.error_occurred.emit("No se detectó webcam. Revisa conexión USB o permisos.")
+                        self.error_occurred.emit(
+                            "No se detectó webcam. Revisa conexión USB, permisos o CAMARA_INDEX en config.py."
+                        )
                         break
                     time.sleep(FPS_SLEEP_MS / 1000.0)
                     continue

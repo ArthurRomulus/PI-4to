@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
+import sys
 
 print("="*70)
 print("DIAGNOSTICO DE CAMARA - PI-4TO")
@@ -12,18 +13,46 @@ print("\n[3] Verificando OpenCV...")
 try:
     import cv2
     print("[OK] OpenCV: {}".format(cv2.__version__))
-    print("\n[2] Probando cv2.VideoCapture(0)...")
 
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("[X] No se detectó webcam. Revisa conexión USB o permisos.")
-    else:
+    def _open_capture(index):
+        if sys.platform.startswith("linux"):
+            return cv2.VideoCapture(index, cv2.CAP_V4L2)
+        return cv2.VideoCapture(index)
+
+    def _try_index(index):
+        cap = _open_capture(index)
+        if not cap.isOpened():
+            cap.release()
+            return None
+
         ret, frame = cap.read()
-        if ret and frame is not None:
-            print("[OK] Webcam disponible - Frame: {}".format(frame.shape))
-        else:
-            print("[X] La webcam abre pero no entrega frames")
+        if not ret or frame is None:
+            cap.release()
+            return None
+
+        return cap, frame
+
+    print("\n[2] Probando indices 0-10 con cv2.VideoCapture...")
+    found = False
+    for idx in range(0, 11):
+        result = _try_index(idx)
+        if result is None:
+            print(f"[INFO] indice {idx}: no disponible")
+            continue
+
+        cap, frame = result
+        print("[OK] Webcam disponible en indice {} - Frame: {}".format(idx, frame.shape))
         cap.release()
+        found = True
+        break
+
+    if not found:
+        print("[X] No se detectó ninguna webcam disponible.")
+        print("[TIP] Ejecuta: lsusb")
+        print("[TIP] Ejecuta: ls -l /dev/video*")
+        print("[TIP] Ejecuta: v4l2-ctl --list-devices")
+        print("[TIP] Verifica que tu usuario esté en el grupo video")
+        print("[TIP] Cierra otras apps que usen la cámara y reinicia la Pi si cambias permisos")
         
 except ImportError:
     print("[X] OpenCV no instalado - pip install opencv-python")

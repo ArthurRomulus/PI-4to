@@ -37,6 +37,7 @@ from database.consultas import guardar_usuario, obtener_usuarios
 from hardware.camera.webcam_manager import WebcamManager
 from hardware.face_detection import FaceDetector
 from hardware.face_embedder import extract_embedding, cosine_similarity
+from config import CAMARA_INDEX
 from ui.admin.privacy_notice import PrivacyNoticeDialog
 from ui.sound_manager import play_sound
 
@@ -85,11 +86,13 @@ class _RegisterCameraThread(QThread):
 
     def run(self):
         self.running = True
-        self._webcam = WebcamManager(index=0, width=640, height=480, fps=30)
+        self._webcam = WebcamManager(index=CAMARA_INDEX, width=640, height=480, fps=30)
 
         try:
             if not self._webcam.iniciar_camara():
-                self.error.emit("No se detectó webcam. Revisa conexión USB o permisos.")
+                self.error.emit(
+                    "No se detectó webcam. Revisa conexión USB, permisos o CAMARA_INDEX en config.py."
+                )
                 return
 
             self.msleep(500)
@@ -100,7 +103,9 @@ class _RegisterCameraThread(QThread):
                 if not ret or frame is None:
                     fail_count += 1
                     if fail_count > 30:
-                        self.error.emit("No se detectó webcam. Revisa conexión USB o permisos.")
+                        self.error.emit(
+                            "No se detectó webcam. Revisa conexión USB, permisos o CAMARA_INDEX en config.py."
+                        )
                         break
                     self.msleep(FPS_MS)
                     continue

@@ -1,4 +1,4 @@
-CAMARA_INDEX = 0
+CAMARA_INDEX = "auto"
 TIEMPO_APERTURA = 5
 DATABASE = "database/usuarios.db"
 TOLERANCIA = 0.5
