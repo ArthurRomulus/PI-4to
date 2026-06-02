@@ -382,6 +382,7 @@ def registrar_acceso(nombre, status="AUTHORIZED", id_user=None):
     try:
         conn = obtener_conexion()
         if conn is None:
+            print("No se pudo registrar el acceso en la base de datos.")
             return False
         
         cursor = conn.cursor()
@@ -408,7 +409,7 @@ def registrar_acceso(nombre, status="AUTHORIZED", id_user=None):
         conn.close()
         return True
     except Exception as e:
-        print(f"Error registrando acceso: {e}")
+        print(f"No se pudo registrar el acceso en la base de datos: {e}")
         if conn:
             conn.close()
         return False

@@ -12,6 +12,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QImage, QPixmap
 
 from hardware.face_detection import FaceDetector
+from hardware.camera.webcam_manager import WebcamManager
 from hardware.face_embedder import (
     extract_embedding,
     cosine_similarity,
@@ -134,6 +135,7 @@ class CameraThread(QThread):
         super().__init__()
         self.picam2        = None
         self.camera_cv2    = None
+        self.webcam        = None
         self.running       = False
         self.face_detector = FaceDetector()
         self.target_width  = width
@@ -146,40 +148,13 @@ class CameraThread(QThread):
 
     def run(self):
         self.running = True
-        camera_source = None
-        
-        try:
-            print("[CameraThread] Intentando picamera2...")
-            self.picam2 = None
-            try:
-                from picamera2 import Picamera2
-                self.picam2 = Picamera2()
-                config = self.picam2.create_video_configuration(
-                    main={"size": (480, 360)},
-                    controls={"FrameRate": 24}
-                )
-                self.picam2.configure(config)
-                self.picam2.start()
-                camera_source = "picamera2"
-                print("[CameraThread] Camara: picamera2 OK")
-            except Exception as e:
-                print("[CameraThread] picamera2 no disponible, intentando fallback V4L2: {}".format(str(e)))
-                self.picam2 = None
 
-            if self.picam2 is None:
-                self.camera_cv2 = cv2.VideoCapture(0, cv2.CAP_V4L2)
-                if self.camera_cv2.isOpened():
-                    self.camera_cv2.set(cv2.CAP_PROP_FRAME_WIDTH, 480)
-                    self.camera_cv2.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
-                    self.camera_cv2.set(cv2.CAP_PROP_FPS, 24)
-                    camera_source = "v4l2"
-                    print("[CameraThread] Camara: V4L2 OK")
-                else:
-                    self.error_occurred.emit(
-                        "No se pudo iniciar la cámara con picamera2 ni V4L2. "
-                        "Verifique la conexión física y los permisos."
-                    )
-                    return
+        try:
+            print("[CameraThread] Intentando webcam USB...")
+            self.webcam = WebcamManager(index=0, width=480, height=360, fps=24)
+            if not self.webcam.iniciar_camara():
+                self.error_occurred.emit("No se detectó webcam. Revisa conexión USB o permisos.")
+                return
 
             usuarios = _cargar_usuarios_db()
             print("[CameraThread] {} usuario(s) en BD".format(len(usuarios)))
@@ -188,38 +163,14 @@ class CameraThread(QThread):
             frame_count = 0
 
             while self.running:
-                # Capturar frame
-                if self.picam2:
-                    try:
-                        array = self.picam2.capture_array()
-                        if array is None or array.size == 0:
-                            _fail_count += 1
-                            if _fail_count > 30:
-                                self.error_occurred.emit("Camara: captura nula")
-                                break
-                            time.sleep(FPS_SLEEP_MS / 1000.0)
-                            continue
-                        # picamera2 devuelve RGB, convertir a BGR para OpenCV
-                        frame = cv2.cvtColor(array, cv2.COLOR_RGB2BGR)
-                    except Exception as e:
-                        _fail_count += 1
-                        if _fail_count > 30:
-                            self.error_occurred.emit("Error: {}".format(str(e)))
-                            break
-                        time.sleep(FPS_SLEEP_MS / 1000.0)
-                        continue
-                elif self.camera_cv2:
-                    ret, frame = self.camera_cv2.read()
-                    if not ret or frame is None:
-                        _fail_count += 1
-                        if _fail_count > 30:
-                            self.error_occurred.emit("Camara: captura fallida")
-                            break
-                        time.sleep(FPS_SLEEP_MS / 1000.0)
-                        continue
-                else:
-                    self.error_occurred.emit("Camara no inicializada")
-                    break
+                ret, frame = self.webcam.leer_frame()
+                if not ret or frame is None:
+                    _fail_count += 1
+                    if _fail_count > 30:
+                        self.error_occurred.emit("No se detectó webcam. Revisa conexión USB o permisos.")
+                        break
+                    time.sleep(FPS_SLEEP_MS / 1000.0)
+                    continue
 
                 _fail_count = 0
                 frame_count += 1
@@ -298,17 +249,12 @@ class CameraThread(QThread):
 
     def _cleanup(self):
         """Liberar recursos."""
-        if self.picam2:
+        if self.webcam:
             try:
-                self.picam2.stop()
-                self.picam2.close()
-            except:
+                self.webcam.liberar_camara()
+            except Exception:
                 pass
-        if self.camera_cv2:
-            try:
-                self.camera_cv2.release()
-            except:
-                pass
+            self.webcam = None
 
     def _draw_progress_arc(self, frame: np.ndarray, detection: dict, progress: int) -> np.ndarray:
         """Dibuja arco de progreso."""

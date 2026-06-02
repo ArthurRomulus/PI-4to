@@ -3,12 +3,12 @@ import cv2
 import time
 
 print("[TEST] Probando camera...")
-print("[TEST] Abriendo /dev/video0 con V4L2...")
+print("[TEST] Abriendo webcam USB con OpenCV...")
 
-cap = cv2.VideoCapture('/dev/video0', cv2.CAP_V4L2)
+cap = cv2.VideoCapture(0)
 
 if not cap.isOpened():
-    print("[ERROR] No se pudo abrir la camara")
+    print("[ERROR] No se detectó webcam. Revisa conexión USB o permisos.")
     exit(1)
 
 print("[OK] Camara abierta")

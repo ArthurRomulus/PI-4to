@@ -314,6 +314,14 @@ class VirtualKeyboard(QWidget):
         self._hide_requested = True
         self.hide_with_animation()
 
+    def hide_with_animation(self):
+        """Oculta el teclado con animación de salida."""
+        self._animate_hide()
+
+    def show_with_animation(self, widget):
+        """Muestra el teclado con animación de entrada."""
+        self._animate_show(widget)
+
     def _screen_geometry_for(self, widget):
         window = widget.window() if widget is not None else self.window()
         if window is not None and window.windowHandle() is not None and window.windowHandle().screen() is not None:
@@ -399,9 +407,7 @@ class VirtualKeyboard(QWidget):
     def show_with_target(self, widget):
         self.set_target(widget)
         if not self.isVisible():
-            self._position_keyboard(widget)
-            self._scroll_window_up(widget)
-            self.show()
+            self.show_with_animation(widget)
         else:
             self._position_keyboard(widget)
             self._scroll_window_up(widget)
@@ -502,7 +508,8 @@ class VirtualKeyboard(QWidget):
             return
         if focus_widget is not None and self.isAncestorOf(focus_widget):
             return
-        self.hide_with_animation()
+        if self.isVisible():
+            self.hide_with_animation()
         self.current_widget = None
         # Restaurar ventana a posición original
         if self.target_window is not None and self.original_geometry is not None:

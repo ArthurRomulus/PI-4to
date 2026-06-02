@@ -1,42 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os, sys, glob, subprocess
+import os
 
 print("="*70)
 print("DIAGNOSTICO DE CAMARA - PI-4TO")
 print("="*70)
 
-print("\n[1] Buscando dispositivos de video...")
-video_devices = sorted(glob.glob('/dev/video*'))
-if not video_devices:
-    print("[X] No se encontraron dispositivos /dev/video*")
-    print("    > Camara no conectada")
-else:
-    print("[OK] Dispositivos: {}".format(video_devices))
-    print("\n[2] Verificando permisos...")
-    for device in video_devices:
-        readable = os.access(device, os.R_OK)
-        status = "[OK]" if readable else "[X]"
-        print("    {} {} - {}".format(status, device, "lectura OK" if readable else "SIN PERMISOS"))
-        if not readable:
-            print("       > sudo usermod -aG video $USER")
+print("\n[1] Verificando webcam USB con OpenCV...")
 
 print("\n[3] Verificando OpenCV...")
 try:
     import cv2
     print("[OK] OpenCV: {}".format(cv2.__version__))
-    print("\n[4] Probando cv2.VideoCapture...")
-    
-    for idx in range(0, 3):
-        cap = cv2.VideoCapture(idx)
-        if cap.isOpened():
-            ret, frame = cap.read()
-            if ret and frame is not None:
-                print("[OK] Indice {} FUNCIONA - Frame: {}".format(idx, frame.shape))
-            cap.release()
-            break
+    print("\n[2] Probando cv2.VideoCapture(0)...")
+
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("[X] No se detectó webcam. Revisa conexión USB o permisos.")
     else:
-        print("[X] No se pudo capturar frame")
+        ret, frame = cap.read()
+        if ret and frame is not None:
+            print("[OK] Webcam disponible - Frame: {}".format(frame.shape))
+        else:
+            print("[X] La webcam abre pero no entrega frames")
+        cap.release()
         
 except ImportError:
     print("[X] OpenCV no instalado - pip install opencv-python")

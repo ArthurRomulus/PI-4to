@@ -1,4 +1,5 @@
 import os
+import platform
 from datetime import datetime
 
 from PyQt5.QtWidgets import (
@@ -42,13 +43,26 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sistema de Control de Acceso Biométrico")
-        self.setFixedSize(375, 667)
+        self._fullscreen_enabled = self._is_raspberry_pi()
+        if self._fullscreen_enabled:
+            self.setMinimumSize(375, 667)
+        else:
+            self.resize(375, 667)
 
         self.verify_window = None
         self.login_window = None
 
         self.init_ui()
         self.init_clock()
+
+    def _is_raspberry_pi(self):
+        try:
+            if not platform.system().lower().startswith("linux"):
+                return False
+            with open("/sys/firmware/devicetree/base/model", "r", encoding="utf-8") as file_handle:
+                return "raspberry pi" in file_handle.read().lower()
+        except Exception:
+            return False
 
     def init_ui(self):
         # ruta real de la imagen, sin depender de dónde corres Python
@@ -317,3 +331,8 @@ class MainWindow(QMainWindow):
         self.login_window = LoginWindow()
         self.login_window.destroyed.connect(self.show)
         self.login_window.show()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._fullscreen_enabled:
+            self.showFullScreen()

@@ -24,7 +24,6 @@ import cv2
 import numpy as np
 import os
 import threading
-import urllib.request
 
 # ── Dimensión del embedding ────────────────────────────────────────────────────
 EMBEDDING_DIM = 128
@@ -54,22 +53,15 @@ _yunet_lock    = threading.Lock()
 # ── Cargadores ────────────────────────────────────────────────────────────────
 
 def _download(url: str, path: str, name: str) -> bool:
-    """Descarga un modelo si no existe. Retorna True si quedó disponible."""
+    """Valida si el modelo existe localmente. No descarga recursos al arrancar."""
     if os.path.exists(path):
         return True
-    print(f"[FaceEmbedder] Descargando {name}…")
-    try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        urllib.request.urlretrieve(url, path)
-        print(f"[FaceEmbedder] {name} descargado.")
-        return True
-    except Exception as e:
-        print(f"[FaceEmbedder] ERROR descargando {name}: {e}")
-        return False
+    print(f"[FaceEmbedder] Falta {name} en {path}")
+    return False
 
 
 def _load_recognizer():
-    """Carga SFace (descarga si falta). Thread-safe."""
+    """Carga SFace desde disco. Thread-safe."""
     global _recognizer
     if _recognizer is not None:
         return _recognizer
@@ -88,7 +80,7 @@ def _load_recognizer():
 
 
 def _load_yunet(width: int = 640, height: int = 480):
-    """Carga YuNet (descarga si falta). Thread-safe."""
+    """Carga YuNet desde disco. Thread-safe."""
     global _yunet
     if _yunet is not None:
         _yunet.setInputSize((width, height))
@@ -112,16 +104,6 @@ def _load_yunet(width: int = 640, height: int = 480):
         except Exception as e:
             print(f"[FaceEmbedder] ERROR cargando YuNet: {e}")
             return None
-
-
-# Precarga ambos modelos en background al importar el módulo
-def _preload():
-    _load_recognizer()
-    _load_yunet()
-
-threading.Thread(target=_preload, daemon=True).start()
-
-
 # ── API pública ───────────────────────────────────────────────────────────────
 
 def extract_embedding(full_frame: np.ndarray, face_rect: tuple) -> np.ndarray:
