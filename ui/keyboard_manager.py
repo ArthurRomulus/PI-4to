@@ -36,13 +36,13 @@ class VirtualKeyboard(QWidget):
         super().__init__(flags=Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setObjectName("VirtualKeyboard")
         self.setWindowTitle("Teclado Virtual")
-        self.setAttribute(Qt.WA_NoSystemBackground)
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        # Fondo sólido visible (sin transparencia)
+        self.setAttribute(Qt.WA_StyledBackground, True)
 
         self.current_widget = None
         self.shift_active = False
         self.caps_mode = False
-        
+
         # Variables para desplazamiento de ventana
         self.target_window = None
         self.original_geometry = None
@@ -59,66 +59,81 @@ class VirtualKeyboard(QWidget):
         self._keyboard_animation.finished.connect(self._on_keyboard_animation_finished)
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setFixedHeight(300)
+        self.setFixedHeight(310)
         self.setStyleSheet("""
             QWidget#VirtualKeyboard {
-                background: rgba(15, 23, 42, 0.98);
-                border: 1px solid rgba(148, 163, 184, 0.25);
-                border-radius: 20px;
+                background-color: #1a1f2e;
+                border-top: 2px solid #2d3748;
+                border-left: 2px solid #2d3748;
+                border-right: 2px solid #2d3748;
+                border-bottom: none;
+                border-top-left-radius: 22px;
+                border-top-right-radius: 22px;
+                border-bottom-left-radius: 0px;
+                border-bottom-right-radius: 0px;
             }
             QPushButton {
-                background: #6b7280;
-                border: 1px solid rgba(255, 255, 255, 0.12);
-                color: #f8fafc;
+                background-color: #3d4663;
+                border: 1px solid rgba(255,255,255,0.08);
+                border-bottom: 3px solid #252b3d;
+                color: #e8eaf0;
                 font-size: 15px;
                 font-weight: 600;
-                border-radius: 12px;
+                border-radius: 8px;
             }
             QPushButton:hover {
-                background: #7c8594;
-                border: 1px solid rgba(255, 255, 255, 0.18);
+                background-color: #4a5580;
+                color: #ffffff;
             }
             QPushButton:pressed {
-                background: #4b5563;
-                border: 1px solid rgba(255, 255, 255, 0.22);
+                background-color: #252b3d;
+                border-bottom: 1px solid #1a1f2e;
+                color: #ffffff;
             }
             QPushButton#ShiftBtn {
-                background: #6b7280;
-                color: #f8fafc;
+                background-color: #252d42;
+                border-bottom: 3px solid #141820;
+                color: #94a3b8;
             }
             QPushButton#ShiftBtn:hover {
-                background: #7c8594;
+                background-color: #2e3850;
+                color: #cbd5e1;
             }
             QPushButton#SpaceBtn {
-                background: #6b7280;
+                background-color: #3d4663;
+                border-bottom: 3px solid #252b3d;
+                color: #e8eaf0;
             }
             QPushButton#SpaceBtn:hover {
-                background: #7c8594;
+                background-color: #4a5580;
             }
             QPushButton#DelBtn {
-                background: #6b7280;
-                color: #f8fafc;
+                background-color: #252d42;
+                border-bottom: 3px solid #141820;
+                color: #94a3b8;
             }
             QPushButton#DelBtn:hover {
-                background: #7c8594;
+                background-color: #2e3850;
+                color: #cbd5e1;
             }
             QPushButton#EnterBtn {
-                background: #6b7280;
-                color: #f8fafc;
+                background-color: #2563eb;
+                border-bottom: 3px solid #1d4ed8;
+                color: #ffffff;
             }
             QPushButton#EnterBtn:hover {
-                background: #7c8594;
+                background-color: #3b82f6;
             }
             QPushButton#CloseBtn {
-                background: rgba(107, 114, 128, 0.85);
-                color: #f8fafc;
-                border: 1px solid rgba(255, 255, 255, 0.12);
+                background-color: #252d42;
+                color: #64748b;
+                border: 1px solid rgba(255,255,255,0.07);
                 border-radius: 10px;
-                font-size: 14px;
+                font-size: 13px;
             }
             QPushButton#CloseBtn:hover {
-                background: rgba(124, 133, 148, 0.95);
-                border: 1px solid rgba(255, 255, 255, 0.18);
+                background-color: #2e3850;
+                color: #94a3b8;
             }
         """)
 
@@ -333,31 +348,34 @@ class VirtualKeyboard(QWidget):
         return screen.availableGeometry() if screen is not None else QRect(0, 0, 1280, 720)
 
     def _dock_geometry(self, widget):
-        screen_geometry = self._screen_geometry_for(widget)
         window = widget.window() if widget is not None else None
         if window is not None:
-            window_geometry = window.frameGeometry()
-            target_width = window_geometry.width() - 16
-            x = window_geometry.left() + 8
-        else:
-            target_width = screen_geometry.width() - 16
-            x = screen_geometry.left() + 8
+            wg = window.frameGeometry()
+            # El teclado ocupa todo el ancho de la ventana y
+            # se asienta en el borde inferior INTERIOR de la ventana.
+            return QRect(wg.left(), wg.bottom() - self.height(), wg.width(), self.height())
 
-        width = max(320, min(target_width, screen_geometry.width() - 16))
-        y = screen_geometry.bottom() - self.height() - 10
-        return QRect(x, y, width, self.height())
+        # Fallback: usar pantalla si no hay ventana padre
+        screen_geometry = self._screen_geometry_for(widget)
+        return QRect(
+            screen_geometry.left(),
+            screen_geometry.bottom() - self.height(),
+            screen_geometry.width(),
+            self.height(),
+        )
 
     def _animate_show(self, widget):
         end_geometry = self._dock_geometry(widget)
+        # La animación empieza desde abajo del borde inferior de la ventana
         start_geometry = QRect(end_geometry)
-        start_geometry.moveTop(end_geometry.bottom() + 24)
+        start_geometry.moveTop(end_geometry.top() + self.height() + 20)
 
         self._hide_requested = False
         self._keyboard_animation.stop()
         self.setGeometry(start_geometry)
         self.show()
         self.raise_()
-        self.activateWindow()
+        # No robar el foco de la ventana principal
         self._keyboard_animation.setStartValue(start_geometry)
         self._keyboard_animation.setEndValue(end_geometry)
         self._keyboard_animation.start()
@@ -367,8 +385,9 @@ class VirtualKeyboard(QWidget):
             return
 
         start_geometry = QRect(self.geometry())
+        # La animación de salida baja el teclado fuera del borde inferior
         end_geometry = QRect(start_geometry)
-        end_geometry.moveTop(start_geometry.bottom() + 24)
+        end_geometry.moveTop(start_geometry.top() + self.height() + 20)
 
         self._keyboard_animation.stop()
         self._keyboard_animation.setStartValue(start_geometry)
@@ -494,13 +513,10 @@ class VirtualKeyboard(QWidget):
         if window is None:
             return
 
-        parent_geometry = window.frameGeometry()
-        width = min(840, max(520, parent_geometry.width() - 40))
-        self.setFixedWidth(width)
-
-        x = parent_geometry.left() + max(0, (parent_geometry.width() - width) // 2)
-        y = parent_geometry.bottom() - self.height() - 10
-        self.move(x, y)
+        wg = window.frameGeometry()
+        self.setFixedWidth(wg.width())
+        # Posicionar pegado al borde inferior de la ventana
+        self.move(wg.left(), wg.bottom() - self.height())
 
     def hide_if_needed(self):
         focus_widget = QApplication.focusWidget()
