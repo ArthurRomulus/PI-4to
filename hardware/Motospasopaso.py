@@ -8,8 +8,8 @@ IS_RASPBERRY_PI = False
 SIMULATION_MODE = True
 
 pins = [17, 18, 27, 22]
-led_verde_pin = 5
-led_rojo_pin = 6
+led_verde_pin = 14
+led_rojo_pin = 15
 buzzer_pin = 23
 button_pin = 24
 
@@ -25,7 +25,7 @@ step_sequence = [
 ]
 
 _motor_lock = threading.Lock()
-_button_listener_started = False
+_boton_configurado = False
 _gpio_initialized = False
 
 
@@ -99,19 +99,19 @@ def inicializar_gpio():
 
 
 def limpiar_gpio():
-    global _button_listener_started, _gpio_initialized
+    global _boton_configurado, _gpio_initialized
 
     if not _gpio_ready():
-        _button_listener_started = False
+        _boton_configurado = False
         return
 
     try:
-        if _button_listener_started:
+        if _boton_configurado:
             try:
                 GPIO.remove_event_detect(button_pin)
             except Exception:
                 pass
-            _button_listener_started = False
+            _boton_configurado = False
 
         apagar_indicadores()
         GPIO.cleanup()
@@ -134,6 +134,18 @@ def apagar_indicadores():
     GPIO.output(led_verde_pin, 0)
     GPIO.output(led_rojo_pin, 0)
     GPIO.output(buzzer_pin, 0)
+
+
+def apagar_led_verde():
+    if not _ensure_gpio_ready():
+        return
+    GPIO.output(led_verde_pin, 0)
+
+
+def apagar_led_rojo():
+    if not _ensure_gpio_ready():
+        return
+    GPIO.output(led_rojo_pin, 0)
 
 
 def encender_led_verde():
@@ -161,6 +173,16 @@ def activar_buzzer(duracion=0.18):
     GPIO.output(buzzer_pin, 0)
 
 
+def beep_buzzer(duracion=0.15):
+    activar_buzzer(duracion)
+
+
+def beep_buzzer_error():
+    activar_buzzer(0.08)
+    time.sleep(0.05)
+    activar_buzzer(0.08)
+
+
 def _salida_paso(estado):
     if not _ensure_gpio_ready():
         return
@@ -168,13 +190,16 @@ def _salida_paso(estado):
         GPIO.output(pin, value)
 
 
+def apagar_salidas_motor():
+    if not _ensure_gpio_ready():
+        return
+    for pin in pins:
+        GPIO.output(pin, 0)
+
+
 def mover_motor_por_tiempo(segundos=5, delay=0.003, sentido=1):
     if not _ensure_gpio_ready():
         print("Mock: moviendo motor por tiempo (simulado)")
-        return
-
-    if not _motor_lock.acquire(blocking=False):
-        print("Motor ocupado. Ignorando solicitud duplicada.")
         return
 
     try:
@@ -189,8 +214,7 @@ def mover_motor_por_tiempo(segundos=5, delay=0.003, sentido=1):
     except Exception as e:
         print(f"Error moviendo motor por tiempo: {e}")
     finally:
-        liberar()
-        _motor_lock.release()
+        apagar_salidas_motor()
 
 
 def detectar_movimiento(tiempo=5):
@@ -217,23 +241,23 @@ def detectar_movimiento(tiempo=5):
 
 
 def conceder_acceso_motor():
-    print("Acceso concedido. Puedes girar.")
-    encender_led_verde()
-    activar_buzzer()
-    mover_motor_por_tiempo(segundos=5)
-    time.sleep(0.2)
-    if _ensure_gpio_ready():
-        GPIO.output(led_verde_pin, 0)
+    if not _ensure_gpio_ready():
+        print("Acceso permitido: simulando LED verde, buzzer y motor durante 5 segundos.")
+        return
 
+    if not _motor_lock.acquire(blocking=False):
+        print("Motor ocupado. Ignorando solicitud duplicada.")
+        return
 
-def conceder_salida_motor():
-    print("Salida habilitada. Girando en sentido contrario.")
-    encender_led_verde()
-    activar_buzzer()
-    mover_motor_por_tiempo(segundos=5, sentido=-1)
-    time.sleep(0.2)
-    if _ensure_gpio_ready():
-        GPIO.output(led_verde_pin, 0)
+    try:
+        print("Acceso concedido. Puedes girar.")
+        encender_led_verde()
+        beep_buzzer()
+        mover_motor_por_tiempo(segundos=5)
+        time.sleep(0.2)
+        apagar_led_verde()
+    finally:
+        _motor_lock.release()
 
 
 def indicar_acceso_concedido():
@@ -243,10 +267,12 @@ def indicar_acceso_concedido():
 
 def indicar_acceso_denegado():
     if not _ensure_gpio_ready():
-        print("Mock: acceso denegado (LED rojo simulado)")
+        print("Acceso denegado: simulando LED rojo y buzzer de error.")
         return
     encender_led_rojo()
-    activar_buzzer(0.12)
+    beep_buzzer_error()
+    time.sleep(0.5)
+    apagar_led_rojo()
 
 
 def bloquear():
@@ -259,14 +285,14 @@ def bloquear():
 
 
 def _on_button_pressed(channel):
-    print(f"Boton detectado en GPIO {channel}. Moviendo motor...")
-    threading.Thread(target=conceder_salida_motor, daemon=True).start()
+    print(f"Boton detectado en GPIO {channel}. Activando salida.")
+    threading.Thread(target=conceder_acceso_motor, daemon=True).start()
 
 
 def iniciar_boton_motor():
-    global _button_listener_started
+    global _boton_configurado
 
-    if _button_listener_started:
+    if _boton_configurado:
         return True
 
     if not _gpio_initialized:
@@ -276,8 +302,8 @@ def iniciar_boton_motor():
         return False
 
     try:
-        GPIO.add_event_detect(button_pin, GPIO.FALLING, callback=_on_button_pressed, bouncetime=300)
-        _button_listener_started = True
+        GPIO.add_event_detect(button_pin, GPIO.FALLING, callback=_on_button_pressed, bouncetime=700)
+        _boton_configurado = True
         return True
     except Exception as e:
         print(f"No se pudo iniciar el listener del botón: {e}")
