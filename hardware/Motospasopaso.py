@@ -8,10 +8,12 @@ IS_RASPBERRY_PI = False
 SIMULATION_MODE = True
 
 pins = [17, 18, 27, 22]
-led_verde_pin = 14
-led_rojo_pin = 15
+led_verde_pin = 5
+led_rojo_pin = 6
 buzzer_pin = 23
 button_pin = 24
+
+PASOS_180 = 2048
 
 step_sequence = [
     (1, 0, 0, 1),
@@ -199,6 +201,34 @@ def conceder_acceso_motor():
     activar_buzzer()
     mover_motor_pasos()
     bloquear()
+
+
+def abrir_torniquete_180():
+    """Gira el motor 180 grados para abrir el torniquete."""
+    try:
+        if not _gpio_ready():
+            print("Acceso permitido: simulando giro de motor 180 grados.")
+            return
+
+        encender_led_verde()
+        activar_buzzer()
+        mover_motor_pasos(pasos=PASOS_180, direccion=1)
+        time.sleep(1)
+        GPIO.output(led_verde_pin, 0)
+    except Exception as e:
+        print(f"Error al abrir torniquete: {e}")
+
+
+def cerrar_torniquete_180():
+    """Gira el motor 180 grados en sentido contrario para cerrar el torniquete."""
+    try:
+        if not _gpio_ready():
+            print("Acceso permitido: simulando giro inverso 180 grados.")
+            return
+
+        mover_motor_pasos(pasos=PASOS_180, direccion=-1)
+    except Exception as e:
+        print(f"Error al cerrar torniquete: {e}")
 
 
 def indicar_acceso_concedido():

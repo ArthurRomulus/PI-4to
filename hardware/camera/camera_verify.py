@@ -7,6 +7,7 @@ Deteccion facial y verificacion usando SFace (128-dim).
 import numpy as np
 import cv2
 import time
+import threading
 
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QImage, QPixmap
@@ -18,6 +19,7 @@ from hardware.face_embedder import (
     cosine_similarity,
     EMBEDDING_DIM,
 )
+from hardware.Motospasopaso import abrir_torniquete_180, indicar_acceso_denegado
 from config import CAMARA_INDEX
 
 HOLD_SECONDS = 1
@@ -221,6 +223,15 @@ class CameraThread(QThread):
                                     )
                                 )
                                 autorizado, nombre, id_user = _reconocer(emb_avg, usuarios)
+
+                            if autorizado:
+                                threading.Thread(
+                                    target=abrir_torniquete_180, daemon=True
+                                ).start()
+                            else:
+                                threading.Thread(
+                                    target=indicar_acceso_denegado, daemon=True
+                                ).start()
 
                             self._display_id = str(id_user) if id_user is not None else "unknown"
                             self.recognition_result.emit(autorizado, nombre)
