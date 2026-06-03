@@ -25,43 +25,6 @@ from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
 from hardware.camera.camera_verify import CameraThread
 from database.consultas import registrar_acceso
 
-try:
-    import RPi.GPIO as GPIO
-except ImportError:
-    GPIO = None
-    print("Warning: RPi.GPIO no está disponible. Los LEDs se ejecutarán en modo simulado.")
-
-if GPIO is not None:
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(15, GPIO.OUT)
-    GPIO.setup(14, GPIO.OUT)
-    GPIO.output(15, GPIO.LOW)
-    GPIO.output(14, GPIO.LOW)
-
-
-def _blink_denied_led() -> None:
-    if GPIO is None:
-        print("Mock: LED de denegado simulado.")
-        return
-    try:
-        GPIO.output(15, GPIO.HIGH)
-        time.sleep(2)
-        GPIO.output(15, GPIO.LOW)
-    except Exception as e:
-        print(f"Error al encender LED de denegado: {e}")
-
-
-def _blink_authorized_led() -> None:
-    if GPIO is None:
-        print("Mock: LED de autorizado simulado.")
-        return
-    try:
-        GPIO.output(14, GPIO.HIGH)
-        time.sleep(2)
-        GPIO.output(14, GPIO.LOW)
-    except Exception as e:
-        print(f"Error al encender LED de autorizado: {e}")
-
 
 try:
     from hardware.Motospasopaso import conceder_acceso_motor, indicar_acceso_denegado
@@ -508,7 +471,6 @@ class VerifyWindow(QWidget):
             
             # Ejecutar el proceso del motor en un hilo para no bloquear la interfaz
             threading.Thread(target=conceder_acceso_motor, daemon=True).start()
-            threading.Thread(target=_blink_authorized_led, daemon=True).start()
 
             self.status_label.setText(f"✅ ACCESO AUTORIZADO — {nombre.upper()}")
             self.status_label.setStyleSheet(
@@ -526,7 +488,6 @@ class VerifyWindow(QWidget):
 
             # Encender LED rojo al denegar el acceso
             threading.Thread(target=indicar_acceso_denegado, daemon=True).start()
-            threading.Thread(target=_blink_denied_led, daemon=True).start()
             
             self.status_label.setText("❌ ACCESO DENEGADO — USUARIO NO REGISTRADO")
             self.status_label.setStyleSheet(

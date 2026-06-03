@@ -19,7 +19,7 @@ from hardware.face_embedder import (
     cosine_similarity,
     EMBEDDING_DIM,
 )
-from hardware.Motospasopaso import abrir_torniquete_180, indicar_acceso_denegado
+from hardware.Motospasopaso import conceder_acceso_motor, indicar_acceso_denegado
 from config import CAMARA_INDEX
 
 HOLD_SECONDS = 1
@@ -226,7 +226,7 @@ class CameraThread(QThread):
 
                             if autorizado:
                                 threading.Thread(
-                                    target=abrir_torniquete_180, daemon=True
+                                    target=conceder_acceso_motor, daemon=True
                                 ).start()
                             else:
                                 threading.Thread(
