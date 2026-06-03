@@ -21,7 +21,7 @@ if __name__ == "__main__":
         if iniciar_boton_motor():
             print("Motor y botón inicializados correctamente.")
         else:
-            print("GPIO no disponible o botón no inicializado. Ejecutando hardware en modo simulación.")
+            print("GPIO no disponible o error al inicializar motor/botón. Ejecutando hardware en modo simulación.")
     except Exception as e:
         print(f"No se pudo inicializar el motor: {e}")
 
