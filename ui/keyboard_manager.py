@@ -663,7 +663,7 @@ class VirtualKeyboard(QWidget):
 
         if parent is not None:
             margin_x = 8
-            bottom_margin = 8
+            bottom_margin = 40
 
             width = max(320, parent.width() - (margin_x * 2))
             x = margin_x
