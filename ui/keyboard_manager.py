@@ -32,13 +32,8 @@ TEXT_INPUT_WIDGETS = (QLineEdit, QTextEdit, QPlainTextEdit)
 class VirtualKeyboard(QWidget):
     hide_requested = pyqtSignal()
 
-    def __init__(self):
-        super().__init__(
-            flags=Qt.Tool
-            | Qt.FramelessWindowHint
-            | Qt.WindowStaysOnTopHint
-            | Qt.WindowDoesNotAcceptFocus
-        )
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.setObjectName("VirtualKeyboard")
         self.setWindowTitle("Teclado Virtual")
 
@@ -47,7 +42,6 @@ class VirtualKeyboard(QWidget):
         # pero el fondo azul marino se dibuja manualmente en paintEvent().
         self.setAttribute(Qt.WA_NoSystemBackground, False)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setFocusPolicy(Qt.NoFocus)
 
         self.current_widget = None
@@ -599,12 +593,12 @@ class VirtualKeyboard(QWidget):
             return
 
         self._hide_requested = True
-        self._animate_hide()
+        self.setVisible(False)
 
     def show_with_animation(self, widget):
         """Muestra el teclado con animación de entrada."""
         self._hide_requested = False
-        self._animate_show(widget)
+        self.setVisible(True)
 
     def _update_responsive_size(self, widget):
         screen_geometry = self._screen_geometry_for(widget)
@@ -686,32 +680,15 @@ class VirtualKeyboard(QWidget):
         return QRect(x, y, width, self.height())
 
     def _animate_show(self, widget):
-        end_geometry = self._dock_geometry(widget)
-        start_geometry = QRect(end_geometry)
-        start_geometry.moveTop(end_geometry.bottom() + 25)
-
         self._hide_requested = False
-        self._keyboard_animation.stop()
-        self.setGeometry(start_geometry)
-        self.show()
-        self.raise_()
-        self._keyboard_animation.setStartValue(start_geometry)
-        self._keyboard_animation.setEndValue(end_geometry)
-        self._keyboard_animation.start()
+        self.setVisible(True)
 
     def _animate_hide(self):
         if not self.isVisible():
             self._hide_requested = False
             return
 
-        start_geometry = QRect(self.geometry())
-        end_geometry = QRect(start_geometry)
-        end_geometry.moveTop(start_geometry.bottom() + 25)
-
-        self._keyboard_animation.stop()
-        self._keyboard_animation.setStartValue(start_geometry)
-        self._keyboard_animation.setEndValue(end_geometry)
-        self._keyboard_animation.start()
+        self.setVisible(False)
 
     def _on_keyboard_animation_finished(self):
         if self._hide_requested:
@@ -761,8 +738,6 @@ class VirtualKeyboard(QWidget):
         self._keyboard_animation.stop()
 
         if self.isVisible():
-            self._position_keyboard(widget)
-            self.raise_()
             return
 
         self.show_with_animation(widget)
@@ -834,7 +809,7 @@ class VirtualKeyboard(QWidget):
         self.animation_timer.start()
 
     def _position_keyboard(self, widget):
-        self.setGeometry(self._dock_geometry(widget))
+        return
 
     def hide_if_needed(self):
         focus_widget = QApplication.focusWidget()
@@ -863,6 +838,11 @@ class VirtualKeyboardInstaller(QObject):
         self.app = app
         self.keyboard = VirtualKeyboard()
         self.keyboard.hide_requested.connect(self._on_keyboard_close_requested)
+        self.keyboard.setVisible(False)
+
+        self.keyboard_container = None
+        self.keyboard_parent_layout = None
+        self.current_window = None
 
         self._delay_close_timer = QTimer(self)
         self._delay_close_timer.setSingleShot(True)
@@ -895,6 +875,47 @@ class VirtualKeyboardInstaller(QObject):
         if active_window is not None and window is not active_window:
             return False
 
+        return True
+
+    def _resolve_keyboard_container(self, widget):
+        window = widget.window()
+        if isinstance(window, QMainWindow) and window.centralWidget() is not None:
+            central = window.centralWidget()
+            layout = central.layout()
+            return central, layout
+
+        container = widget
+        while container is not None and container is not window:
+            if container.layout() is not None:
+                return container, container.layout()
+            container = container.parentWidget()
+
+        if window is not None and window.layout() is not None:
+            return window, window.layout()
+
+        return None, None
+
+    def _attach_keyboard(self, widget):
+        container, layout = self._resolve_keyboard_container(widget)
+        if container is None or layout is None:
+            return False
+
+        if self.keyboard_parent_layout is not None and self.keyboard_parent_layout is not layout:
+            try:
+                self.keyboard_parent_layout.removeWidget(self.keyboard)
+            except Exception:
+                pass
+
+        if self.keyboard.parent() is not container:
+            self.keyboard.setParent(container)
+
+        if layout.indexOf(self.keyboard) == -1:
+            layout.addWidget(self.keyboard)
+
+        self.keyboard_container = container
+        self.keyboard_parent_layout = layout
+        self.current_window = widget.window()
+        self.keyboard.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         return True
 
     def _ensure_scroll_area_visible(self, widget):
@@ -997,12 +1018,12 @@ class VirtualKeyboardInstaller(QObject):
         if window is None or not window.isVisible():
             return
 
+        if not self._attach_keyboard(widget):
+            return
+
         self._manual_hide = False
         self._delay_close_timer.stop()
         self.keyboard.show_with_target(widget)
-
-        # Esta parte desplaza la vista para que el campo activo no quede cubierto.
-        self._animate_view_shift(widget, self._required_view_offset(widget))
 
     def _on_keyboard_close_requested(self):
         self._manual_hide = True
