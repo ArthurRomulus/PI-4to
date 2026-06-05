@@ -585,9 +585,12 @@ class VirtualKeyboard(QWidget):
         widget.setFocus()
 
     def request_hide(self):
-        self._hide_requested = True
+        """
+        Solicita ocultar el teclado.
+        No se llama hide_with_animation() aquí para evitar doble animación.
+        El ocultado real lo controla VirtualKeyboardInstaller.hide_keyboard().
+        """
         self.hide_requested.emit()
-        self.hide_with_animation()
 
     def hide_with_animation(self):
         """Oculta el teclado con animación de salida."""
@@ -635,22 +638,39 @@ class VirtualKeyboard(QWidget):
             self.rows_layout.setSpacing(7)
 
     def _screen_geometry_for(self, widget):
+        """
+        Devuelve la geometría completa de la pantalla.
+
+        Se usa geometry() en lugar de availableGeometry() para que el teclado
+        pueda pegarse hasta abajo de la pantalla física en Raspberry Pi.
+        """
         screen = None
 
         if widget is not None:
             window = widget.window()
+
             if window is not None and window.windowHandle() is not None:
                 screen = window.windowHandle().screen()
 
             if screen is None:
-                screen = QApplication.screenAt(widget.mapToGlobal(widget.rect().center()))
+                try:
+                    screen = QApplication.screenAt(widget.mapToGlobal(widget.rect().center()))
+                except Exception:
+                    screen = None
 
         if screen is None:
             screen = QApplication.primaryScreen()
 
-        return screen.availableGeometry() if screen is not None else QRect(0, 0, 800, 480)
+        if screen is not None:
+            return screen.geometry()
+
+        return QRect(0, 0, 800, 480)
 
     def _dock_geometry(self, widget):
+        """
+        Calcula la posición del teclado pegado a la parte inferior
+        de la pantalla física, no de la ventana o formulario.
+        """
         self._update_responsive_size(widget)
 
         screen_geometry = self._screen_geometry_for(widget)
@@ -658,7 +678,7 @@ class VirtualKeyboard(QWidget):
         margin = 8
         width = screen_geometry.width() - (margin * 2)
         x = screen_geometry.left() + margin
-        y = screen_geometry.bottom() - self.height() - margin
+        y = screen_geometry.top() + screen_geometry.height() - self.height() - margin
 
         return QRect(x, y, width, self.height())
 
@@ -724,12 +744,25 @@ class VirtualKeyboard(QWidget):
         self._newline(target)
 
     def show_with_target(self, widget):
+        """
+        Muestra el teclado para el campo activo.
+
+        Si el teclado ya está visible, no se vuelve a animar.
+        Solo cambia el campo actual y se recoloca abajo.
+        """
+        if widget is None or not self._is_text_widget(widget):
+            return
+
         self.set_target(widget)
-        if not self.isVisible():
-            self.show_with_animation(widget)
-        else:
+        self._hide_requested = False
+        self._keyboard_animation.stop()
+
+        if self.isVisible():
             self._position_keyboard(widget)
             self.raise_()
+            return
+
+        self.show_with_animation(widget)
 
     def _scroll_window_up(self, widget):
         """Desplaza la ventana hacia arriba si el input queda debajo del teclado."""
@@ -951,9 +984,17 @@ class VirtualKeyboardInstaller(QObject):
         self._view_shift_animation.start()
 
     def show_keyboard_for(self, widget):
-        if not self._is_valid_target(widget):
+        if not self._is_text_widget(widget):
             return
 
+        if widget is None or not widget.isVisible() or not widget.isEnabled():
+            return
+
+        window = widget.window()
+        if window is None or not window.isVisible():
+            return
+
+        self._manual_hide = False
         self._delay_close_timer.stop()
         self.keyboard.show_with_target(widget)
 
@@ -966,8 +1007,9 @@ class VirtualKeyboardInstaller(QObject):
 
     def hide_keyboard(self):
         self._delay_close_timer.stop()
-        self.keyboard._hide_requested = True
-        self.keyboard.hide_with_animation()
+        if self.keyboard.isVisible():
+            self.keyboard._hide_requested = True
+            self.keyboard.hide_with_animation()
         self.keyboard.current_widget = None
 
         # Esta parte restaura la vista a su posición original cuando el teclado se oculta.
