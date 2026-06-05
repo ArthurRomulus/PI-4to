@@ -635,19 +635,15 @@ class VirtualKeyboard(QWidget):
             self.rows_layout.setSpacing(7)
 
     def _screen_geometry_for(self, widget):
-        window = widget.window() if widget is not None else self.window()
-
-        if (
-            window is not None
-            and window.windowHandle() is not None
-            and window.windowHandle().screen() is not None
-        ):
-            return window.windowHandle().screen().availableGeometry()
-
         screen = None
 
         if widget is not None:
-            screen = QApplication.screenAt(widget.mapToGlobal(widget.rect().center()))
+            window = widget.window()
+            if window is not None and window.windowHandle() is not None:
+                screen = window.windowHandle().screen()
+
+            if screen is None:
+                screen = QApplication.screenAt(widget.mapToGlobal(widget.rect().center()))
 
         if screen is None:
             screen = QApplication.primaryScreen()
@@ -658,28 +654,18 @@ class VirtualKeyboard(QWidget):
         self._update_responsive_size(widget)
 
         screen_geometry = self._screen_geometry_for(widget)
-        window = widget.window() if widget is not None else None
 
         margin = 8
-        if window is not None and window.isVisible():
-            window_geometry = window.geometry()
-            target_width = window_geometry.width() - margin * 2
-            x = window_geometry.left() + margin
-            y = window_geometry.bottom() - self.height() - margin
-        else:
-            target_width = screen_geometry.width() - margin * 2
-            x = screen_geometry.left() + margin
-            y = screen_geometry.bottom() - self.height() - margin
+        width = screen_geometry.width() - (margin * 2)
+        x = screen_geometry.left() + margin
+        y = screen_geometry.bottom() - self.height() - margin
 
-        width = max(320, min(target_width, screen_geometry.width() - margin * 2))
-        y = min(y, screen_geometry.bottom() - self.height() - margin)
-        y = max(y, screen_geometry.top() + margin)
         return QRect(x, y, width, self.height())
 
     def _animate_show(self, widget):
         end_geometry = self._dock_geometry(widget)
         start_geometry = QRect(end_geometry)
-        start_geometry.moveTop(end_geometry.bottom() + 16)
+        start_geometry.moveTop(end_geometry.bottom() + 25)
 
         self._hide_requested = False
         self._keyboard_animation.stop()
@@ -691,9 +677,13 @@ class VirtualKeyboard(QWidget):
         self._keyboard_animation.start()
 
     def _animate_hide(self):
+        if not self.isVisible():
+            self._hide_requested = False
+            return
+
         start_geometry = QRect(self.geometry())
         end_geometry = QRect(start_geometry)
-        end_geometry.moveTop(start_geometry.bottom() + 16)
+        end_geometry.moveTop(start_geometry.bottom() + 25)
 
         self._keyboard_animation.stop()
         self._keyboard_animation.setStartValue(start_geometry)
@@ -808,8 +798,7 @@ class VirtualKeyboard(QWidget):
         self.animation_timer.start()
 
     def _position_keyboard(self, widget):
-        geometry = self._dock_geometry(widget)
-        self.setGeometry(geometry)
+        self.setGeometry(self._dock_geometry(widget))
 
     def hide_if_needed(self):
         focus_widget = QApplication.focusWidget()
