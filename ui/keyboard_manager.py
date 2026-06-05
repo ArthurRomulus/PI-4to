@@ -490,6 +490,9 @@ class VirtualKeyboard(QWidget):
         if not self.current_widget.isVisible():
             return None
 
+        if not self.current_widget.isEnabled():
+            return None
+
         return self.current_widget if self._is_text_widget(self.current_widget) else None
 
     def set_target(self, widget):
@@ -657,22 +660,26 @@ class VirtualKeyboard(QWidget):
         screen_geometry = self._screen_geometry_for(widget)
         window = widget.window() if widget is not None else None
 
-        if window is not None:
-            window_geometry = window.frameGeometry()
-            target_width = window_geometry.width() - 16
-            x = window_geometry.left() + 8
+        margin = 8
+        if window is not None and window.isVisible():
+            window_geometry = window.geometry()
+            target_width = window_geometry.width() - margin * 2
+            x = window_geometry.left() + margin
+            y = window_geometry.bottom() - self.height() - margin
         else:
-            target_width = screen_geometry.width() - 16
-            x = screen_geometry.left() + 8
+            target_width = screen_geometry.width() - margin * 2
+            x = screen_geometry.left() + margin
+            y = screen_geometry.bottom() - self.height() - margin
 
-        width = max(320, min(target_width, screen_geometry.width() - 16))
-        y = screen_geometry.bottom() - self.height() - 8
+        width = max(320, min(target_width, screen_geometry.width() - margin * 2))
+        y = min(y, screen_geometry.bottom() - self.height() - margin)
+        y = max(y, screen_geometry.top() + margin)
         return QRect(x, y, width, self.height())
 
     def _animate_show(self, widget):
         end_geometry = self._dock_geometry(widget)
         start_geometry = QRect(end_geometry)
-        start_geometry.moveTop(end_geometry.bottom() + 22)
+        start_geometry.moveTop(end_geometry.bottom() + 16)
 
         self._hide_requested = False
         self._keyboard_animation.stop()
@@ -686,7 +693,7 @@ class VirtualKeyboard(QWidget):
     def _animate_hide(self):
         start_geometry = QRect(self.geometry())
         end_geometry = QRect(start_geometry)
-        end_geometry.moveTop(start_geometry.bottom() + 22)
+        end_geometry.moveTop(start_geometry.bottom() + 16)
 
         self._keyboard_animation.stop()
         self._keyboard_animation.setStartValue(start_geometry)
@@ -810,6 +817,10 @@ class VirtualKeyboard(QWidget):
             return
         if focus_widget is not None and self.isAncestorOf(focus_widget):
             return
+        if self.current_widget is not None:
+            active_window = QApplication.activeWindow()
+            if active_window is not None and self.current_widget.window() is not active_window:
+                self.current_widget = None
         if self.isVisible():
             self.hide_with_animation()
         self.current_widget = None
@@ -844,6 +855,22 @@ class VirtualKeyboardInstaller(QObject):
 
     def _is_text_widget(self, obj):
         return isinstance(obj, TEXT_INPUT_WIDGETS)
+
+    def _is_valid_target(self, widget):
+        if widget is None or not self._is_text_widget(widget):
+            return False
+        if not widget.isVisible() or not widget.isEnabled():
+            return False
+
+        window = widget.window()
+        if window is None or not window.isVisible():
+            return False
+
+        active_window = QApplication.activeWindow()
+        if active_window is not None and window is not active_window:
+            return False
+
+        return True
 
     def _ensure_scroll_area_visible(self, widget):
         parent = widget.parentWidget()
@@ -935,7 +962,7 @@ class VirtualKeyboardInstaller(QObject):
         self._view_shift_animation.start()
 
     def show_keyboard_for(self, widget):
-        if not self._is_text_widget(widget):
+        if not self._is_valid_target(widget):
             return
 
         self._delay_close_timer.stop()
@@ -962,11 +989,12 @@ class VirtualKeyboardInstaller(QObject):
             if self._is_text_widget(obj):
                 if self._manual_hide:
                     return False
+                self._delay_close_timer.stop()
                 self.show_keyboard_for(obj)
 
         elif event.type() == QEvent.FocusOut:
             if self._is_text_widget(obj):
-                self._delay_close_timer.start(150)
+                self._delay_close_timer.start(220)
 
         elif event.type() == QEvent.MouseButtonPress:
             if self._manual_hide and self._is_text_widget(obj):
@@ -976,6 +1004,7 @@ class VirtualKeyboardInstaller(QObject):
 
             if self.keyboard.isVisible() and isinstance(obj, QWidget):
                 if self.keyboard.isAncestorOf(obj) or obj is self.keyboard:
+                    self._delay_close_timer.stop()
                     return False
 
                 if self._is_text_widget(obj):
