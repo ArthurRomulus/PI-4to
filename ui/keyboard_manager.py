@@ -611,31 +611,28 @@ class VirtualKeyboard(QWidget):
         screen_height = screen_geometry.height()
         screen_width = screen_geometry.width()
 
-        if screen_height <= 500:
+        window = widget.window() if widget is not None else None
+        window_width = window.width() if window is not None else None
+        window_height = window.height() if window is not None else None
+
+        if (screen_width == 800 and screen_height == 480) or (
+            window_width == 800 and window_height == 480
+        ):
             keyboard_height = 235
             key_height = 36
-        elif screen_height <= 720:
+            self.main_layout.setContentsMargins(8, 6, 8, 8)
+            self.rows_layout.setSpacing(5)
+        else:
             keyboard_height = 285
             key_height = 42
-        else:
-            keyboard_height = 315
-            key_height = 48
-
-        keyboard_height = min(keyboard_height, int(screen_height * 0.48))
-        keyboard_height = max(220, keyboard_height)
+            self.main_layout.setContentsMargins(10, 8, 10, 10)
+            self.rows_layout.setSpacing(7)
 
         self._key_height = key_height
         self.setFixedHeight(keyboard_height)
 
         for button in self.key_buttons:
             button.setFixedHeight(self._key_height)
-
-        if screen_width <= 850:
-            self.main_layout.setContentsMargins(8, 6, 8, 8)
-            self.rows_layout.setSpacing(5)
-        else:
-            self.main_layout.setContentsMargins(10, 8, 10, 10)
-            self.rows_layout.setSpacing(7)
 
     def _screen_geometry_for(self, widget):
         """
@@ -674,10 +671,16 @@ class VirtualKeyboard(QWidget):
         self._update_responsive_size(widget)
 
         screen_geometry = self._screen_geometry_for(widget)
+        window = widget.window() if widget is not None else None
 
         margin = 8
-        width = screen_geometry.width() - (margin * 2)
-        x = screen_geometry.left() + margin
+        if window is not None and window.isVisible():
+            window_geometry = window.geometry()
+            width = window_geometry.width() - (margin * 2)
+            x = window_geometry.left() + margin
+        else:
+            width = screen_geometry.width() - (margin * 2)
+            x = screen_geometry.left() + margin
         y = screen_geometry.top() + screen_geometry.height() - self.height() - margin
 
         return QRect(x, y, width, self.height())
@@ -1025,7 +1028,7 @@ class VirtualKeyboardInstaller(QObject):
 
         elif event.type() == QEvent.FocusOut:
             if self._is_text_widget(obj):
-                self._delay_close_timer.start(220)
+                self._delay_close_timer.start(300)
 
         elif event.type() == QEvent.MouseButtonPress:
             if self._manual_hide and self._is_text_widget(obj):
