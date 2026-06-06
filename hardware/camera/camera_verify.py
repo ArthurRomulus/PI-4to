@@ -4,10 +4,12 @@ Hilo de camara para Raspberry Pi con libcamera (picamera2).
 Deteccion facial y verificacion usando SFace (128-dim).
 """
 
-import numpy as np
-import cv2
+import os
+import pickle
 import time
-import threading
+
+import cv2
+import numpy as np
 
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QImage, QPixmap
@@ -19,50 +21,57 @@ from hardware.face_embedder import (
     cosine_similarity,
     EMBEDDING_DIM,
 )
-from hardware.Motospasopaso import conceder_acceso_motor, indicar_acceso_denegado
-from config import CAMARA_INDEX
+from config import CAMARA_INDEX, DATABASE
 
 HOLD_SECONDS = 1
 FPS_SLEEP_MS = 25
-COSINE_THRESHOLD        = 0.60
-COSINE_THRESHOLD_SINGLE = 0.60
-MIN_MARGIN              = 0.20
+COSINE_THRESHOLD        = 0.55
+COSINE_THRESHOLD_SINGLE = 0.55
+MIN_MARGIN              = 0.10
 
 
 def _cargar_usuarios_db() -> list:
     """Retorna lista de (id_user, nombre, embedding_np) desde la DB."""
     try:
         from database.consultas import obtener_conexion
-        import pickle
 
         conn = obtener_conexion()
         if conn is None:
             return []
 
+        print(f"[CameraThread] DB verificación: {os.path.abspath(DATABASE)}")
+
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT u.id_user, u.name, f.face_encoding
+            SELECT u.id_user, u.name, u.is_active, f.face_encoding
             FROM USERS u
             LEFT JOIN FACIAL_RECORDS f ON u.id_user = f.id_user
             WHERE u.id_user IS NOT NULL
               AND (u.is_active IS NULL OR u.is_active = 1)
         """)
         datos = cursor.fetchall()
+        print(f"[CameraThread] Usuarios cargados: {len(datos)}")
         conn.close()
 
         usuarios = []
         for row in datos:
-            if not row[2]:
+            if not row[3]:
+                print(f"[CameraThread] Usuario sin embedding: id={row[0]} nombre={row[1]} activo={row[2]}")
                 continue
             try:
-                emb = pickle.loads(row[2])
-            except Exception:
+                emb = pickle.loads(row[3])
+            except Exception as e:
+                print(f"[CameraThread] Error leyendo embedding de id={row[0]} nombre={row[1]}: {e}")
                 continue
 
             if not isinstance(emb, np.ndarray):
+                print(f"[CameraThread] Embedding inválido en base de datos para '{row[1]}'")
                 continue
 
             emb = emb.astype(np.float32).flatten()
+            print(
+                f"[CameraThread] Usuario cargado: nombre={row[1]}, activo={row[2]}, embedding_shape={emb.shape}, dtype={emb.dtype}"
+            )
 
             if emb.shape[0] != EMBEDDING_DIM:
                 print(
@@ -72,6 +81,8 @@ def _cargar_usuarios_db() -> list:
                 continue
 
             usuarios.append((row[0], row[1], emb))
+
+        print(f"[CameraThread] Usuarios válidos cargados: {len(usuarios)}")
 
         return usuarios
 
@@ -93,6 +104,10 @@ def _reconocer(embedding_actual: np.ndarray, usuarios: list):
             continue
 
         score = float(cosine_similarity(embedding_actual, emb_db))
+        print(
+            f"[Reconocimiento] Comparando con {nombre}: score={score:.3f} "
+            f"threshold={COSINE_THRESHOLD if len(usuarios) > 1 else COSINE_THRESHOLD_SINGLE}"
+        )
         resultados.append({"id_user": id_user, "nombre": nombre, "score": score})
 
     if not resultados:
@@ -108,8 +123,8 @@ def _reconocer(embedding_actual: np.ndarray, usuarios: list):
     margin       = best_score - second_score if second else best_score
 
     print(
-        "[Reconocimiento] Mejor: {} (score={:.3f}, margin={:.3f})".format(
-            best['nombre'], best_score, margin
+        "[Reconocimiento] Mejor: {} (score={:.3f}, threshold={:.3f}, margin={:.3f})".format(
+            best['nombre'], best_score, COSINE_THRESHOLD if len(resultados) > 1 else COSINE_THRESHOLD_SINGLE, margin
         )
     )
 
@@ -132,7 +147,7 @@ class CameraThread(QThread):
     error_occurred     = pyqtSignal(str)
     face_aligned       = pyqtSignal(bool)
     hold_progress      = pyqtSignal(int)
-    recognition_result = pyqtSignal(bool, str)
+    recognition_result = pyqtSignal(bool, str, str)
 
     def __init__(self, width: int = 400):
         super().__init__()
@@ -146,8 +161,8 @@ class CameraThread(QThread):
         self._hold_frames        = 0
         self._total_frames_needed = int(HOLD_SECONDS * 1000 / FPS_SLEEP_MS)
         self._verification_done  = False
-        self._emb_buffer         = []
         self._display_id         = "unknown"
+        self._verification_stage = "aligning"
 
     def run(self):
         self.running = True
@@ -190,59 +205,57 @@ class CameraThread(QThread):
                     detection["face_distance_ok"] and
                     not detection.get("face_occluded", False)
                 )
+                face_rect = detection.get("face_rect")
                 self.face_aligned.emit(is_aligned)
 
                 if not self._verification_done:
-                    if is_aligned:
-                        self._hold_frames += 1
-                        progress = min(
-                            int(self._hold_frames * 100 / self._total_frames_needed),
-                            100
-                        )
-                        self.hold_progress.emit(progress)
+                    if self._verification_stage == "aligning":
+                        if is_aligned:
+                            self._hold_frames += 1
+                            progress = min(
+                                int(self._hold_frames * 100 / self._total_frames_needed),
+                                100
+                            )
+                            self.hold_progress.emit(progress)
+                            frame = self._draw_progress_arc(frame, detection, progress)
 
-                        if usuarios:
-                            face_rect = detection.get("face_rect")
-                            if face_rect is not None:
+                            if self._hold_frames >= self._total_frames_needed:
+                                self._verification_stage = "recognizing"
+                                self.hold_progress.emit(100)
+
+                                if not usuarios:
+                                    print("[Reconocimiento] No hay usuarios registrados cargados para verificación")
+                                    self._verification_done = True
+                                    self._verification_stage = "finished"
+                                    self._display_id = "unknown"
+                                    self.recognition_result.emit(False, "", "no_users")
+                                    continue
+
                                 emb = extract_embedding(frame, face_rect)
                                 if emb is not None:
-                                    self._emb_buffer.append(emb)
-
-                        frame = self._draw_progress_arc(frame, detection, progress)
-
-                        if self._hold_frames >= self._total_frames_needed:
-                            self._verification_done = True
-                            autorizado, nombre, id_user = False, "", None
-
-                            if usuarios and self._emb_buffer:
-                                arr     = np.array(self._emb_buffer, dtype=np.float32)
-                                emb_avg = arr.mean(axis=0)
-                                print(
-                                    "[CameraThread] Promediando {} embeddings".format(
-                                        len(self._emb_buffer)
+                                    print(
+                                        f"[CameraThread] Embedding verificación shape={emb.shape} dtype={emb.dtype}"
                                     )
-                                )
-                                autorizado, nombre, id_user = _reconocer(emb_avg, usuarios)
 
-                            if autorizado:
-                                threading.Thread(
-                                    target=conceder_acceso_motor, daemon=True
-                                ).start()
-                            else:
-                                threading.Thread(
-                                    target=indicar_acceso_denegado, daemon=True
-                                ).start()
+                                if emb is None:
+                                    print("[Reconocimiento] Embedding inválido en base de datos o no generado")
+                                    self._verification_done = True
+                                    self._verification_stage = "finished"
+                                    self._display_id = "unknown"
+                                    self.recognition_result.emit(False, "", "invalid_embedding")
+                                    continue
 
-                            self._display_id = str(id_user) if id_user is not None else "unknown"
-                            self.recognition_result.emit(autorizado, nombre)
-
-                    else:
-                        if self._hold_frames > 0:
-                            self._hold_frames = max(0, self._hold_frames - 2)
-                            if self._hold_frames == 0:
-                                self._emb_buffer.clear()
-                            progress = int(self._hold_frames * 100 / self._total_frames_needed)
-                            self.hold_progress.emit(progress)
+                                autorizado, nombre, id_user = _reconocer(emb, usuarios)
+                                self._verification_done = True
+                                self._verification_stage = "finished"
+                                self._display_id = str(id_user) if id_user is not None else "unknown"
+                                reason = "authorized" if autorizado else "face_not_recognized"
+                                self.recognition_result.emit(autorizado, nombre, reason)
+                        else:
+                            if self._hold_frames > 0:
+                                self._hold_frames = max(0, self._hold_frames - 2)
+                                progress = int(self._hold_frames * 100 / self._total_frames_needed)
+                                self.hold_progress.emit(progress)
 
                 frame = self.face_detector.draw_face_detection(frame, detection)
                 frame = self._draw_id_label(frame, detection)
@@ -293,32 +306,7 @@ class CameraThread(QThread):
         return frame
 
     def _draw_id_label(self, frame: np.ndarray, detection: dict) -> np.ndarray:
-        """Dibuja ID del usuario."""
-        try:
-            face_rect = detection.get("face_rect")
-            if face_rect is None:
-                return frame
-
-            x, y, w, _ = face_rect
-            label      = "ID: {}".format(self._display_id)
-            font       = cv2.FONT_HERSHEY_SIMPLEX
-            scale      = 0.55
-
-            (tw, th), baseline = cv2.getTextSize(label, font, scale, 1)
-            tx = x + w - tw - 4
-            ty = y - 6
-            if ty - th - 2 < 0:
-                ty = y + th + 4
-
-            if self._display_id == "unknown":
-                bg_color, text_color = (0, 0, 180), (100, 180, 255)
-            else:
-                bg_color, text_color = (0, 140, 0), (180, 255, 180)
-
-            cv2.rectangle(frame, (tx - 3, ty - th - 4), (tx + tw + 3, ty + baseline), bg_color, cv2.FILLED)
-            cv2.putText(frame, label, (tx, ty - 2), font, scale, text_color, 1, cv2.LINE_AA)
-        except Exception:
-            pass
+        """No dibuja overlay de ID."""
         return frame
 
     def stop(self):

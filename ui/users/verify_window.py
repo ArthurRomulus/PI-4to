@@ -460,7 +460,7 @@ class VerifyWindow(QWidget):
                 }}
             """)
 
-    def _on_recognition_result(self, autorizado: bool, nombre: str):
+    def _on_recognition_result(self, autorizado: bool, nombre: str, reason: str = ""):
         """Muestra resultado como letrero en la misma ventana, sin abrir otra."""
         self._result_shown = True
         self._stop_camera()
@@ -468,7 +468,7 @@ class VerifyWindow(QWidget):
         if autorizado:
             # Registrar acceso autorizado en la base de datos
             registrar_acceso(nombre, status="AUTHORIZED")
-            
+
             # Ejecutar el proceso del motor en un hilo para no bloquear la interfaz
             threading.Thread(target=conceder_acceso_motor, daemon=True).start()
 
@@ -488,8 +488,17 @@ class VerifyWindow(QWidget):
 
             # Encender LED rojo al denegar el acceso
             threading.Thread(target=indicar_acceso_denegado, daemon=True).start()
-            
-            self.status_label.setText("❌ ACCESO DENEGADO — USUARIO NO REGISTRADO")
+
+            if reason == "no_users":
+                message = "❌ ACCESO DENEGADO — NO HAY USUARIOS CARGADOS"
+            elif reason == "invalid_embedding":
+                message = "❌ ACCESO DENEGADO — ERROR DE EMBEDDING"
+            elif reason == "face_not_recognized":
+                message = "❌ ACCESO DENEGADO — ROSTRO NO RECONOCIDO"
+            else:
+                message = "❌ ACCESO DENEGADO — ROSTRO NO RECONOCIDO"
+
+            self.status_label.setText(message)
             self.status_label.setStyleSheet(
                 f"color: {COLOR_ERROR}; font-size: 15px; font-weight: bold;"
             )
@@ -507,7 +516,7 @@ class VerifyWindow(QWidget):
         self._countdown_secs = 1
         self.countdown_label.setText("Proximo intento en {} segundos...".format(self._countdown_secs))
         self.countdown_label.setVisible(True)
-        
+
         # Iniciar countdown (timer ya fue creado en _init_timers)
         if self._countdown_timer:
             self._countdown_timer.start(1000)
@@ -597,6 +606,7 @@ class VerifyWindow(QWidget):
         self.status_label.setStyleSheet(
             f"color: {COLOR_IDLE}; font-size: 15px; font-weight: bold;"
         )
+        self.progress_hint.setText("Mantenga el rostro estable 5 segundos")
         self.progress_bar.setValue(0)
         self.progress_bar.setStyleSheet(f"""
             QProgressBar {{ background-color: #1e293b; border-radius: 5px; border: none; }}

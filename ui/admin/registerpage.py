@@ -677,7 +677,15 @@ class RegisterPage(QWidget):
             self._show_message("Usuario duplicado", "El rostro ya está registrado.", "#ff6b7c")
             return
 
+        print("Iniciando registro de usuario desde UI")
+        print(f"Datos del formulario capturados: nombre='{nombre}'")
+        print(
+            f"Embedding generado correctamente: type={type(self._pending_embedding)}, "
+            f"shape={getattr(self._pending_embedding, 'shape', None)}, "
+            f"dtype={getattr(self._pending_embedding, 'dtype', None)}"
+        )
         resultado = guardar_usuario(nombre, self._pending_embedding)
+        print(f"Resultado de guardar_usuario: {resultado}")
         if not resultado:
             print("No se pudo registrar el usuario en la base de datos.")
             self._show_message("Error", "No se pudo guardar el usuario.", "#ff6b7c")

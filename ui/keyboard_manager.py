@@ -927,15 +927,38 @@ class VirtualKeyboardInstaller(QObject):
         return None, None
 
     def _should_overlay_keyboard(self, widget):
-        window = widget.window() if widget is not None else None
+        current = widget
 
-        if window is None:
-            return False
+        overlay_classes = {
+            "LoginWindow",
+            "CreateAdminWindow",
+            "CreateAdminPage",
+            "RegisterPage",
+        }
 
-        window_class = window.__class__.__name__
-        window_module = window.__class__.__module__
+        overlay_modules = (
+            "ui.admin.login_window",
+            "ui.admin.create_admin_window",
+            "ui.admin.registerpage",
+        )
 
-        return window_class == "LoginWindow" and "ui.admin.login_window" in window_module
+        while current is not None:
+            current_class = current.__class__.__name__
+            current_module = current.__class__.__module__
+            current_object_name = current.objectName() if hasattr(current, "objectName") else ""
+
+            if current_class in overlay_classes:
+                return True
+
+            if current_object_name in {"RegisterPage", "CreateAdminPage"}:
+                return True
+
+            if any(module_name in current_module for module_name in overlay_modules):
+                return True
+
+            current = current.parentWidget()
+
+        return False
 
     def _attach_keyboard(self, widget):
         if self._should_overlay_keyboard(widget):
@@ -1049,6 +1072,10 @@ class VirtualKeyboardInstaller(QObject):
             self._view_shift_offset = offset
 
     def _animate_view_shift(self, widget, offset):
+        if self._should_overlay_keyboard(widget):
+            self._restore_view_shift(immediate=True)
+            return
+
         if self._ensure_scroll_area_visible(widget):
             self._restore_view_shift(immediate=True)
             return

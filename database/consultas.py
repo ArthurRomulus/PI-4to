@@ -159,6 +159,8 @@ def obtener_rol_por_nombre(role_name):
 def guardar_usuario(nombre, embedding, account_number=None, id_role=None):
     """Guarda un nuevo usuario con su embedding facial."""
     try:
+        print("[DB] Iniciando registro de usuario")
+        print(f"[DB] Usando base de datos: {os.path.abspath(DATABASE)}")
         conn = obtener_conexion()
         if conn is None:
             return False
@@ -180,6 +182,11 @@ def guardar_usuario(nombre, embedding, account_number=None, id_role=None):
                 id_role = crear_rol("usuario")
         
         # Insertar usuario en tabla USERS
+        print(f"[DB] Insertando usuario: nombre={nombre}, id_role={id_role}, account_number={account_number}")
+        print(
+            f"[DB] Embedding registro shape={getattr(embedding, 'shape', None)} "
+            f"dtype={getattr(embedding, 'dtype', None)}"
+        )
         cursor.execute(
             "INSERT INTO USERS (id_role, name, account_number) VALUES (?, ?, ?)",
             (id_role, nombre, account_number)
@@ -187,9 +194,16 @@ def guardar_usuario(nombre, embedding, account_number=None, id_role=None):
         user_id = cursor.lastrowid
         
         # Insertar embedding en tabla FACIAL_RECORDS
+        try:
+            emb_blob = pickle.dumps(embedding)
+        except Exception as e:
+            print(f"[DB] Error serializando embedding: {e}")
+            conn.close()
+            return False
+
         cursor.execute(
             "INSERT INTO FACIAL_RECORDS (id_user, face_encoding) VALUES (?, ?)",
-            (user_id, pickle.dumps(embedding))
+            (user_id, emb_blob)
         )
         
         conn.commit()
