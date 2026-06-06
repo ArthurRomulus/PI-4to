@@ -934,12 +934,16 @@ class VirtualKeyboardInstaller(QObject):
             "CreateAdminWindow",
             "CreateAdminPage",
             "RegisterPage",
+            "ChangePasswordWindow",
+            "ForgotPasswordWindow",
         }
 
         overlay_modules = (
             "ui.admin.login_window",
             "ui.admin.create_admin_window",
             "ui.admin.registerpage",
+            "ui.admin.change_password_window",
+            "ui.admin.forgot_password_window",
         )
 
         while current is not None:

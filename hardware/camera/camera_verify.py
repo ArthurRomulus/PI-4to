@@ -248,15 +248,21 @@ class CameraThread(QThread):
                                 self.hold_progress.emit(progress)
 
                     elif self._verification_stage == "movement":
-                        if not is_aligned or face_rect is None:
+                        if face_rect is None:
                             self._missing_face_frames += 1
-                            if self._missing_face_frames >= 5:
+                            liveness = self._liveness_detector.update(None, None)
+                            self._emit_liveness_message(liveness["message"])
+
+                            if self._missing_face_frames >= self._liveness_detector.lost_face_max_frames:
                                 self._missing_face_frames = 0
-                                self._emit_liveness_message("Coloque su rostro al centro")
+                                self._verification_done = True
+                                self._verification_stage = "finished"
+                                self._display_id = "unknown"
+                                self.recognition_result.emit(False, "", "no_head_movement")
+                                continue
+
                             self._liveness_passed = False
 
-                            liveness = self._liveness_detector.update(None, frame.shape)
-                            self._emit_liveness_message(liveness["message"])
                             if liveness["reason"] == "timeout":
                                 self._verification_done = True
                                 self._verification_stage = "finished"
@@ -265,13 +271,20 @@ class CameraThread(QThread):
                                 continue
                         else:
                             self._missing_face_frames = 0
-                            liveness = self._liveness_detector.update(face_rect, frame.shape)
+                            liveness = self._liveness_detector.update(frame, face_rect)
                             self._emit_liveness_message(liveness["message"])
 
                             if liveness["passed"]:
                                 self._liveness_passed = True
                                 self._verification_stage = "recognizing"
                                 self._emit_liveness_message("Movimiento verificado. Verificando identidad...")
+
+                            elif liveness["reason"] == "possible_photo":
+                                self._verification_done = True
+                                self._verification_stage = "finished"
+                                self._display_id = "unknown"
+                                self.recognition_result.emit(False, "", "possible_photo")
+                                continue
 
                             elif liveness["reason"] == "timeout":
                                 self._verification_done = True

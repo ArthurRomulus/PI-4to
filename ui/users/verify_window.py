@@ -195,6 +195,7 @@ class VerifyWindow(QWidget):
         self._countdown_secs = 0
         self._inactivity_timer = None
         self._liveness_active = False
+        self._access_granted = False
 
         self.setWindowTitle("Verificación Biométrica")
         self.setMinimumSize(480, 760)
@@ -480,6 +481,7 @@ class VerifyWindow(QWidget):
         """Muestra resultado como letrero en la misma ventana, sin abrir otra."""
         self._result_shown = True
         self._liveness_active = False
+        self._access_granted = autorizado
         self._stop_camera()
 
         if autorizado:
@@ -508,6 +510,8 @@ class VerifyWindow(QWidget):
 
             if reason == "no_head_movement":
                 message = "❌ ACCESO DENEGADO — NO SE DETECTÓ MOVIMIENTO"
+            elif reason == "possible_photo":
+                message = "❌ ACCESO DENEGADO — POSIBLE FOTO DETECTADA"
             elif reason == "no_users":
                 message = "❌ ACCESO DENEGADO — NO HAY USUARIOS CARGADOS"
             elif reason == "invalid_embedding":
@@ -532,8 +536,11 @@ class VerifyWindow(QWidget):
         self._mostrar_banner(autorizado, nombre)
 
         # Countdown para quitar el banner rápido — la ventana NO se cierra
-        self._countdown_secs = 1
-        self.countdown_label.setText("Proximo intento en {} segundos...".format(self._countdown_secs))
+        self._countdown_secs = 3
+        if autorizado:
+            self.countdown_label.setText("Regresando al inicio en {} segundos...".format(self._countdown_secs))
+        else:
+            self.countdown_label.setText("Proximo intento en {} segundos...".format(self._countdown_secs))
         self.countdown_label.setVisible(True)
 
         # Iniciar countdown (timer ya fue creado en _init_timers)
@@ -573,12 +580,20 @@ class VerifyWindow(QWidget):
         if self._countdown_secs <= 0:
             if self._countdown_timer:
                 self._countdown_timer.stop()
-            # Solo quitar el banner y reiniciar — NO cerrar la ventana
-            self._limpiar_resultado()
+            if self._access_granted:
+                self.close_window()
+            else:
+                # Solo quitar el banner y reiniciar — NO cerrar la ventana
+                self._limpiar_resultado()
         else:
-            self.countdown_label.setText(
-                f"Proximo intento en {self._countdown_secs} segundos..."
-            )
+            if self._access_granted:
+                self.countdown_label.setText(
+                    f"Regresando al inicio en {self._countdown_secs} segundos..."
+                )
+            else:
+                self.countdown_label.setText(
+                    f"Proximo intento en {self._countdown_secs} segundos..."
+                )
 
     def _limpiar_resultado(self):
         """Quita el banner y el countdown, reinicia la cámara en la misma ventana."""
@@ -621,6 +636,7 @@ class VerifyWindow(QWidget):
 
         self._result_shown = False
         self._liveness_active = False
+        self._access_granted = False
         self._set_border_color(COLOR_IDLE)
         self.status_label.setText("COLOQUE SU ROSTRO EN EL ÓVALO")
         self.status_label.setStyleSheet(
@@ -640,6 +656,7 @@ class VerifyWindow(QWidget):
         self._stop_inactivity_timer()
         self._stop_camera()
         self._liveness_active = False
+        self._access_granted = False
         self.countdown_label.setVisible(False)
         if self._result_banner:
             self._result_banner.deleteLater()
@@ -658,6 +675,7 @@ class VerifyWindow(QWidget):
             self._countdown_timer.stop()
         self._stop_inactivity_timer()
         self._liveness_active = False
+        self._access_granted = False
         if self.main_window:
             self.main_window.show()
         self.close()
@@ -668,4 +686,5 @@ class VerifyWindow(QWidget):
             self._countdown_timer.stop()
         self._stop_inactivity_timer()
         self._liveness_active = False
+        self._access_granted = False
         event.accept()
