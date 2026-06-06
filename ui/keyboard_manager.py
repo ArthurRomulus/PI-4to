@@ -663,7 +663,7 @@ class VirtualKeyboard(QWidget):
 
         if parent is not None:
             margin_x = 8
-            bottom_margin = 40
+            bottom_margin = self._overlay_bottom_margin(widget)
 
             width = max(320, parent.width() - (margin_x * 2))
             x = margin_x
@@ -675,6 +675,27 @@ class VirtualKeyboard(QWidget):
             return QRect(x, y, width, self.height())
 
         return self._dock_geometry(widget)
+
+    def _overlay_bottom_margin(self, widget):
+        window = widget.window() if widget is not None else None
+
+        if window is not None:
+            window_class = window.__class__.__name__
+            window_module = window.__class__.__module__
+
+            if window_class in {"ChangePasswordWindow", "ForgotPasswordWindow"}:
+                return 84
+
+            if any(
+                module_name in window_module
+                for module_name in (
+                    "ui.admin.change_password_window",
+                    "ui.admin.forgot_password_window",
+                )
+            ):
+                return 84
+
+        return 40
 
     def _animate_show(self, widget):
         end_geometry = self._overlay_end_geometry(widget)
