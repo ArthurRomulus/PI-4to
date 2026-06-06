@@ -221,6 +221,28 @@ def mover_motor_pasos(pasos=PASOS_180, delay=0.003, sentido=1):
         apagar_salidas_motor()
 
 
+def mover_motor_por_tiempo(duracion=5.0, delay=0.003, sentido=1):
+    if not _ensure_gpio_ready():
+        print(f"Mock: moviendo motor durante {duracion} segundos (simulado)")
+        time.sleep(duracion)
+        return
+
+    inicio = time.monotonic()
+    secuencia = step_sequence if sentido >= 0 else list(reversed(step_sequence))
+
+    try:
+        while time.monotonic() - inicio < duracion:
+            for estado in secuencia:
+                _salida_paso(estado)
+                time.sleep(delay)
+                if time.monotonic() - inicio >= duracion:
+                    break
+    except Exception as e:
+        print(f"Error moviendo motor por tiempo: {e}")
+    finally:
+        apagar_salidas_motor()
+
+
 def detectar_movimiento(tiempo=5):
     if not _ensure_gpio_ready():
         return False
@@ -254,16 +276,16 @@ def conceder_acceso_motor():
         return
 
     try:
-        print("Acceso concedido. Puedes girar.")
+        print("Acceso concedido. Motor activo durante 5 segundos.")
         indicar_acceso_concedido()
-        mover_motor_pasos(pasos=PASOS_180)
+        mover_motor_por_tiempo(duracion=5.0)
         apagar_led_verde()
     finally:
         _motor_lock.release()
 
 
 def abrir_torniquete_180():
-    """Abre el torniquete con un giro de 180 grados."""
+    """Abre el torniquete manteniendo el motor activo durante 5 segundos."""
     conceder_acceso_motor()
 
 

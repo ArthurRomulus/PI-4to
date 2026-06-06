@@ -194,6 +194,7 @@ class VerifyWindow(QWidget):
         self._countdown_timer = None
         self._countdown_secs = 0
         self._inactivity_timer = None
+        self._liveness_active = False
 
         self.setWindowTitle("Verificación Biométrica")
         self.setMinimumSize(480, 760)
@@ -416,6 +417,7 @@ class VerifyWindow(QWidget):
         self.camera_thread.error_occurred.connect(self._on_error)
         self.camera_thread.face_aligned.connect(self._on_face_aligned)
         self.camera_thread.hold_progress.connect(self._on_hold_progress)
+        self.camera_thread.liveness_status.connect(self._on_liveness_status)
         self.camera_thread.recognition_result.connect(self._on_recognition_result)
         self.camera_thread.start()
 
@@ -429,6 +431,9 @@ class VerifyWindow(QWidget):
 
     def _on_face_aligned(self, is_aligned: bool):
         if self._result_shown:
+            return
+
+        if getattr(self, "_liveness_active", False):
             return
 
         if is_aligned:
@@ -460,9 +465,21 @@ class VerifyWindow(QWidget):
                 }}
             """)
 
+    def _on_liveness_status(self, message: str):
+        if self._result_shown:
+            return
+
+        self._liveness_active = True
+        self.status_label.setText(message)
+        self.status_label.setStyleSheet(
+            f"color: {COLOR_IDLE}; font-size: 15px; font-weight: bold;"
+        )
+        self.progress_hint.setText(message)
+
     def _on_recognition_result(self, autorizado: bool, nombre: str, reason: str = ""):
         """Muestra resultado como letrero en la misma ventana, sin abrir otra."""
         self._result_shown = True
+        self._liveness_active = False
         self._stop_camera()
 
         if autorizado:
@@ -489,7 +506,9 @@ class VerifyWindow(QWidget):
             # Encender LED rojo al denegar el acceso
             threading.Thread(target=indicar_acceso_denegado, daemon=True).start()
 
-            if reason == "no_users":
+            if reason == "no_head_movement":
+                message = "❌ ACCESO DENEGADO — NO SE DETECTÓ MOVIMIENTO"
+            elif reason == "no_users":
                 message = "❌ ACCESO DENEGADO — NO HAY USUARIOS CARGADOS"
             elif reason == "invalid_embedding":
                 message = "❌ ACCESO DENEGADO — ERROR DE EMBEDDING"
@@ -601,6 +620,7 @@ class VerifyWindow(QWidget):
         self.countdown_label.setVisible(False)
 
         self._result_shown = False
+        self._liveness_active = False
         self._set_border_color(COLOR_IDLE)
         self.status_label.setText("COLOQUE SU ROSTRO EN EL ÓVALO")
         self.status_label.setStyleSheet(
@@ -619,6 +639,7 @@ class VerifyWindow(QWidget):
             self._countdown_timer.stop()
         self._stop_inactivity_timer()
         self._stop_camera()
+        self._liveness_active = False
         self.countdown_label.setVisible(False)
         if self._result_banner:
             self._result_banner.deleteLater()
@@ -636,6 +657,7 @@ class VerifyWindow(QWidget):
         if self._countdown_timer:
             self._countdown_timer.stop()
         self._stop_inactivity_timer()
+        self._liveness_active = False
         if self.main_window:
             self.main_window.show()
         self.close()
@@ -645,4 +667,5 @@ class VerifyWindow(QWidget):
         if self._countdown_timer:
             self._countdown_timer.stop()
         self._stop_inactivity_timer()
+        self._liveness_active = False
         event.accept()

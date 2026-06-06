@@ -1,7 +1,7 @@
 import os
 
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QPixmap, QColor, QFont, QIcon
+from PyQt5.QtGui import QPixmap, QColor, QFont, QIcon, QPainter
 from PyQt5.QtWidgets import (
     QFrame,
     QLabel,
@@ -44,14 +44,31 @@ def asset_path(filename):
     return fallback
 
 
+def white_icon_pixmap(path, size):
+    pix = QPixmap(path)
+    if pix.isNull():
+        return QPixmap()
+
+    scaled = pix.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    tinted = QPixmap(scaled.size())
+    tinted.fill(Qt.transparent)
+
+    painter = QPainter(tinted)
+    painter.drawPixmap(0, 0, scaled)
+    painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+    painter.fillRect(tinted.rect(), QColor(248, 250, 252))
+    painter.end()
+    return tinted
+
+
 class GlassCard(QFrame):
     def __init__(self):
         super().__init__()
         self.setStyleSheet("""
             QFrame {
-                background: rgba(255, 255, 255, 0.22);
-                border: 1px solid rgba(255, 255, 255, 0.18);
-                border-radius: 34px;
+                background-color: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 28px;
             }
         """)
 
@@ -64,32 +81,25 @@ class GradientButton(QPushButton):
         self.setStyleSheet("""
             QPushButton {
                 border: none;
-                border-radius: 27px;
+                border-radius: 12px;
                 color: white;
-                font-size: 18px;
+                font-size: 16px;
                 font-weight: 800;
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #8A1FE3,
-                    stop:1 #B96FEF
-                );
+                padding: 12px;
+                background-color: #2563eb;
             }
             QPushButton:hover {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #7B19D2,
-                    stop:1 #AB5EEB
-                );
+                background-color: #3b82f6;
             }
             QPushButton:pressed {
-                padding-top: 1px;
+                background-color: #1d4ed8;
             }
         """)
 
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(28)
-        shadow.setOffset(0, 10)
-        shadow.setColor(QColor(128, 55, 196, 95))
+        shadow.setBlurRadius(18)
+        shadow.setOffset(0, 6)
+        shadow.setColor(QColor(15, 23, 42, 110))
         self.setGraphicsEffect(shadow)
 
 
@@ -99,9 +109,9 @@ class PasswordInput(QFrame):
         self.setFixedHeight(60)
         self.setStyleSheet("""
             QFrame {
-                background: rgba(255, 255, 255, 0.82);
-                border: 1px solid rgba(140, 95, 180, 0.18);
-                border-radius: 18px;
+                background-color: #0f172a;
+                border: 2px solid #334155;
+                border-radius: 12px;
             }
         """)
 
@@ -116,11 +126,9 @@ class PasswordInput(QFrame):
 
         left_icon_file = asset_path(left_icon_name)
         if os.path.exists(left_icon_file):
-            pix = QPixmap(left_icon_file)
+            pix = white_icon_pixmap(left_icon_file, 18)
             if not pix.isNull():
-                self.icon_label.setPixmap(
-                    pix.scaled(18, 18, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                )
+                self.icon_label.setPixmap(pix)
             else:
                 self.icon_label.setText("🔒")
         else:
@@ -130,6 +138,8 @@ class PasswordInput(QFrame):
             QLabel {
                 background: transparent;
                 border: none;
+                color: #f8fafc;
+                font-size: 18px;
             }
         """)
 
@@ -140,12 +150,12 @@ class PasswordInput(QFrame):
             QLineEdit {
                 background: transparent;
                 border: none;
-                color: #5D4E6F;
+                color: #f8fafc;
                 font-size: 15px;
                 font-weight: 600;
             }
             QLineEdit::placeholder {
-                color: #9D92AB;
+                color: #94a3b8;
             }
         """)
 
@@ -161,11 +171,21 @@ class PasswordInput(QFrame):
 
         eye_icon_file = asset_path(eye_icon_name)
         if os.path.exists(eye_icon_file):
-            icon = QIcon(eye_icon_file)
+            eye_pix = white_icon_pixmap(eye_icon_file, 18)
+            icon = QIcon(eye_pix) if not eye_pix.isNull() else QIcon(eye_icon_file)
             self.toggle_btn.setIcon(icon)
             self.toggle_btn.setIconSize(QSize(18, 18))
         else:
             self.toggle_btn.setText("👁")
+
+        self.toggle_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                color: #f8fafc;
+                font-size: 18px;
+            }
+        """)
 
         self.toggle_btn.clicked.connect(self.toggle_password)
 
@@ -191,7 +211,7 @@ class ChangePasswordWindow(QMainWindow):
         self.setCentralWidget(central)
         central.setStyleSheet("""
             QWidget {
-                background: #19161F;
+                background: #0f172a;
             }
         """)
 
@@ -204,13 +224,7 @@ class ChangePasswordWindow(QMainWindow):
         self.page.setStyleSheet("""
             QFrame#page {
                 border-radius: 18px;
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:1,
-                    stop:0   #8D3CF0,
-                    stop:0.35 #B363F1,
-                    stop:0.7  #C28AF5,
-                    stop:1   #9B4EF0
-                );
+                background-color: #0f172a;
             }
         """)
 
@@ -227,12 +241,8 @@ class ChangePasswordWindow(QMainWindow):
         icon_circle.setAlignment(Qt.AlignCenter)
         icon_circle.setStyleSheet("""
             QLabel {
-                background: qradialgradient(
-                    cx:0.5, cy:0.45, radius:0.9,
-                    stop:0 rgba(255,255,255,0.22),
-                    stop:1 rgba(255,255,255,0.08)
-                );
-                border: 2px solid rgba(255,255,255,0.12);
+                background-color: #1e293b;
+                border: 2px solid #334155;
                 border-radius: 60px;
             }
         """)
@@ -256,9 +266,9 @@ class ChangePasswordWindow(QMainWindow):
         card.setFixedHeight(560)
 
         card_shadow = QGraphicsDropShadowEffect(card)
-        card_shadow.setBlurRadius(34)
+        card_shadow.setBlurRadius(28)
         card_shadow.setOffset(0, 10)
-        card_shadow.setColor(QColor(46, 16, 76, 70))
+        card_shadow.setColor(QColor(15, 23, 42, 120))
         card.setGraphicsEffect(card_shadow)
 
         page_layout.addWidget(card)
@@ -271,8 +281,8 @@ class ChangePasswordWindow(QMainWindow):
         title = QLabel("Cambiar Contraseña")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
-            color: white;
-            font-size: 26px;
+            color: #f8fafc;
+            font-size: 24px;
             font-weight: 800;
             background: transparent;
             border: none;
@@ -281,7 +291,7 @@ class ChangePasswordWindow(QMainWindow):
         subtitle = QLabel("Ingrese su nueva contraseña\ny confírmela para continuar.")
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("""
-            color: #4B3E60;
+            color: #94a3b8;
             font-size: 14px;
             font-weight: 600;
             line-height: 1.5;
@@ -308,15 +318,17 @@ class ChangePasswordWindow(QMainWindow):
         back_btn.setCursor(Qt.PointingHandCursor)
         back_btn.setStyleSheet("""
             QPushButton {
-                background: transparent;
-                border: none;
-                color: #5B4A71;
-                font-size: 14px;
-                font-weight: 700;
+                background-color: #312e81;
+                border: 2px solid #6366f1;
+                border-radius: 12px;
+                color: #e0e7ff;
+                font-size: 15px;
+                font-weight: bold;
+                padding: 10px 16px;
             }
             QPushButton:hover {
-                color: #3E3150;
-                text-decoration: underline;
+                border-color: #8b5cf6;
+                color: #c4b5fd;
             }
         """)
         back_btn.clicked.connect(self.go_back)

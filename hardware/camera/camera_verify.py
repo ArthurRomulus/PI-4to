@@ -16,6 +16,7 @@ from PyQt5.QtGui import QImage, QPixmap
 
 from hardware.face_detection import FaceDetector
 from hardware.camera.webcam_manager import WebcamManager
+from hardware.camera.head_movement_liveness import HeadMovementLivenessDetector
 from hardware.face_embedder import (
     extract_embedding,
     cosine_similarity,
@@ -147,6 +148,7 @@ class CameraThread(QThread):
     error_occurred     = pyqtSignal(str)
     face_aligned       = pyqtSignal(bool)
     hold_progress      = pyqtSignal(int)
+    liveness_status    = pyqtSignal(str)
     recognition_result = pyqtSignal(bool, str, str)
 
     def __init__(self, width: int = 400):
@@ -163,6 +165,10 @@ class CameraThread(QThread):
         self._verification_done  = False
         self._display_id         = "unknown"
         self._verification_stage = "aligning"
+        self._liveness_passed    = False
+        self._liveness_detector  = HeadMovementLivenessDetector()
+        self._missing_face_frames = 0
+        self._last_liveness_message = ""
 
     def run(self):
         self.running = True
@@ -220,7 +226,11 @@ class CameraThread(QThread):
                             frame = self._draw_progress_arc(frame, detection, progress)
 
                             if self._hold_frames >= self._total_frames_needed:
-                                self._verification_stage = "recognizing"
+                                self._verification_stage = "movement"
+                                self._liveness_passed = False
+                                self._liveness_detector.reset()
+                                self._missing_face_frames = 0
+                                self._emit_liveness_message("Coloque su rostro al centro")
                                 self.hold_progress.emit(100)
 
                                 if not usuarios:
@@ -231,31 +241,74 @@ class CameraThread(QThread):
                                     self.recognition_result.emit(False, "", "no_users")
                                     continue
 
-                                emb = extract_embedding(frame, face_rect)
-                                if emb is not None:
-                                    print(
-                                        f"[CameraThread] Embedding verificación shape={emb.shape} dtype={emb.dtype}"
-                                    )
-
-                                if emb is None:
-                                    print("[Reconocimiento] Embedding inválido en base de datos o no generado")
-                                    self._verification_done = True
-                                    self._verification_stage = "finished"
-                                    self._display_id = "unknown"
-                                    self.recognition_result.emit(False, "", "invalid_embedding")
-                                    continue
-
-                                autorizado, nombre, id_user = _reconocer(emb, usuarios)
-                                self._verification_done = True
-                                self._verification_stage = "finished"
-                                self._display_id = str(id_user) if id_user is not None else "unknown"
-                                reason = "authorized" if autorizado else "face_not_recognized"
-                                self.recognition_result.emit(autorizado, nombre, reason)
                         else:
                             if self._hold_frames > 0:
                                 self._hold_frames = max(0, self._hold_frames - 2)
                                 progress = int(self._hold_frames * 100 / self._total_frames_needed)
                                 self.hold_progress.emit(progress)
+
+                    elif self._verification_stage == "movement":
+                        if not is_aligned or face_rect is None:
+                            self._missing_face_frames += 1
+                            if self._missing_face_frames >= 5:
+                                self._missing_face_frames = 0
+                                self._emit_liveness_message("Coloque su rostro al centro")
+                            self._liveness_passed = False
+
+                            liveness = self._liveness_detector.update(None, frame.shape)
+                            self._emit_liveness_message(liveness["message"])
+                            if liveness["reason"] == "timeout":
+                                self._verification_done = True
+                                self._verification_stage = "finished"
+                                self._display_id = "unknown"
+                                self.recognition_result.emit(False, "", "no_head_movement")
+                                continue
+                        else:
+                            self._missing_face_frames = 0
+                            liveness = self._liveness_detector.update(face_rect, frame.shape)
+                            self._emit_liveness_message(liveness["message"])
+
+                            if liveness["passed"]:
+                                self._liveness_passed = True
+                                self._verification_stage = "recognizing"
+                                self._emit_liveness_message("Movimiento verificado. Verificando identidad...")
+
+                            elif liveness["reason"] == "timeout":
+                                self._verification_done = True
+                                self._verification_stage = "finished"
+                                self._display_id = "unknown"
+                                self.recognition_result.emit(False, "", "no_head_movement")
+                                continue
+
+                        if self._liveness_passed:
+                            if not usuarios:
+                                print("[Reconocimiento] No hay usuarios registrados cargados para verificación")
+                                self._verification_done = True
+                                self._verification_stage = "finished"
+                                self._display_id = "unknown"
+                                self.recognition_result.emit(False, "", "no_users")
+                                continue
+
+                            emb = extract_embedding(frame, face_rect)
+                            if emb is not None:
+                                print(
+                                    f"[CameraThread] Embedding verificación shape={emb.shape} dtype={emb.dtype}"
+                                )
+
+                            if emb is None:
+                                print("[Reconocimiento] Embedding inválido en base de datos o no generado")
+                                self._verification_done = True
+                                self._verification_stage = "finished"
+                                self._display_id = "unknown"
+                                self.recognition_result.emit(False, "", "invalid_embedding")
+                                continue
+
+                            autorizado, nombre, id_user = _reconocer(emb, usuarios)
+                            self._verification_done = True
+                            self._verification_stage = "finished"
+                            self._display_id = str(id_user) if id_user is not None else "unknown"
+                            reason = "authorized" if autorizado else "face_not_recognized"
+                            self.recognition_result.emit(autorizado, nombre, reason)
 
                 frame = self.face_detector.draw_face_detection(frame, detection)
                 frame = self._draw_id_label(frame, detection)
@@ -284,6 +337,11 @@ class CameraThread(QThread):
             except Exception:
                 pass
             self.webcam = None
+
+    def _emit_liveness_message(self, message: str):
+        if message != self._last_liveness_message:
+            self._last_liveness_message = message
+            self.liveness_status.emit(message)
 
     def _draw_progress_arc(self, frame: np.ndarray, detection: dict, progress: int) -> np.ndarray:
         """Dibuja arco de progreso."""

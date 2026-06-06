@@ -2,7 +2,7 @@ import os
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QListView
-from PyQt5.QtGui import QPixmap, QFont
+from PyQt5.QtGui import QPixmap, QFont, QColor, QPainter, QIcon
 from PyQt5.QtWidgets import (
     QFrame, QLabel, QVBoxLayout, QWidget, QPushButton,
     QMainWindow, QHBoxLayout, QLineEdit, QMessageBox,
@@ -22,14 +22,32 @@ def asset_path(filename):
     return os.path.join(BASE_DIR, "assets", filename)
 
 
+def white_icon_pixmap(path, size):
+    pix = QPixmap(path)
+    if pix.isNull():
+        return QPixmap()
+
+    scaled = pix.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    tinted = QPixmap(scaled.size())
+    tinted.fill(Qt.transparent)
+
+    painter = QPainter(tinted)
+    painter.drawPixmap(0, 0, scaled)
+    painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+    painter.fillRect(tinted.rect(), QColor(248, 250, 252))
+    painter.end()
+    return tinted
+
+
 # ---------------- CARD ----------------
 class GlassCard(QFrame):
     def __init__(self):
         super().__init__()
         self.setStyleSheet("""
             QFrame {
-                background: rgba(255,255,255,0.18);
-                border-radius: 34px;
+                background-color: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 28px;
             }
         """)
 
@@ -42,8 +60,9 @@ class InputField(QFrame):
 
         self.setStyleSheet("""
             QFrame {
-                background: rgba(255,255,255,0.85);
-                border-radius: 18px;
+                background-color: #0f172a;
+                border: 2px solid #334155;
+                border-radius: 12px;
             }
         """)
 
@@ -64,23 +83,36 @@ class InputField(QFrame):
 
         img = asset_path("pet.png")
         if os.path.exists(img):
-            pix = QPixmap(img).scaled(
-                20, 20,
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation
-            )
-            icon.setPixmap(pix)
+            pix = white_icon_pixmap(img, 20)
+            if not pix.isNull():
+                icon.setPixmap(pix)
+            else:
+                icon.setText("👤")
+        else:
+            icon.setText("👤")
+
+        icon.setStyleSheet("""
+            QLabel {
+                color: #f8fafc;
+                font-size: 18px;
+                background: transparent;
+                border: none;
+            }
+        """)
 
         self.input = QLineEdit()
         self.input.setPlaceholderText(placeholder)
         self.input.setStyleSheet("""
             QLineEdit {
-                border:none;
-                background:transparent;
-                font-size:15px;
-                font-weight:600;
-                color:#5D4E6F;
+                border: none;
+                background: transparent;
+                font-size: 15px;
+                font-weight: 600;
+                color: #f8fafc;
                 padding-left: 8px;
+            }
+            QLineEdit::placeholder {
+                color: #94a3b8;
             }
         """)
 
@@ -96,8 +128,9 @@ class QuestionSelector(QFrame):
 
         self.setStyleSheet("""
             QFrame {
-                background: rgba(255,255,255,0.25);
-                border-radius:18px;
+                background-color: #0f172a;
+                border: 2px solid #334155;
+                border-radius: 12px;
             }
         """)
 
@@ -111,11 +144,11 @@ class QuestionSelector(QFrame):
 
         self.combo.setStyleSheet("""
             QComboBox {
-                border:none;
-                background:transparent;
-                color:white;
-                font-size:15px;
-                font-weight:600;
+                border: none;
+                background: transparent;
+                color: #f8fafc;
+                font-size: 15px;
+                font-weight: 600;
                 padding: 10px;
             }
 
@@ -130,12 +163,12 @@ class QuestionSelector(QFrame):
 
             /*  DROPDOWN PREMIUM REAL */
             QComboBox QAbstractItemView {
-                background-color: #1A1035;
+                background-color: #1e293b;
                 border-radius: 12px;
                 padding: 6px;
-                color: white;
+                color: #f8fafc;
                 outline: none;
-                border: 1px solid rgba(255,255,255,0.08);
+                border: 1px solid #334155;
             }
 
             /* ITEMS */
@@ -148,19 +181,19 @@ class QuestionSelector(QFrame):
 
             /* HOVER SUAVE */
             QComboBox QAbstractItemView::item:hover {
-                background: rgba(138, 31, 227, 0.35);
+                background: rgba(59, 130, 246, 0.35);
             }
 
             /*  SELECCIONADO */
             QComboBox QAbstractItemView::item:selected {
-                background: #8A1FE3;
+                background: #2563eb;
                 color: white;
             }
 
             /*  QUITAR AZUL DEL SISTEMA */
             QComboBox QAbstractItemView::item:focus {
                 outline: none;
-                background: #8A1FE3;
+                background: #2563eb;
             }
 
             /*  SCROLL LIMPIO */
@@ -170,12 +203,12 @@ class QuestionSelector(QFrame):
             }
 
             QScrollBar::handle:vertical {
-                background: rgba(255,255,255,0.3);
+                background: rgba(148, 163, 184, 0.5);
                 border-radius: 2px;
             }
 
             QScrollBar::handle:vertical:hover {
-                background: rgba(255,255,255,0.6);
+                background: rgba(59, 130, 246, 0.7);
             }
         """)
 
@@ -194,7 +227,7 @@ class ForgotPasswordWindow(QMainWindow):
 
         central = QWidget()
         self.setCentralWidget(central)
-        central.setStyleSheet("background:#19161F;")
+        central.setStyleSheet("background:#0f172a;")
 
         root = QVBoxLayout(central)
         root.setContentsMargins(8,8,8,8)
@@ -203,11 +236,7 @@ class ForgotPasswordWindow(QMainWindow):
         page.setStyleSheet("""
             QFrame {
                 border-radius:18px;
-                background:qlineargradient(
-                    x1:0,y1:0,x2:1,y2:1,
-                    stop:0 #8D3CF0,
-                    stop:1 #9B4EF0
-                );
+                background-color:#0f172a;
             }
         """)
 
@@ -220,11 +249,26 @@ class ForgotPasswordWindow(QMainWindow):
         icon = QLabel()
         icon.setFixedSize(120,120)
         icon.setAlignment(Qt.AlignCenter)
-        icon.setStyleSheet("background:rgba(255,255,255,0.15); border-radius:60px;")
+        icon.setStyleSheet("background-color:#1e293b; border:2px solid #334155; border-radius:60px;")
 
         img = asset_path("candado.png")
         if os.path.exists(img):
-            icon.setPixmap(QPixmap(img).scaled(64,64,Qt.KeepAspectRatio))
+            pix = white_icon_pixmap(img, 64)
+            if not pix.isNull():
+                icon.setPixmap(pix)
+            else:
+                icon.setText("🔒")
+        else:
+            icon.setText("🔒")
+
+        icon.setStyleSheet("""
+            QLabel {
+                color: #f8fafc;
+                font-size: 44px;
+                background: transparent;
+                border: none;
+            }
+        """)
 
         layout.addWidget(icon, alignment=Qt.AlignHCenter)
         layout.addSpacing(40)
@@ -240,14 +284,14 @@ class ForgotPasswordWindow(QMainWindow):
 
         title = QLabel("Recuperar Contraseña")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color:white; font-size:26px; font-weight:800; background:transparent;")
+        title.setStyleSheet("color:#f8fafc; font-size:24px; font-weight:800; background:transparent;")
 
         subtitle = QLabel("Ingresa tu numero de cuenta y responde la pregunta de seguridad\n"
             "que configuraste al crear tu cuenta."
         )
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
-        subtitle.setStyleSheet("color:#4B3E60; font-size:14px; background:transparent;")
+        subtitle.setStyleSheet("color:#94a3b8; font-size:14px; background:transparent;")
 
         # Campo de email
         self.email_input = InputField("Número de cuenta")
@@ -265,28 +309,21 @@ class ForgotPasswordWindow(QMainWindow):
 
         btn.setStyleSheet("""
             QPushButton {
-                border-radius:27px;
+                border:none;
+                border-radius:12px;
                 color:white;
-                font-size:18px;
+                font-size:16px;
                 font-weight:800;
-                background:qlineargradient(
-                    x1:0,y1:0,x2:1,y2:0,
-                    stop:0 #8A1FE3,
-                    stop:1 #B96FEF
-                );
+                padding:12px;
+                background-color:#2563eb;
             }
 
             QPushButton:hover {
-                background:qlineargradient(
-                    x1:0,y1:0,x2:1,y2:0,
-                    stop:0 #7B19D2,
-                    stop:1 #AB5EEB
-                );
+                background-color:#3b82f6;
             }
 
             QPushButton:pressed {
-                padding-top:2px;
-                background:#6F15C8;
+                background-color:#1d4ed8;
             }
         """)
 
@@ -297,14 +334,18 @@ class ForgotPasswordWindow(QMainWindow):
 
         back.setStyleSheet("""
             QPushButton {
-                background: transparent;
-                border: none;
-                color: #5B4A71;
-                font-weight: 700;
+                background-color: #312e81;
+                border: 2px solid #6366f1;
+                border-radius: 12px;
+                color: #e0e7ff;
+                font-size: 15px;
+                font-weight: bold;
+                padding: 10px 16px;
             }
 
             QPushButton:hover {
-                text-decoration: underline;
+                border-color: #8b5cf6;
+                color: #c4b5fd;
             }
         """)
 
