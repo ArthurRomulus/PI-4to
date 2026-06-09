@@ -15,8 +15,11 @@ button_pin = 24
 
 PASOS_180 = 2048
 
+MOTOR_DELAY_INICIAL = 0.008
+MOTOR_DELAY_NORMAL = 0.004
+MOTOR_DELAY_MINIMO = 0.003
+
 step_sequence = [
-    (1, 0, 0, 1),
     (1, 0, 0, 0),
     (1, 1, 0, 0),
     (0, 1, 0, 0),
@@ -24,7 +27,14 @@ step_sequence = [
     (0, 0, 1, 0),
     (0, 0, 1, 1),
     (0, 0, 0, 1),
+    (1, 0, 0, 1),
 ]
+
+# Si el motor sigue vibrando con esta secuencia estable, revisar:
+# - el orden físico de IN1-IN4 en el ULN2003,
+# - el GND común entre Raspberry Pi y fuente externa,
+# - una fuente de 5V con corriente suficiente (mínimo 1A),
+# - y que el VCC del ULN2003 esté correctamente alimentado.
 
 _motor_lock = threading.Lock()
 _gpio_lock = threading.Lock()
@@ -197,50 +207,84 @@ def _salida_paso(estado):
         _safe_output(pin, value)
 
 
+def _secuencia_motor(sentido=1):
+    return step_sequence if sentido >= 0 else list(reversed(step_sequence))
+
+
+def _delay_por_paso(indice_paso):
+    if indice_paso < 80:
+        return MOTOR_DELAY_INICIAL
+    if indice_paso < 160:
+        return 0.006
+    return max(MOTOR_DELAY_NORMAL, MOTOR_DELAY_MINIMO)
+
+
 def apagar_salidas_motor():
     if not _ensure_gpio_ready():
+        print("Motor: bobinas apagadas")
         return
     for pin in pins:
         _safe_output(pin, 0)
+    print("Motor: bobinas apagadas")
 
 
-def mover_motor_pasos(pasos=PASOS_180, delay=0.003, sentido=1):
+def mover_motor_pasos(pasos=PASOS_180, sentido=1):
     if not _ensure_gpio_ready():
         print("Mock: moviendo motor por pasos (simulado)")
         return
 
+    print("Motor: iniciando movimiento")
+    print("Motor: usando secuencia half-step")
+
     try:
-        secuencia = step_sequence if sentido >= 0 else list(reversed(step_sequence))
-        for _ in range(pasos):
-            for estado in secuencia:
-                _salida_paso(estado)
-                time.sleep(delay)
+        secuencia = _secuencia_motor(sentido)
+        for paso_actual in range(pasos):
+            estado = secuencia[paso_actual % len(secuencia)]
+            _salida_paso(estado)
+            time.sleep(_delay_por_paso(paso_actual))
+        print("Motor: pasos ejecutados:", pasos)
+        print("Motor: movimiento terminado")
     except Exception as e:
-        print(f"Error moviendo motor por pasos: {e}")
+        print(f"Error moviendo motor: {e}")
     finally:
         apagar_salidas_motor()
 
 
-def mover_motor_por_tiempo(duracion=5.0, delay=0.003, sentido=1):
+def mover_motor_por_tiempo(segundos=5.0, sentido=1):
     if not _ensure_gpio_ready():
-        print(f"Mock: moviendo motor durante {duracion} segundos (simulado)")
-        time.sleep(duracion)
+        print(f"Mock: moviendo motor durante {segundos} segundos (simulado)")
+        time.sleep(segundos)
         return
 
-    inicio = time.monotonic()
-    secuencia = step_sequence if sentido >= 0 else list(reversed(step_sequence))
+    print("Motor: iniciando movimiento")
+    print("Motor: usando secuencia half-step")
+
+    tiempo_fin = time.monotonic() + segundos
+    paso_actual = 0
+    secuencia = _secuencia_motor(sentido)
 
     try:
-        while time.monotonic() - inicio < duracion:
-            for estado in secuencia:
-                _salida_paso(estado)
-                time.sleep(delay)
-                if time.monotonic() - inicio >= duracion:
-                    break
+        while time.monotonic() < tiempo_fin:
+            estado = secuencia[paso_actual % len(secuencia)]
+            _salida_paso(estado)
+            time.sleep(_delay_por_paso(paso_actual))
+            paso_actual += 1
+        print("Motor: pasos ejecutados:", paso_actual)
+        print("Motor: movimiento terminado")
     except Exception as e:
-        print(f"Error moviendo motor por tiempo: {e}")
+        print(f"Error moviendo motor: {e}")
     finally:
         apagar_salidas_motor()
+
+
+def probar_motor():
+    inicializar_gpio()
+    print("Probando motor hacia adelante...")
+    mover_motor_por_tiempo(segundos=3, sentido=1)
+    time.sleep(1)
+    print("Probando motor hacia atrás...")
+    mover_motor_por_tiempo(segundos=3, sentido=-1)
+    apagar_salidas_motor()
 
 
 def detectar_movimiento(tiempo=5):
@@ -278,7 +322,7 @@ def conceder_acceso_motor():
     try:
         print("Acceso concedido. Motor activo durante 5 segundos.")
         indicar_acceso_concedido()
-        mover_motor_por_tiempo(duracion=5.0)
+        mover_motor_por_tiempo(segundos=5, sentido=1)
         apagar_led_verde()
     finally:
         _motor_lock.release()
