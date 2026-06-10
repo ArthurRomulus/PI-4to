@@ -17,6 +17,8 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from ui.i18n import t
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -212,7 +214,7 @@ class SecondaryOutlineButton(QPushButton):
 class LoginWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Login Administrador")
+        self.setWindowTitle(t("login.title", default="Login Administrador"))
         self.setFixedSize(480, 800)
 
         central = QWidget()
@@ -315,7 +317,7 @@ class LoginWindow(QMainWindow):
         page_layout.addWidget(icon_circle, alignment=Qt.AlignHCenter)
         page_layout.addSpacing(26)
 
-        title = QLabel("Login")
+        title = QLabel(t("login.login_header", default="Login"))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
             color: rgba(227, 246, 255, 0.98);
@@ -326,8 +328,7 @@ class LoginWindow(QMainWindow):
         """)
 
         subtitle = QLabel(
-            "Acceda al panel administrativo\n"
-            "con sus credenciales administrativas."
+            t("login.subtitle", default="Acceda al panel administrativo\ncon sus credenciales administrativas.")
         )
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("""
@@ -357,7 +358,7 @@ class LoginWindow(QMainWindow):
         form_layout.setContentsMargins(24, 22, 24, 22)
         form_layout.setSpacing(0)
 
-        user_label = QLabel("Numero de cuenta")
+        user_label = QLabel(t("login.user_label", default="Numero de cuenta"))
         user_label.setStyleSheet("""
             color: rgba(227, 246, 255, 0.94);
             font-size: 13px;
@@ -367,11 +368,11 @@ class LoginWindow(QMainWindow):
         """)
 
         self.user_input = IconInput(
-            placeholder="Ej. 20261010",
+            placeholder=t("login.user_placeholder", default="Ej. 20261010"),
             left_icon="name.png"
         )
 
-        pass_label = QLabel("Contraseña")
+        pass_label = QLabel(t("login.pass_label", default="Contraseña"))
         pass_label.setStyleSheet("""
             color: rgba(227, 246, 255, 0.94);
             font-size: 13px;
@@ -381,16 +382,16 @@ class LoginWindow(QMainWindow):
         """)
 
         self.pass_input = IconInput(
-            placeholder="••••••••",
+            placeholder=t("login.pass_placeholder", default="••••••••"),
             left_icon="pass.png",
             right_icon="openeye.png",
             is_password=True
         )
 
-        self.login_btn = GradientButton("Ingresar  →")
+        self.login_btn = GradientButton(t("login.button_submit", default="Ingresar  →"))
         self.login_btn.clicked.connect(self.handle_login)
 
-        self.forgot_btn = QPushButton("¿Olvidó su contraseña?")
+        self.forgot_btn = QPushButton(t("login.button_forgot_password", default="¿Olvidó su contraseña?"))
         self.forgot_btn.setCursor(Qt.PointingHandCursor)
         self.forgot_btn.setStyleSheet("""
             QPushButton {
@@ -408,7 +409,7 @@ class LoginWindow(QMainWindow):
         """)
         self.forgot_btn.clicked.connect(self.open_forgot_password)
 
-        self.create_admin_btn = QPushButton("¿No tienes cuenta? Crear admin")
+        self.create_admin_btn = QPushButton(t("login.button_create_admin", default="¿No tienes cuenta? Crear admin"))
         self.create_admin_btn.setCursor(Qt.PointingHandCursor)
         self.create_admin_btn.setStyleSheet("""
             QPushButton {
@@ -442,7 +443,7 @@ class LoginWindow(QMainWindow):
         page_layout.addWidget(form_card)
         page_layout.addSpacing(22)
 
-        back_btn = SecondaryOutlineButton("← Volver al Inicio")
+        back_btn = SecondaryOutlineButton(t("login.button_back_home", default="← Volver al Inicio"))
         back_btn.clicked.connect(self.go_back_main)
         page_layout.addWidget(back_btn)
 
@@ -461,29 +462,39 @@ class LoginWindow(QMainWindow):
         password = self.pass_input.input.text().strip()
 
         if not num_cuenta or not password:
-            QMessageBox.warning(self, "Campos incompletos", "Complete todos los campos.")
+            QMessageBox.warning(
+                self,
+                t("login.error_incomplete_title", default="Campos incompletos"),
+                t("login.error_incomplete_message", default="Complete todos los campos.")
+            )
             return
 
         self.login_btn.setEnabled(False)
-        self.login_btn.setText("Ingresando...")
+        self.login_btn.setText(t("login.button_logging_in", default="Ingresando..."))
 
         from database.consultas import admin_esta_activo
         if verify_admin(num_cuenta, password):
             if not admin_esta_activo(num_cuenta):
                 QMessageBox.critical(
                     self,
-                    "Cuenta desactivada",
-                    "Esta cuenta de administrador ha sido dada de baja.\n"
-                    "Contacte a otro administrador para reactivarla."
+                    t("login.error_disabled_title", default="Cuenta desactivada"),
+                    t(
+                        "login.error_disabled_message",
+                        default="Esta cuenta de administrador ha sido dada de baja.\nContacte a otro administrador para reactivarla."
+                    )
                 )
                 self.login_btn.setEnabled(True)
-                self.login_btn.setText("Ingresar  →")
+                self.login_btn.setText(t("login.button_submit", default="Ingresar  →"))
                 return
             self.open_admin_panel(num_cuenta)
         else:
-            QMessageBox.critical(self, "Acceso denegado", "Numero de cuenta o contraseña incorrectos.")
+            QMessageBox.critical(
+                self,
+                t("login.error_invalid_credentials_title", default="Acceso denegado"),
+                t("login.error_invalid_credentials_message", default="Numero de cuenta o contraseña incorrectos.")
+            )
             self.login_btn.setEnabled(True)
-            self.login_btn.setText("Ingresar  →")
+            self.login_btn.setText(t("login.button_submit", default="Ingresar  →"))
 
 
     def open_admin_panel(self, account_number):

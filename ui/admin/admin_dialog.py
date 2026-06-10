@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QPalette
+from ui.i18n import t
 from ui.sound_manager import play_sound
 
 
@@ -10,7 +11,7 @@ class AdminDialog(QDialog):
     def __init__(self, access_controller):
         super().__init__()
         self.access_controller = access_controller
-        self.setWindowTitle("Autenticación Administrador")
+        self.setWindowTitle(t("admin_dialog.title", default="Autenticación Administrador"))
         self.setFixedSize(400, 250)
         self.setStyleSheet("""
             QWidget { background-color: #0f172a; color: #f1f5f9; font-family: 'Segoe UI'; font-size: 16px; }
@@ -30,14 +31,14 @@ class AdminDialog(QDialog):
     def init_ui(self):
         layout = QVBoxLayout()
         layout.setSpacing(15)
-        title = QLabel("Ingrese credenciales de administrador")
+        title = QLabel(t("admin_dialog.prompt", default="Ingrese credenciales de administrador"))
         title.setAlignment(Qt.AlignCenter)
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Usuario")
+        self.username_input.setPlaceholderText(t("admin_dialog.username_placeholder", default="Usuario"))
         self.password_input = QLineEdit()
-        self.password_input.setPlaceholderText("Contraseña")
+        self.password_input.setPlaceholderText(t("admin_dialog.password_placeholder", default="Contraseña"))
         self.password_input.setEchoMode(QLineEdit.Password)
-        btn_login = QPushButton("Ingresar")
+        btn_login = QPushButton(t("admin_dialog.button_submit", default="Ingresar"))
         btn_login.clicked.connect(self.verify_admin)
         layout.addWidget(title)
         layout.addWidget(self.username_input)
@@ -51,8 +52,8 @@ class AdminDialog(QDialog):
         if not username or not password:
             play_sound("acceso_denegado.mp3")
             msg = QMessageBox(self)
-            msg.setWindowTitle("Error")
-            msg.setText("Complete todos los campos.")
+            msg.setWindowTitle(t("admin_dialog.error_title", default="Error"))
+            msg.setText(t("admin_dialog.error_fill_fields", default="Complete todos los campos."))
             msg.setIcon(QMessageBox.NoIcon)
             msg.setStandardButtons(QMessageBox.Ok)
             
@@ -91,8 +92,8 @@ class AdminDialog(QDialog):
         else:
             play_sound("acceso_denegado.mp3")
             msg = QMessageBox(self)
-            msg.setWindowTitle("Acceso Denegado")
-            msg.setText("Credenciales incorrectas.")
+            msg.setWindowTitle(t("admin_dialog.error_title", default="Error"))
+            msg.setText(t("admin_dialog.error_invalid_credentials", default="Credenciales incorrectas."))
             msg.setIcon(QMessageBox.NoIcon)
             msg.setStandardButtons(QMessageBox.Ok)
             

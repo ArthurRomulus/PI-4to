@@ -22,6 +22,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QTimer, Qt, QPropertyAnimation, QEasingCurve, QEvent
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
 
+from ui.i18n import localize_date, t
+
 from hardware.camera.camera_verify import CameraThread
 from database.consultas import registrar_acceso
 
@@ -197,7 +199,7 @@ class VerifyWindow(QWidget):
         self._liveness_active = False
         self._access_granted = False
 
-        self.setWindowTitle("Verificación Biométrica")
+        self.setWindowTitle(t("verify.title", default="Verificación Biométrica"))
         self.setMinimumSize(480, 760)
         self.setStyleSheet("background-color: #0f172a;")
 
@@ -262,7 +264,7 @@ class VerifyWindow(QWidget):
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(20, 10, 20, 10)
 
-        self.date_label = QLabel(datetime.datetime.now().strftime("%A, %d de %B, %Y"))
+        self.date_label = QLabel(localize_date(datetime.datetime.now()))
         self.date_label.setStyleSheet("color: #f8fafc; font-size: 14px; font-weight: bold;")
 
         self.time_label = QLabel(datetime.datetime.now().strftime("%I:%M %p").lstrip("0"))
@@ -278,7 +280,7 @@ class VerifyWindow(QWidget):
         s_layout = QVBoxLayout(status_container)
         s_layout.setContentsMargins(20, 8, 20, 4)
 
-        self.status_label = QLabel("COLOQUE SU ROSTRO EN EL ÓVALO")
+        self.status_label = QLabel(t("verify.status_place_face", default="COLOQUE SU ROSTRO EN EL ÓVALO"))
         self.status_label.setStyleSheet(
             f"color: {COLOR_IDLE}; font-size: 15px; font-weight: bold;"
         )
@@ -305,7 +307,7 @@ class VerifyWindow(QWidget):
         v_layout = QVBoxLayout(self.video_frame)
         v_layout.setContentsMargins(6, 6, 6, 6)
 
-        self.video_label = QLabel("Iniciando cámara...")
+        self.video_label = QLabel(t("verify.video_initial", default="Iniciando cámara..."))
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setStyleSheet("color: #94a3b8; font-size: 16px; font-weight: bold;")
         self.video_label.setMinimumHeight(400)
@@ -323,7 +325,7 @@ class VerifyWindow(QWidget):
         p_layout.setContentsMargins(25, 4, 25, 4)
         p_layout.setSpacing(4)
 
-        self.progress_hint = QLabel("Mantenga el rostro estable 5 segundos")
+        self.progress_hint = QLabel(t("verify.progress_hint", default="Mantenga el rostro estable 5 segundos"))
         self.progress_hint.setAlignment(Qt.AlignCenter)
         self.progress_hint.setStyleSheet("color: #64748b; font-size: 13px;")
         p_layout.addWidget(self.progress_hint)
@@ -361,15 +363,14 @@ class VerifyWindow(QWidget):
         b_layout.setSpacing(10)
 
         info_label = QLabel(
-            "Alinee su rostro dentro del óvalo y mantenga\n"
-            "una distancia apropiada. El sistema verificará automáticamente."
+            t("verify.info_text", default="Alinee su rostro dentro del óvalo y mantenga\nuna distancia apropiada. El sistema verificará automáticamente.")
         )
         info_label.setAlignment(Qt.AlignCenter)
         info_label.setStyleSheet("color: #6b7280; font-size: 13px;")
         info_label.setWordWrap(True)
         b_layout.addWidget(info_label)
 
-        self.return_button = QPushButton("← Volver al Inicio")
+        self.return_button = QPushButton(t("verify.button_back", default="← Volver al Inicio"))
         self.return_button.setFixedHeight(52)
         self.return_button.setCursor(Qt.PointingHandCursor)
         self.return_button.setStyleSheet("""
@@ -408,11 +409,11 @@ class VerifyWindow(QWidget):
     def _update_clock(self):
         now = datetime.datetime.now()
         self.time_label.setText(now.strftime("%I:%M %p").lstrip("0"))
-        self.date_label.setText(now.strftime("%A, %d de %B, %Y"))
+        self.date_label.setText(localize_date(now))
 
     # ── Cámara ─────────────────────────────────────────────────────────────────
     def _start_camera(self):
-        self.status_label.setText("INICIANDO DETECCIÓN FACIAL...")
+        self.status_label.setText(t("verify.status_camera_starting", default="INICIANDO DETECCIÓN FACIAL..."))
         self.camera_thread = CameraThread()
         self.camera_thread.frame_updated.connect(self._on_frame)
         self.camera_thread.error_occurred.connect(self._on_error)
@@ -438,13 +439,13 @@ class VerifyWindow(QWidget):
             return
 
         if is_aligned:
-            self.status_label.setText("✓ ROSTRO DETECTADO — MANTENGA LA POSICIÓN")
+            self.status_label.setText(t("verify.status_face_detected", default="✓ ROSTRO DETECTADO — MANTENGA LA POSICIÓN"))
             self.status_label.setStyleSheet(
                 f"color: {COLOR_ALIGNED}; font-size: 15px; font-weight: bold;"
             )
             self._set_border_color(COLOR_ALIGNED)
         else:
-            self.status_label.setText("COLOQUE SU ROSTRO EN EL ÓVALO")
+            self.status_label.setText(t("verify.status_place_face", default="COLOQUE SU ROSTRO EN EL ÓVALO"))
             self.status_label.setStyleSheet(
                 f"color: {COLOR_IDLE}; font-size: 15px; font-weight: bold;"
             )
@@ -609,11 +610,11 @@ class VerifyWindow(QWidget):
 
 
     def _on_error(self, error_msg: str):
-        self.status_label.setText("ERROR DE CÁMARA")
+        self.status_label.setText(t("verify.error_camera", default="ERROR DE CÁMARA"))
         self.status_label.setStyleSheet(
             f"color: {COLOR_ERROR}; font-size: 14px; font-weight: bold;"
         )
-        self.video_label.setText(f"Error: {error_msg}")
+        self.video_label.setText(t("verify.video_error_prefix", default="Error: {error}").format(error=error_msg))
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setStyleSheet(
             "color: #fda4af; background-color: #0b1220; "

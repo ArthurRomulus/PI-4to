@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap, QColor, QPainter
 
+from ui.i18n import localize_date, get_language, set_language, t
 from ui.users.verify_window import VerifyWindow
 from ui.admin.login_window import LoginWindow
 
@@ -53,6 +54,7 @@ class MainWindow(QMainWindow):
         self.login_window = None
 
         self.init_ui()
+        self.refresh_translations()
         self.init_clock()
 
     def _is_raspberry_pi(self):
@@ -118,6 +120,30 @@ class MainWindow(QMainWindow):
         time_container.setLayout(time_row)
         time_container.setStyleSheet("background: transparent;")
         main_layout.addWidget(time_container)
+
+        language_row = QHBoxLayout()
+        language_row.setAlignment(Qt.AlignRight)
+        self.language_button = QPushButton(t("main.button_language", default="EN"))
+        self.language_button.setCursor(Qt.PointingHandCursor)
+        self.language_button.setFixedSize(98, 32)
+        self.language_button.clicked.connect(self.toggle_language)
+        self.language_button.setStyleSheet("""
+            QPushButton {
+                background: rgba(0, 240, 230, 0.12);
+                border: 1px solid rgba(0, 240, 230, 0.24);
+                border-radius: 14px;
+                color: rgba(227, 246, 255, 0.95);
+                font-size: 13px;
+                font-weight: 700;
+            }
+            QPushButton:hover {
+                background: rgba(0, 240, 230, 0.18);
+            }
+        """)
+        language_wrap = QWidget()
+        language_wrap.setLayout(language_row)
+        language_row.addWidget(self.language_button)
+        main_layout.addWidget(language_wrap)
 
         # ====== FECHA CAPSULA ======
         main_layout.addSpacing(8)
@@ -283,43 +309,10 @@ class MainWindow(QMainWindow):
 
     def _update_datetime(self):
         now = datetime.now()
-
-        # Use numeric indices instead of locale-dependent names
-        dias = {
-            0: "LUNES",
-            1: "MARTES",
-            2: "MIÉRCOLES",
-            3: "JUEVES",
-            4: "VIERNES",
-            5: "SÁBADO",
-            6: "DOMINGO"
-        }
-
-        meses = {
-            1: "ENERO",
-            2: "FEBRERO",
-            3: "MARZO",
-            4: "ABRIL",
-            5: "MAYO",
-            6: "JUNIO",
-            7: "JULIO",
-            8: "AGOSTO",
-            9: "SEPTIEMBRE",
-            10: "OCTUBRE",
-            11: "NOVIEMBRE",
-            12: "DICIEMBRE"
-        }
-
         self.time_label.setText(now.strftime("%I:%M"))
-        # Normalize AM/PM to uppercase without periods to keep UI consistent
         ampm = now.strftime("%p").upper().replace(".", "")
         self.ampm_label.setText(ampm)
-
-        weekday_index = now.weekday()  # Monday == 0
-        month_index = now.month
-        dia = dias.get(weekday_index, "")
-        mes = meses.get(month_index, "")
-        self.date_label.setText(f"{dia}, {now.day:02d} DE {mes}")
+        self.date_label.setText(localize_date(now))
 
     def open_verify(self):
         self.hide()
@@ -331,6 +324,20 @@ class MainWindow(QMainWindow):
         self.login_window = LoginWindow()
         self.login_window.destroyed.connect(self.show)
         self.login_window.show()
+
+    def toggle_language(self):
+        next_lang = "en" if get_language() == "es" else "es"
+        set_language(next_lang)
+        self.refresh_translations()
+
+    def refresh_translations(self):
+        self.setWindowTitle(t("main.window_title", default="Sistema de Control de Acceso Biométrico"))
+        self.title_label.setText(t("main.welcome_title", default="Bienvenido"))
+        self.subtitle_label.setText(t("main.subtitle", default="Presione ingresar para iniciar\nla verificación biométrica."))
+        self.btn_verify.setText(t("main.button_verify", default="INGRESAR"))
+        self.btn_admin.setText(t("main.button_admin_panel", default="PANEL ADMIN"))
+        self.language_button.setText(t("main.button_language", default="EN"))
+        self.date_label.setText(localize_date(datetime.now()))
 
     def showEvent(self, event):
         super().showEvent(event)
