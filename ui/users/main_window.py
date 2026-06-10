@@ -84,8 +84,37 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(0)
 
         # ====== RELOJ ======
+        self.language_button = QPushButton(t("main.button_language", default="EN"))
+        self.language_button.setCursor(Qt.PointingHandCursor)
+        self.language_button.setFixedSize(98, 32)
+        self.language_button.clicked.connect(self.toggle_language)
+        self.language_button.setStyleSheet("""
+            QPushButton {
+                background: rgba(0, 240, 230, 0.12);
+                border: 1px solid rgba(0, 240, 230, 0.24);
+                border-radius: 14px;
+                color: rgba(227, 246, 255, 0.95);
+                font-size: 13px;
+                font-weight: 700;
+            }
+            QPushButton:hover {
+                background: rgba(0, 240, 230, 0.18);
+            }
+        """)
+
+        top_bar = QHBoxLayout()
+        top_bar.setContentsMargins(0, 0, 0, 0)
+        top_bar.setSpacing(0)
+        top_bar.addStretch()
+        top_bar.addWidget(self.language_button)
+
+        top_widget = QWidget()
+        top_widget.setLayout(top_bar)
+        top_widget.setStyleSheet("background: transparent;")
+        main_layout.addWidget(top_widget)
+
         top_spacer = QWidget()
-        top_spacer.setFixedHeight(40)
+        top_spacer.setFixedHeight(10)
         main_layout.addWidget(top_spacer)
 
         time_row = QHBoxLayout()
@@ -120,30 +149,6 @@ class MainWindow(QMainWindow):
         time_container.setLayout(time_row)
         time_container.setStyleSheet("background: transparent;")
         main_layout.addWidget(time_container)
-
-        language_row = QHBoxLayout()
-        language_row.setAlignment(Qt.AlignRight)
-        self.language_button = QPushButton(t("main.button_language", default="EN"))
-        self.language_button.setCursor(Qt.PointingHandCursor)
-        self.language_button.setFixedSize(98, 32)
-        self.language_button.clicked.connect(self.toggle_language)
-        self.language_button.setStyleSheet("""
-            QPushButton {
-                background: rgba(0, 240, 230, 0.12);
-                border: 1px solid rgba(0, 240, 230, 0.24);
-                border-radius: 14px;
-                color: rgba(227, 246, 255, 0.95);
-                font-size: 13px;
-                font-weight: 700;
-            }
-            QPushButton:hover {
-                background: rgba(0, 240, 230, 0.18);
-            }
-        """)
-        language_wrap = QWidget()
-        language_wrap.setLayout(language_row)
-        language_row.addWidget(self.language_button)
-        main_layout.addWidget(language_wrap)
 
         # ====== FECHA CAPSULA ======
         main_layout.addSpacing(8)
