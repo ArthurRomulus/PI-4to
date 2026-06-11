@@ -7,18 +7,33 @@ GPIO = None
 IS_RASPBERRY_PI = False
 SIMULATION_MODE = True
 
-pins = [17, 18, 27, 22]
+# ==============================
+# PINES OFICIALES DEL PROYECTO
+# NO CAMBIAR
+# ==============================
+
+# Motor 28BYJ-48 + ULN2003
+PIN_IN1 = 17
+PIN_IN2 = 18
+PIN_IN3 = 27
+PIN_IN4 = 22
+
+pins = [PIN_IN1, PIN_IN2, PIN_IN3, PIN_IN4]
+
+# Indicadores
 led_verde_pin = 14
 led_rojo_pin = 15
 buzzer_pin = 23
 button_pin = 24
 
-PASOS_180 = 2048
+# ==============================
+# CONFIGURACION DEL MOTOR
+# Adaptado del codigo Arduino Nano
+# ==============================
 
-MOTOR_DELAY_INICIAL = 0.008
-MOTOR_DELAY_NORMAL = 0.004
-MOTOR_DELAY_MINIMO = 0.003
-
+# Secuencia half-step para 28BYJ-48 + ULN2003
+# Equivale a:
+# IN1, IN2, IN3, IN4
 step_sequence = [
     (1, 0, 0, 0),
     (1, 1, 0, 0),
@@ -30,11 +45,17 @@ step_sequence = [
     (1, 0, 0, 1),
 ]
 
-# Si el motor sigue vibrando con esta secuencia estable, revisar:
-# - el orden físico de IN1-IN4 en el ULN2003,
-# - el GND común entre Raspberry Pi y fuente externa,
-# - una fuente de 5V con corriente suficiente (mínimo 1A),
-# - y que el VCC del ULN2003 esté correctamente alimentado.
+# En Arduino usabas:
+# int velocidad = 2;
+# delay(velocidad);
+#
+# Eso equivale a 2 ms = 0.002 segundos.
+# En Raspberry, si vibra por ir muy rapido, sube a 0.003 o 0.004.
+VELOCIDAD = 0.002
+
+# Tu Arduino usa girarAdelante(2048), pero dentro hace 8 pasos por cada ciclo.
+# Se respeta esa misma logica.
+PASOS_ACCESO = 2048
 
 _motor_lock = threading.Lock()
 _gpio_lock = threading.Lock()
@@ -47,33 +68,18 @@ def _detect_raspberry_pi():
     try:
         if not platform.system().lower().startswith("linux"):
             return False
+
         with open("/sys/firmware/devicetree/base/model", "r", encoding="utf-8") as file_handle:
             model = file_handle.read().lower()
+
         return "raspberry pi" in model
+
     except Exception:
         return False
 
 
 def _gpio_ready():
     return GPIO_AVAILABLE and GPIO is not None and IS_RASPBERRY_PI and _gpio_initialized
-
-
-def _ensure_gpio_ready():
-    if not _gpio_initialized:
-        inicializar_gpio()
-    return _gpio_ready()
-
-
-def _safe_output(pin, value):
-    if not _ensure_gpio_ready():
-        return False
-    try:
-        with _gpio_lock:
-            GPIO.output(pin, value)
-        return True
-    except Exception as e:
-        print(f"Error escribiendo en GPIO {pin}: {e}")
-        return False
 
 
 def inicializar_gpio():
@@ -86,76 +92,88 @@ def inicializar_gpio():
     SIMULATION_MODE = not IS_RASPBERRY_PI
 
     if not IS_RASPBERRY_PI:
-        print("GPIO no disponible. Ejecutando motor en modo simulación.")
+        print("GPIO no disponible. Ejecutando hardware en modo simulacion.")
         GPIO_AVAILABLE = False
         _gpio_initialized = True
         return False
 
     try:
         import RPi.GPIO as gpio_module
+
         GPIO = gpio_module
         GPIO_AVAILABLE = True
+
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
 
+        # Motor
         for pin in pins:
             GPIO.setup(pin, GPIO.OUT)
-            GPIO.output(pin, 0)
+            GPIO.output(pin, GPIO.LOW)
 
+        # LEDs
         GPIO.setup(led_verde_pin, GPIO.OUT)
-        GPIO.output(led_verde_pin, 0)
+        GPIO.output(led_verde_pin, GPIO.LOW)
 
         GPIO.setup(led_rojo_pin, GPIO.OUT)
-        GPIO.output(led_rojo_pin, 0)
+        GPIO.output(led_rojo_pin, GPIO.LOW)
 
+        # Buzzer
         GPIO.setup(buzzer_pin, GPIO.OUT)
-        GPIO.output(buzzer_pin, 0)
+        GPIO.output(buzzer_pin, GPIO.LOW)
 
+        # Boton con pull-up interno
         GPIO.setup(button_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
         _gpio_initialized = True
+
         print("GPIO inicializado correctamente en Raspberry Pi.")
+        print(f"Motor 28BYJ-48: IN1={PIN_IN1}, IN2={PIN_IN2}, IN3={PIN_IN3}, IN4={PIN_IN4}")
+        print(f"LED verde={led_verde_pin}, LED rojo={led_rojo_pin}, buzzer={buzzer_pin}, boton={button_pin}")
+
         return True
+
     except Exception as e:
         GPIO = None
         GPIO_AVAILABLE = False
         SIMULATION_MODE = True
         _gpio_initialized = True
-        print(f"GPIO no disponible. Ejecutando motor en modo simulación. Detalle: {e}")
+
+        print("GPIO no disponible. Ejecutando hardware en modo simulacion.")
+        print(f"Detalle: {e}")
+
         return False
 
 
-def limpiar_gpio():
-    global _boton_configurado, _gpio_initialized
+def _ensure_gpio_ready():
+    if not _gpio_initialized:
+        inicializar_gpio()
 
-    if not _gpio_ready():
-        _boton_configurado = False
-        return
+    return _gpio_ready()
+
+
+def _safe_output(pin, value):
+    if not _ensure_gpio_ready():
+        return False
 
     try:
-        if _boton_configurado:
-            try:
-                GPIO.remove_event_detect(button_pin)
-            except Exception:
-                pass
-            _boton_configurado = False
+        with _gpio_lock:
+            GPIO.output(pin, GPIO.HIGH if value else GPIO.LOW)
+        return True
 
-        apagar_indicadores()
-        GPIO.cleanup()
     except Exception as e:
-        print(f"No se pudo limpiar GPIO correctamente: {e}")
-    finally:
-        _gpio_initialized = False
+        print(f"Error escribiendo en GPIO {pin}: {e}")
+        return False
 
 
-def liberar():
-    if not _ensure_gpio_ready():
-        return
-    apagar_salidas_motor()
-
+# ==============================
+# FUNCIONES DE INDICADORES
+# ==============================
 
 def apagar_indicadores():
     if not _ensure_gpio_ready():
         return
+
     _safe_output(led_verde_pin, 0)
     _safe_output(led_rojo_pin, 0)
     _safe_output(buzzer_pin, 0)
@@ -164,12 +182,14 @@ def apagar_indicadores():
 def apagar_led_verde():
     if not _ensure_gpio_ready():
         return
+
     _safe_output(led_verde_pin, 0)
 
 
 def apagar_led_rojo():
     if not _ensure_gpio_ready():
         return
+
     _safe_output(led_rojo_pin, 0)
 
 
@@ -177,6 +197,7 @@ def encender_led_verde():
     if not _ensure_gpio_ready():
         print("Mock: LED verde encendido.")
         return
+
     _safe_output(led_rojo_pin, 0)
     _safe_output(led_verde_pin, 1)
 
@@ -185,134 +206,283 @@ def encender_led_rojo():
     if not _ensure_gpio_ready():
         print("Mock: LED rojo encendido.")
         return
+
     _safe_output(led_verde_pin, 0)
     _safe_output(led_rojo_pin, 1)
 
 
 def activar_buzzer(duracion=2):
     if not _ensure_gpio_ready():
-        print("Mock: buzzer activado (simulado)")
+        print("Mock: buzzer activado.")
         return
+
     try:
         _safe_output(buzzer_pin, 1)
         time.sleep(duracion)
+
     finally:
         _safe_output(buzzer_pin, 0)
 
 
-def _salida_paso(estado):
+# ==============================
+# FUNCIONES DEL MOTOR
+# Adaptacion directa del Arduino
+# ==============================
+
+def activar_paso(indice_paso):
+    """
+    Equivalente a activarPaso(int paso) del Arduino.
+
+    Arduino:
+    digitalWrite(IN1, pasos[paso][0]);
+    digitalWrite(IN2, pasos[paso][1]);
+    digitalWrite(IN3, pasos[paso][2]);
+    digitalWrite(IN4, pasos[paso][3]);
+    """
     if not _ensure_gpio_ready():
         return
+
+    estado = step_sequence[indice_paso]
+
     for pin, value in zip(pins, estado):
         _safe_output(pin, value)
 
 
-def _secuencia_motor(sentido=1):
-    return step_sequence if sentido >= 0 else list(reversed(step_sequence))
+def detener_motor():
+    """
+    Equivalente a detenerMotor() del Arduino.
 
-
-def _delay_por_paso(indice_paso):
-    if indice_paso < 80:
-        return MOTOR_DELAY_INICIAL
-    if indice_paso < 160:
-        return 0.006
-    return max(MOTOR_DELAY_NORMAL, MOTOR_DELAY_MINIMO)
-
-
-def apagar_salidas_motor():
+    Apaga todas las bobinas para que el motor no se caliente.
+    """
     if not _ensure_gpio_ready():
         print("Motor: bobinas apagadas")
         return
+
     for pin in pins:
         _safe_output(pin, 0)
+
     print("Motor: bobinas apagadas")
 
 
-def mover_motor_pasos(pasos=PASOS_180, sentido=1):
+def apagar_salidas_motor():
+    detener_motor()
+
+
+def liberar():
+    detener_motor()
+
+
+def girar_adelante(cantidad_pasos=PASOS_ACCESO, velocidad=VELOCIDAD):
+    """
+    Equivalente directo a girarAdelante(int cantidadPasos) del Arduino.
+
+    Arduino:
+    for (int i = 0; i < cantidadPasos; i++) {
+        for (int paso = 0; paso < 8; paso++) {
+            activarPaso(paso);
+            delay(velocidad);
+        }
+    }
+
+    En Python:
+    velocidad esta en segundos.
+    0.002 segundos = 2 ms.
+    """
     if not _ensure_gpio_ready():
-        print("Mock: moviendo motor por pasos (simulado)")
+        print(f"Mock: girando adelante {cantidad_pasos} ciclos.")
         return
 
-    print("Motor: iniciando movimiento")
-    print("Motor: usando secuencia half-step")
+    print("Girando hacia adelante")
 
     try:
-        secuencia = _secuencia_motor(sentido)
-        for paso_actual in range(pasos):
-            estado = secuencia[paso_actual % len(secuencia)]
-            _salida_paso(estado)
-            time.sleep(_delay_por_paso(paso_actual))
-        print("Motor: pasos ejecutados:", pasos)
-        print("Motor: movimiento terminado")
+        for _ in range(cantidad_pasos):
+            for paso in range(8):
+                activar_paso(paso)
+                time.sleep(velocidad)
+
     except Exception as e:
-        print(f"Error moviendo motor: {e}")
+        print(f"Error girando adelante: {e}")
+
     finally:
-        apagar_salidas_motor()
+        detener_motor()
+
+
+def girar_atras(cantidad_pasos=PASOS_ACCESO, velocidad=VELOCIDAD):
+    """
+    Equivalente directo a girarAtras(int cantidadPasos) del Arduino.
+    """
+    if not _ensure_gpio_ready():
+        print(f"Mock: girando atras {cantidad_pasos} ciclos.")
+        return
+
+    print("Girando hacia atras")
+
+    try:
+        for _ in range(cantidad_pasos):
+            for paso in range(7, -1, -1):
+                activar_paso(paso)
+                time.sleep(velocidad)
+
+    except Exception as e:
+        print(f"Error girando atras: {e}")
+
+    finally:
+        detener_motor()
+
+
+def girar_derecha(cantidad_pasos=PASOS_ACCESO, velocidad=VELOCIDAD):
+    """
+    Funcion para el proyecto.
+    Por defecto usa la misma direccion que girarAdelante() del Arduino.
+
+    Si fisicamente gira hacia la izquierda, cambia SOLO esta funcion para llamar
+    a girar_atras(), sin cambiar los GPIO.
+    """
+    girar_adelante(cantidad_pasos=cantidad_pasos, velocidad=velocidad)
+
+
+def girar_izquierda(cantidad_pasos=PASOS_ACCESO, velocidad=VELOCIDAD):
+    girar_atras(cantidad_pasos=cantidad_pasos, velocidad=velocidad)
+
+
+def mover_motor_pasos(pasos=PASOS_ACCESO, sentido=1):
+    """
+    Mantiene compatibilidad con el resto del proyecto.
+
+    sentido=1  -> adelante/derecha
+    sentido=-1 -> atras/izquierda
+    """
+    if sentido >= 0:
+        girar_adelante(cantidad_pasos=pasos, velocidad=VELOCIDAD)
+    else:
+        girar_atras(cantidad_pasos=pasos, velocidad=VELOCIDAD)
 
 
 def mover_motor_por_tiempo(segundos=5.0, sentido=1):
+    """
+    Mantiene compatibilidad con el proyecto, pero usando la logica del Arduino.
+
+    En lugar de contar exactamente PASOS_ACCESO, gira durante cierto tiempo.
+    """
     if not _ensure_gpio_ready():
-        print(f"Mock: moviendo motor durante {segundos} segundos (simulado)")
+        print(f"Mock: moviendo motor durante {segundos} segundos.")
         time.sleep(segundos)
         return
 
-    print("Motor: iniciando movimiento")
-    print("Motor: usando secuencia half-step")
+    print(f"Motor activo durante {segundos} segundos")
 
     tiempo_fin = time.monotonic() + segundos
-    paso_actual = 0
-    secuencia = _secuencia_motor(sentido)
 
     try:
-        while time.monotonic() < tiempo_fin:
-            estado = secuencia[paso_actual % len(secuencia)]
-            _salida_paso(estado)
-            time.sleep(_delay_por_paso(paso_actual))
-            paso_actual += 1
-        print("Motor: pasos ejecutados:", paso_actual)
-        print("Motor: movimiento terminado")
+        if sentido >= 0:
+            while time.monotonic() < tiempo_fin:
+                for paso in range(8):
+                    activar_paso(paso)
+                    time.sleep(VELOCIDAD)
+        else:
+            while time.monotonic() < tiempo_fin:
+                for paso in range(7, -1, -1):
+                    activar_paso(paso)
+                    time.sleep(VELOCIDAD)
+
     except Exception as e:
-        print(f"Error moviendo motor: {e}")
+        print(f"Error moviendo motor por tiempo: {e}")
+
     finally:
-        apagar_salidas_motor()
+        detener_motor()
+
+
+# ==============================
+# PRUEBAS DIRECTAS
+# ==============================
+
+def probar_bobinas():
+    inicializar_gpio()
+
+    if not _ensure_gpio_ready():
+        print("No se pueden probar bobinas: GPIO no disponible.")
+        return
+
+    print("Probando bobinas una por una...")
+
+    nombres = ["IN1", "IN2", "IN3", "IN4"]
+
+    try:
+        for nombre, pin in zip(nombres, pins):
+            print(f"Activando {nombre} GPIO {pin}")
+            _safe_output(pin, 1)
+            time.sleep(1)
+            _safe_output(pin, 0)
+            time.sleep(0.3)
+
+    finally:
+        detener_motor()
 
 
 def probar_motor():
+    """
+    Prueba similar al loop() del Arduino:
+    adelante, detener, pausa, atras, detener.
+    """
     inicializar_gpio()
-    print("Probando motor hacia adelante...")
-    mover_motor_por_tiempo(segundos=3, sentido=1)
+
+    print("Prueba de motor paso a paso iniciada")
+
+    print("Girando hacia adelante")
+    girar_adelante(PASOS_ACCESO, VELOCIDAD)
+    detener_motor()
     time.sleep(1)
-    print("Probando motor hacia atrás...")
-    mover_motor_por_tiempo(segundos=3, sentido=-1)
-    apagar_salidas_motor()
+
+    print("Girando hacia atras")
+    girar_atras(PASOS_ACCESO, VELOCIDAD)
+    detener_motor()
+    time.sleep(1)
 
 
-def detectar_movimiento(tiempo=5):
+def probar_giro_derecha():
+    inicializar_gpio()
+    girar_derecha(PASOS_ACCESO, VELOCIDAD)
+
+
+def probar_giro_izquierda():
+    inicializar_gpio()
+    girar_izquierda(PASOS_ACCESO, VELOCIDAD)
+
+
+# ==============================
+# FUNCIONES DE ACCESO DEL PROYECTO
+# ==============================
+
+def indicar_acceso_concedido():
+    print("Acceso concedido.")
+
     if not _ensure_gpio_ready():
-        return False
+        print("Acceso permitido: simulando LED verde y buzzer.")
+        return
 
-    for pin in pins:
-        GPIO.setup(pin, GPIO.IN)
+    encender_led_verde()
+    activar_buzzer(2)
 
-    inicio = time.time()
-    estado_anterior = [GPIO.input(pin) for pin in pins]
 
-    while time.time() - inicio < tiempo:
-        estado_actual = [GPIO.input(pin) for pin in pins]
+def indicar_acceso_denegado():
+    if not _ensure_gpio_ready():
+        print("Acceso denegado: simulando LED rojo y buzzer.")
+        return
 
-        if estado_actual != estado_anterior:
-            print("Movimiento detectado!")
-            return True
-
-        estado_anterior = estado_actual
-        time.sleep(0.01)
-
-    return False
+    encender_led_rojo()
+    activar_buzzer(2)
+    time.sleep(1.0)
+    apagar_led_rojo()
 
 
 def conceder_acceso_motor():
+    """
+    Funcion que usa verify_window.py cuando el acceso es autorizado.
+
+    Activa LED verde, buzzer y gira el motor.
+    """
     if not _ensure_gpio_ready():
-        print("Acceso permitido: simulando LED verde, buzzer y motor durante 5 segundos.")
+        print("Acceso permitido: simulando LED verde, buzzer y motor.")
         return
 
     if not _motor_lock.acquire(blocking=False):
@@ -320,53 +490,48 @@ def conceder_acceso_motor():
         return
 
     try:
-        print("Acceso concedido. Motor activo durante 5 segundos.")
+        print("Acceso concedido. Motor girando hacia la derecha.")
         indicar_acceso_concedido()
-        mover_motor_por_tiempo(segundos=5, sentido=1)
+
+        # Usa la adaptacion del Arduino.
+        # Si gira al lado contrario, cambia esta linea por:
+        # girar_izquierda(PASOS_ACCESO, VELOCIDAD)
+        girar_derecha(PASOS_ACCESO, VELOCIDAD)
+
         apagar_led_verde()
+
+    except Exception as e:
+        print(f"Error en conceder_acceso_motor: {e}")
+
     finally:
+        detener_motor()
         _motor_lock.release()
 
 
 def abrir_torniquete_180():
-    """Abre el torniquete manteniendo el motor activo durante 5 segundos."""
     conceder_acceso_motor()
 
 
-def indicar_acceso_concedido():
-    print("Acceso concedido.")
-    if not _ensure_gpio_ready():
-        print("Acceso permitido: simulando LED verde y buzzer.")
-        return
-    encender_led_verde()
-    activar_buzzer(2)
-
-
-def indicar_acceso_denegado():
-    if not _ensure_gpio_ready():
-        print("Acceso denegado: simulando LED rojo y buzzer de error.")
-        return
-    encender_led_rojo()
-    activar_buzzer(2)
-    time.sleep(1.0)
-    apagar_led_rojo()
-
-
 def bloquear():
-    if not _ensure_gpio_ready():
-        return
-    GPIO.output(pins[0], 1)
-    GPIO.output(pins[1], 0)
-    GPIO.output(pins[2], 0)
-    GPIO.output(pins[3], 1)
+    """
+    No se recomienda dejar el motor energizado porque se calienta.
+    Esta funcion queda segura apagando bobinas.
+    """
+    detener_motor()
 
+
+# ==============================
+# BOTON FISICO
+# ==============================
 
 def _on_button_pressed(channel):
     global _last_button_time
 
     now = time.monotonic()
+
     if now - _last_button_time < 0.8:
         return
+
     _last_button_time = now
 
     print(f"Boton detectado en GPIO {channel}. Activando salida.")
@@ -386,27 +551,89 @@ def iniciar_boton_motor():
         return False
 
     try:
-        GPIO.add_event_detect(button_pin, GPIO.FALLING, callback=_on_button_pressed, bouncetime=800)
+        GPIO.add_event_detect(
+            button_pin,
+            GPIO.FALLING,
+            callback=_on_button_pressed,
+            bouncetime=800
+        )
+
         _boton_configurado = True
         return True
+
     except Exception as e:
-        print(f"No se pudo iniciar el listener del botón: {e}")
+        print(f"No se pudo iniciar el listener del boton: {e}")
         return False
+
+
+def limpiar_gpio():
+    global _boton_configurado, _gpio_initialized
+
+    if not _gpio_ready():
+        _boton_configurado = False
+        return
+
+    try:
+        if _boton_configurado:
+            try:
+                GPIO.remove_event_detect(button_pin)
+            except Exception:
+                pass
+
+            _boton_configurado = False
+
+        apagar_indicadores()
+        detener_motor()
+        GPIO.cleanup()
+
+    except Exception as e:
+        print(f"No se pudo limpiar GPIO correctamente: {e}")
+
+    finally:
+        _gpio_initialized = False
 
 
 def detener_boton_motor():
     limpiar_gpio()
 
 
+# ==============================
+# PRUEBA DESDE TERMINAL
+# ==============================
+
 if __name__ == "__main__":
     try:
         inicializar_gpio()
         iniciar_boton_motor()
+
         while True:
-            cmd = input("Inserta codigo para liberar: ")
-            if cmd == "1234":
-                conceder_acceso_motor()
+            print("\n=== PRUEBA MOTOR 28BYJ-48 + ULN2003 ===")
+            print("1. Probar bobinas")
+            print("2. Girar derecha")
+            print("3. Girar izquierda")
+            print("4. Prueba completa Arduino: adelante y atras")
+            print("5. Apagar motor")
+            print("6. Salir")
+
+            opcion = input("Selecciona una opcion: ").strip()
+
+            if opcion == "1":
+                probar_bobinas()
+            elif opcion == "2":
+                probar_giro_derecha()
+            elif opcion == "3":
+                probar_giro_izquierda()
+            elif opcion == "4":
+                probar_motor()
+            elif opcion == "5":
+                detener_motor()
+            elif opcion == "6":
+                break
             else:
-                print("Codigo incorrecto")
+                print("Opcion invalida.")
+
     except KeyboardInterrupt:
+        print("\nPrueba interrumpida por el usuario.")
+
+    finally:
         detener_boton_motor()
