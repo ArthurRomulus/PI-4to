@@ -267,6 +267,13 @@ class FaceScanDialog(QDialog):
         self.btn_cancel = QPushButton("Cancelar")
         self.btn_cancel.setFixedHeight(42)
         self.btn_cancel.setCursor(Qt.PointingHandCursor)
+        # icon: cross for cancel if available, otherwise prepend cross char
+        cancel_icon = os.path.join(ASSETS_DIR, "deneged.png")
+        if os.path.exists(cancel_icon):
+            self.btn_cancel.setIcon(QIcon(cancel_icon))
+            self.btn_cancel.setIconSize(QSize(16, 16))
+        else:
+            self.btn_cancel.setText("✕ " + self.btn_cancel.text())
         self.btn_cancel.clicked.connect(self.reject)
         self.btn_cancel.setStyleSheet("""
             QPushButton {
@@ -481,6 +488,11 @@ class RegisterPage(QWidget):
         self.btn_privacy = QPushButton("AVISO DE PRIVACIDAD")
         self.btn_privacy.setFixedHeight(48)
         self.btn_privacy.setCursor(Qt.PointingHandCursor)
+        # icon: candado (privacy) if available
+        privacy_icon = os.path.join(ASSETS_DIR, "candado.png")
+        if os.path.exists(privacy_icon):
+            self.btn_privacy.setIcon(QIcon(privacy_icon))
+            self.btn_privacy.setIconSize(QSize(18, 18))
         self._style_btn_outline(self.btn_privacy)
         self.btn_privacy.clicked.connect(self._show_privacy_notice)
         layout.addSpacing(8)
@@ -507,6 +519,21 @@ class RegisterPage(QWidget):
         self.btn_save = QPushButton("Guardar Usuario   ›")
         self.btn_save.setFixedHeight(50)
         self.btn_save.setCursor(Qt.PointingHandCursor)
+        # icon: prefer a dedicated save asset (floppy), then register/add, fallback to emoji
+        save_icon = os.path.join(ASSETS_DIR, "save.svg")
+        alt_save_icon = os.path.join(ASSETS_DIR, "register.png")
+        alt2_save_icon = os.path.join(ASSETS_DIR, "add.png")
+        if os.path.exists(save_icon):
+            self.btn_save.setIcon(QIcon(save_icon))
+            self.btn_save.setIconSize(QSize(18, 18))
+        elif os.path.exists(alt_save_icon):
+            self.btn_save.setIcon(QIcon(alt_save_icon))
+            self.btn_save.setIconSize(QSize(18, 18))
+        elif os.path.exists(alt2_save_icon):
+            self.btn_save.setIcon(QIcon(alt2_save_icon))
+            self.btn_save.setIconSize(QSize(18, 18))
+        else:
+            self.btn_save.setText("💾 " + self.btn_save.text())
         self.btn_save.clicked.connect(self._save_user)
         self.btn_save.setEnabled(False)
         self._style_btn_save(self.btn_save)
@@ -515,6 +542,13 @@ class RegisterPage(QWidget):
         self.btn_clear = QPushButton("Limpiar")
         self.btn_clear.setFixedHeight(50)
         self.btn_clear.setCursor(Qt.PointingHandCursor)
+        # prefer an asset icon if present, otherwise use broom emoji
+        broom_icon = os.path.join(ASSETS_DIR, "broom.png")
+        if os.path.exists(broom_icon):
+            self.btn_clear.setIcon(QIcon(broom_icon))
+            self.btn_clear.setIconSize(QSize(18, 18))
+        else:
+            self.btn_clear.setText("🧹 " + self.btn_clear.text())
         self.btn_clear.clicked.connect(self._reset_form)
         self._style_btn_dark(self.btn_clear)
         layout.addWidget(self.btn_clear)
