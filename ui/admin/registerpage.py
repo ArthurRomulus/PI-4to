@@ -39,6 +39,7 @@ from hardware.face_detection import FaceDetector
 from hardware.face_embedder import extract_embedding, cosine_similarity
 from config import CAMARA_INDEX
 from ui.admin.privacy_notice import PrivacyNoticeDialog
+from ui.i18n import t
 from ui.sound_manager import play_sound
 
 
@@ -190,7 +191,7 @@ class FaceScanDialog(QDialog):
         super().__init__(parent)
         self._camera_thread = None
         self._embedding = None
-        self.setWindowTitle("Escanear rostro")
+        self.setWindowTitle(t("registerpage.scan_window_title", default="Escanear rostro"))
         self.setModal(True)
         self.setFixedSize(460, 640)
         self._build_ui()
@@ -219,16 +220,19 @@ class FaceScanDialog(QDialog):
         card_layout.setContentsMargins(18, 18, 18, 18)
         card_layout.setSpacing(12)
 
-        title = QLabel("Escaneo facial")
+        title = QLabel(t("registerpage.scan_title", default="Escaneo facial"))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #ffffff; font-size: 22px; font-weight: 900;")
 
-        subtitle = QLabel("Coloque el rostro dentro del óvalo y mantenga la posición.")
+        subtitle = QLabel(t(
+            "registerpage.scan_subtitle",
+            default="Coloque el rostro dentro del óvalo y mantenga la posición."
+        ))
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet("color: #9fb0c4; font-size: 13px; font-weight: 700;")
 
-        self.cam_label = QLabel("Iniciando cámara...")
+        self.cam_label = QLabel(t("registerpage.scan_initial_message", default="Iniciando cámara..."))
         self.cam_label.setAlignment(Qt.AlignCenter)
         self.cam_label.setFixedHeight(370)
         self.cam_label.setStyleSheet("""
@@ -243,7 +247,7 @@ class FaceScanDialog(QDialog):
         """)
 
         status_row = QHBoxLayout()
-        self.status_lbl = QLabel("Status: INICIANDO")
+        self.status_lbl = QLabel(t("registerpage.scan_status_initial", default="Status: INICIANDO"))
         self.status_lbl.setStyleSheet("color: #00f0f0; font-size: 10px; font-weight: 900;")
         self.pct_label = QLabel("0%")
         self.pct_label.setAlignment(Qt.AlignRight)
@@ -252,7 +256,7 @@ class FaceScanDialog(QDialog):
         status_row.addStretch()
         status_row.addWidget(self.pct_label)
 
-        self.info_lbl = QLabel("Esperando rostro...")
+        self.info_lbl = QLabel(t("registerpage.scan_info_waiting", default="Esperando rostro..."))
         self.info_lbl.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: 900;")
 
         self.bar_bg = QFrame()
@@ -264,7 +268,7 @@ class FaceScanDialog(QDialog):
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
-        self.btn_cancel = QPushButton("Cancelar")
+        self.btn_cancel = QPushButton(t("registerpage.scan_button_cancel", default="Cancelar"))
         self.btn_cancel.setFixedHeight(42)
         self.btn_cancel.setCursor(Qt.PointingHandCursor)
         # icon: cross for cancel if available, otherwise prepend cross char
@@ -328,11 +332,11 @@ class FaceScanDialog(QDialog):
         if self._embedding is not None:
             return
         if ok:
-            self.status_lbl.setText("Status: CALIBRATED")
-            self.info_lbl.setText("Rostro detectado. Mantenga la posición...")
+            self.status_lbl.setText(t("registerpage.scan_status_calibrated", default="Status: CALIBRATED"))
+            self.info_lbl.setText(t("registerpage.scan_info_detected", default="Rostro detectado. Mantenga la posición..."))
         else:
-            self.status_lbl.setText("Status: ALIGNING")
-            self.info_lbl.setText("Alinee su rostro dentro del óvalo")
+            self.status_lbl.setText(t("registerpage.scan_status_aligning", default="Status: ALIGNING"))
+            self.info_lbl.setText(t("registerpage.scan_info_aligning", default="Alinee su rostro dentro del óvalo"))
 
     def _on_progress(self, pct: int):
         self.pct_label.setText(f"{pct}%")
@@ -345,15 +349,15 @@ class FaceScanDialog(QDialog):
         self._stop_camera()
         self._embedding = embedding
         if embedding is not None:
-            self.status_lbl.setText("Status: COMPLETADO")
-            self.info_lbl.setText("Captura facial completada")
+            self.status_lbl.setText(t("registerpage.scan_status_completed", default="Status: COMPLETADO"))
+            self.info_lbl.setText(t("registerpage.scan_info_completed", default="Captura facial completada"))
             self.pct_label.setText("100%")
             self._on_progress(100)
             self.scan_completed.emit(embedding)
             play_sound("registrado.mp3")
             msg = QMessageBox(self)
-            msg.setWindowTitle("Captura completada")
-            msg.setText("El rostro fue capturado correctamente.")
+            msg.setWindowTitle(t("registerpage.alert_capture_success_title", default="Captura completada"))
+            msg.setText(t("registerpage.alert_capture_success_message", default="El rostro fue capturado correctamente."))
             msg.setIcon(QMessageBox.Information)
             msg.setStandardButtons(QMessageBox.Ok)
             msg.setStyleSheet("""
@@ -379,12 +383,12 @@ class FaceScanDialog(QDialog):
             msg.exec_()
             self.accept()
         else:
-            self.status_lbl.setText("Status: ERROR")
-            self.info_lbl.setText("No se pudo capturar el rostro.")
+            self.status_lbl.setText(t("registerpage.scan_status_error", default="Status: ERROR"))
+            self.info_lbl.setText(t("registerpage.scan_info_capture_failed", default="No se pudo capturar el rostro."))
 
     def _on_camera_error(self, msg: str):
         self._stop_camera()
-        self.status_lbl.setText("Status: ERROR")
+        self.status_lbl.setText(t("registerpage.scan_status_error", default="Status: ERROR"))
         self.info_lbl.setText(msg)
 
     def closeEvent(self, event):
@@ -464,11 +468,14 @@ class RegisterPage(QWidget):
         icon_wrap.addWidget(icon_box)
         icon_wrap.addStretch()
 
-        title = QLabel("Registrar Usuario")
+        title = QLabel(t("registerpage.title", default="Registrar Usuario"))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #ffffff; font-size: 22px; font-weight: 900;")
 
-        subtitle = QLabel("Capture el rostro y registre los datos del nuevo usuario")
+        subtitle = QLabel(t(
+            "registerpage.subtitle",
+            default="Capture el rostro y registre los datos del nuevo usuario"
+        ))
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet("color: #9fc7ff; font-size: 13px; font-weight: 700;")
@@ -479,10 +486,10 @@ class RegisterPage(QWidget):
         layout.addWidget(subtitle)
         layout.addSpacing(18)
 
-        name_lbl = QLabel("NOMBRE COMPLETO")
+        name_lbl = QLabel(t("registerpage.label_name_full", default="NOMBRE COMPLETO"))
         name_lbl.setStyleSheet("color: #ffffff; font-size: 10px; font-weight: 900; letter-spacing: 1.1px;")
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Ej: Alexander Vance Smith")
+        self.name_input.setPlaceholderText(t("registerpage.placeholder_name", default="Ej: Alexander Vance Smith"))
         self.name_input.setFixedHeight(48)
         self.name_input.setStyleSheet("""
             QLineEdit {
@@ -510,7 +517,7 @@ class RegisterPage(QWidget):
         layout.addWidget(self.name_input)
         layout.addWidget(self._name_error_lbl)
 
-        self.btn_privacy = QPushButton("AVISO DE PRIVACIDAD")
+        self.btn_privacy = QPushButton(t("registerpage.button_privacy_notice", default="AVISO DE PRIVACIDAD"))
         self.btn_privacy.setFixedHeight(48)
         self.btn_privacy.setCursor(Qt.PointingHandCursor)
         # icon: candado (privacy) if available
@@ -523,7 +530,7 @@ class RegisterPage(QWidget):
         layout.addSpacing(8)
         layout.addWidget(self.btn_privacy)
 
-        self.btn_scan = QPushButton("ESCANEAR ROSTRO")
+        self.btn_scan = QPushButton(t("registerpage.button_scan_face", default="ESCANEAR ROSTRO"))
         self.btn_scan.setFixedHeight(50)
         self.btn_scan.setCursor(Qt.PointingHandCursor)
         camara_icon = os.path.join(ASSETS_DIR, "camara.png")
@@ -535,13 +542,13 @@ class RegisterPage(QWidget):
         layout.addSpacing(10)
         layout.addWidget(self.btn_scan)
 
-        self.scan_status = QLabel("Rostro pendiente de escaneo")
+        self.scan_status = QLabel(t("registerpage.scan_status_pending", default="Rostro pendiente de escaneo"))
         self.scan_status.setAlignment(Qt.AlignCenter)
         self.scan_status.setStyleSheet("color: #8e9bad; font-size: 12px; font-weight: 800;")
         layout.addWidget(self.scan_status)
         layout.addSpacing(20)
 
-        self.btn_save = QPushButton("Guardar Usuario   ›")
+        self.btn_save = QPushButton(t("registerpage.button_save_user", default="Guardar Usuario   ›"))
         self.btn_save.setFixedHeight(50)
         self.btn_save.setCursor(Qt.PointingHandCursor)
         # icon: prefer a dedicated save asset (floppy), then register/add, fallback to emoji
@@ -564,7 +571,7 @@ class RegisterPage(QWidget):
         self._style_btn_save(self.btn_save)
         layout.addWidget(self.btn_save)
 
-        self.btn_clear = QPushButton("Limpiar")
+        self.btn_clear = QPushButton(t("registerpage.button_clear", default="Limpiar"))
         self.btn_clear.setFixedHeight(50)
         self.btn_clear.setCursor(Qt.PointingHandCursor)
         # prefer an asset icon if present, otherwise use broom emoji
@@ -686,18 +693,21 @@ class RegisterPage(QWidget):
         if result == 0:
             play_sound("acceso_denegado.mp3")
             self._show_message(
-                "Registro cancelado",
-                "Debe aceptar el aviso de privacidad para continuar con el registro.",
+                t("registerpage.error_registration_canceled_title", default="Registro cancelado"),
+                t(
+                    "registerpage.error_registration_canceled_message",
+                    default="Debe aceptar el aviso de privacidad para continuar con el registro."
+                ),
                 "#fbbf24",
             )
 
     def _validate_name(self, nombre: str):
         if not nombre:
-            return False, "El nombre es requerido"
+            return False, t("registerpage.error_name_required", default="El nombre es requerido")
         if not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$", nombre):
-            return False, "Solo se permiten letras y espacios"
+            return False, t("registerpage.error_name_letters", default="Solo se permiten letras y espacios")
         if len(nombre.strip().split()) < 3:
-            return False, "Debe contener al menos 3 palabras"
+            return False, t("registerpage.error_name_min_words", default="Debe contener al menos 3 palabras")
         return True, ""
 
     def _on_name_changed(self, text: str):
@@ -718,7 +728,11 @@ class RegisterPage(QWidget):
         es_valido, mensaje_error = self._validate_name(nombre)
         if not es_valido:
             play_sound("acceso_denegado.mp3")
-            self._show_message("Nombre inválido", mensaje_error, "#ffffff")
+            self._show_message(
+                t("registerpage.error_invalid_name_title", default="Nombre inválido"),
+                mensaje_error,
+                "#ffffff"
+            )
             return
 
         privacy_dialog = PrivacyNoticeDialog(self)
@@ -726,8 +740,11 @@ class RegisterPage(QWidget):
         if result == 0:
             play_sound("acceso_denegado.mp3")
             self._show_message(
-                "Registro cancelado",
-                "Debe aceptar el aviso de privacidad para continuar con el registro.",
+                t("registerpage.error_registration_canceled_title", default="Registro cancelado"),
+                t(
+                    "registerpage.error_registration_canceled_message",
+                    default="Debe aceptar el aviso de privacidad para continuar con el registro."
+                ),
                 "#fbbf24",
             )
             return
@@ -738,21 +755,33 @@ class RegisterPage(QWidget):
 
     def _on_scan_completed(self, embedding):
         self._pending_embedding = embedding
-        self.scan_status.setText("Rostro capturado correctamente")
+        self.scan_status.setText(t("registerpage.scan_status_face_captured", default="Rostro capturado correctamente"))
         self.btn_save.setEnabled(True)
 
     def _save_user(self):
         nombre = self.name_input.text().strip()
         if self._pending_embedding is None:
-            self._show_message("Falta captura", "Primero debe escanear el rostro.", "#fbbf24")
+            self._show_message(
+                t("registerpage.error_missing_capture_title", default="Falta captura"),
+                t("registerpage.error_missing_capture_message", default="Primero debe escanear el rostro."),
+                "#fbbf24"
+            )
             return
 
         if not self._name_valid:
-            self._show_message("Nombre inválido", "Verifique el nombre antes de guardar.", "#ff6b7c")
+            self._show_message(
+                t("registerpage.error_invalid_name_title", default="Nombre inválido"),
+                t("registerpage.error_verify_name_message", default="Verifique el nombre antes de guardar."),
+                "#ff6b7c"
+            )
             return
 
         if _is_duplicate_embedding(self._pending_embedding):
-            self._show_message("Usuario duplicado", "El rostro ya está registrado.", "#ff6b7c")
+            self._show_message(
+                t("registerpage.error_duplicate_title", default="Usuario duplicado"),
+                t("registerpage.error_duplicate_message", default="El rostro ya está registrado."),
+                "#ff6b7c"
+            )
             return
 
         print("Iniciando registro de usuario desde UI")
@@ -766,18 +795,26 @@ class RegisterPage(QWidget):
         print(f"Resultado de guardar_usuario: {resultado}")
         if not resultado:
             print("No se pudo registrar el usuario en la base de datos.")
-            self._show_message("Error", "No se pudo guardar el usuario.", "#ff6b7c")
+            self._show_message(
+                t("registerpage.error_save_failed_title", default="Error"),
+                t("registerpage.error_save_failed_message", default="No se pudo guardar el usuario."),
+                "#ff6b7c"
+            )
             return
 
         play_sound("registrado.mp3")
-        self._show_message("Éxito", "Usuario guardado correctamente.", "#9fc7ff")
+        self._show_message(
+            t("registerpage.success_saved_title", default="Éxito"),
+            t("registerpage.success_saved_message", default="Usuario guardado correctamente."),
+            "#9fc7ff"
+        )
         self._reset_form()
 
     def _reset_form(self):
         self.name_input.clear()
         self._pending_embedding = None
         self._name_valid = False
-        self.scan_status.setText("Rostro pendiente de escaneo")
+        self.scan_status.setText(t("registerpage.scan_status_pending", default="Rostro pendiente de escaneo"))
         self.btn_save.setEnabled(False)
         self._name_error_lbl.setVisible(False)
         self.name_input.setProperty("invalid", "false")

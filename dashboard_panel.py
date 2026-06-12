@@ -23,6 +23,7 @@ from ui.admin.hamburger_menu import AdminHamburgerMenu
 from ui.admin.registerpage import RegisterPage
 from ui.admin.users_page import UsersPage
 from ui.admin.create_admin_window import CreateAdminPage
+from ui.i18n import t
 
 
 class DashboardPanel(QMainWindow):
@@ -39,7 +40,7 @@ class DashboardPanel(QMainWindow):
             self.admin_nombre = "Administrador"
         self.admin_cuenta = admin_email
 
-        self.setWindowTitle("Admin Panel")
+        self.setWindowTitle(t("admin.panel_window_title", default="Admin Panel"))
         self.setFixedSize(480, 800)
         self.setStyleSheet("background: #0f172a;")
 
@@ -93,7 +94,7 @@ class DashboardPanel(QMainWindow):
         )
         self.menu_btn.clicked.connect(self.toggle_menu)
 
-        self.title_label = QLabel("Panel de control")
+        self.title_label = QLabel(t("admin.page_title.dashboard", default="Panel de control"))
         self.title_label.setStyleSheet(
             """
             color: #e2e8f0;
@@ -113,7 +114,7 @@ class DashboardPanel(QMainWindow):
         user_info.setSpacing(2)
         user_info.setContentsMargins(0, 0, 0, 0)
 
-        role = QLabel("Administrador")
+        role = QLabel(t("admin.role_label", default="Administrador"))
         role.setStyleSheet("color: #93c5fd; font-size: 10px; font-weight: 600; border: none;")
         role.setAlignment(Qt.AlignRight)
 
@@ -163,11 +164,11 @@ class DashboardPanel(QMainWindow):
 
     def _change_page(self, index):
         titles = [
-            "Panel de control",
-            "Historial de usuarios",
-            "Registro de acceso",
-            "Registro de usuarios",
-            "Crear Administrador",
+            t("admin.page_title.dashboard", default="Panel de control"),
+            t("admin.page_title.user_history", default="Historial de usuarios"),
+            t("admin.page_title.access_history", default="Registro de acceso"),
+            t("admin.page_title.register_users", default="Registro de usuarios"),
+            t("admin.page_title.create_admin", default="Crear Administrador"),
         ]
         self.pages.setCurrentIndex(index)
         self.title_label.setText(titles[index] if index < len(titles) else "")

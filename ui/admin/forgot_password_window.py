@@ -16,6 +16,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from database.consultas import verificar_respuesta_seguridad, tiene_pregunta_seguridad, hash_pin, obtener_pregunta_seguridad, SECURITY_QUESTIONS
+from ui.i18n import t
 
 
 def asset_path(filename):
@@ -282,28 +283,29 @@ class ForgotPasswordWindow(QMainWindow):
         card_layout.setContentsMargins(26,28,26,22)
         card_layout.setSpacing(0)
 
-        title = QLabel("Recuperar Contraseña")
+        title = QLabel(t("forgot_password.title", default="Recuperar Contraseña"))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color:#f8fafc; font-size:24px; font-weight:800; background:transparent;")
 
-        subtitle = QLabel("Ingresa tu numero de cuenta y responde la pregunta de seguridad\n"
-            "que configuraste al crear tu cuenta."
-        )
+        subtitle = QLabel(t(
+            "forgot_password.subtitle",
+            default="Ingresa tu número de cuenta y responde la pregunta de seguridad\nque configuraste al crear tu cuenta."
+        ))
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet("color:#94a3b8; font-size:14px; background:transparent;")
 
         # Campo de email
-        self.email_input = InputField("Número de cuenta")
-        self.email_input.input.setPlaceholderText("Ej. 20261010")
+        self.email_input = InputField(t("forgot_password.placeholder_account", default="Número de cuenta"))
+        self.email_input.input.setPlaceholderText(t("forgot_password.placeholder_account", default="Ej. 20261010"))
         
         # Selector de pregunta
         self.selector = QuestionSelector()
         
         # Campo de respuesta
-        self.input = InputField("Tu respuesta")
+        self.input = InputField(t("forgot_password.placeholder_answer", default="Tu respuesta"))
 
-        btn = QPushButton("Verificar respuesta")
+        btn = QPushButton(t("forgot_password.button_verify", default="Verificar respuesta"))
         btn.setCursor(Qt.PointingHandCursor)
         btn.setFixedHeight(54)
 
@@ -329,7 +331,7 @@ class ForgotPasswordWindow(QMainWindow):
 
         btn.clicked.connect(self.verify)
 
-        back = QPushButton("Volver al Inicio")
+        back = QPushButton(t("forgot_password.button_back_home", default="Volver al Inicio"))
         back.setCursor(Qt.PointingHandCursor)
 
         back.setStyleSheet("""
@@ -376,15 +378,21 @@ class ForgotPasswordWindow(QMainWindow):
         account_number = self.email_input.input.text().strip()
 
         if not account_number:
-            QMessageBox.warning(self, "Error", "Ingresa tu número de cuenta.")
+            QMessageBox.warning(
+                self,
+                t("forgot_password.error_missing_account_title", default="Error"),
+                t("forgot_password.error_missing_account_message", default="Ingresa tu número de cuenta.")
+            )
             return
 
         if not tiene_pregunta_seguridad(account_number):
             QMessageBox.warning(
                 self,
-                "Sin configuración",
-                "Este número de cuenta no tiene una pregunta de seguridad configurada.\n"
-                "Contacta al administrador del sistema."
+                t("forgot_password.error_no_security_config_title", default="Sin configuración"),
+                t(
+                    "forgot_password.error_no_security_config_message",
+                    default="Este número de cuenta no tiene una pregunta de seguridad configurada.\nContacta al administrador del sistema."
+                )
             )
             return
 
@@ -398,7 +406,11 @@ class ForgotPasswordWindow(QMainWindow):
         answer = self.input.input.text().strip()
 
         if not answer:
-            QMessageBox.warning(self, "Error", "Escribe una respuesta.")
+            QMessageBox.warning(
+                self,
+                t("forgot_password.error_write_answer_title", default="Error"),
+                t("forgot_password.error_write_answer_message", default="Escribe una respuesta.")
+            )
             return
 
         if verificar_respuesta_seguridad(account_number, question, answer):
@@ -409,8 +421,8 @@ class ForgotPasswordWindow(QMainWindow):
         else:
             QMessageBox.critical(
                 self,
-                "Error",
-                "La respuesta es incorrecta. Intenta de nuevo."
+                t("forgot_password.error_wrong_answer_title", default="Error"),
+                t("forgot_password.error_wrong_answer_message", default="La respuesta es incorrecta. Intenta de nuevo.")
             )
 
 

@@ -27,6 +27,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from database.consultas import crear_admin, obtener_admin_por_nombre, hash_pin, crear_tablas, SECURITY_QUESTIONS
+from ui.i18n import t
 from ui.sound_manager import play_sound
 
 
@@ -288,7 +289,7 @@ class CreateAdminWindow(QDialog):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Crear Administrador")
+        self.setWindowTitle(t("create_admin.window_title", default="Crear Administrador"))
         self.setFixedSize(480, 800)
 
         self.setStyleSheet("""
@@ -436,7 +437,7 @@ class CreateAdminWindow(QDialog):
         # =====================================================
         # TÍTULO
         # =====================================================
-        title = QLabel("Crear Administrador")
+        title = QLabel(t("create_admin.title", default="Crear Administrador"))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
             QLabel {
@@ -471,9 +472,9 @@ class CreateAdminWindow(QDialog):
         # =====================================================
         self.nombre_input = self.add_labeled_input(
             card_layout,
-            "NOMBRE",
+            t("create_admin.label_name", default="NOMBRE"),
             "name.png",
-            "Juan Perez"
+            t("create_admin.placeholder_name", default="Juan Pérez")
         )
         # AGREGAR ESTO justo después
         self._nombre_error_lbl = QLabel("")
@@ -494,33 +495,33 @@ class CreateAdminWindow(QDialog):
 
         self.password_input = self.add_labeled_input(
             card_layout,
-            "CONTRASEÑA",
+            t("create_admin.label_password", default="CONTRASEÑA"),
             "pass.png",
-            "••••••••",
+            t("create_admin.placeholder_password", default="••••••••"),
             is_password=True,
             show_eye=True
         )
 
         self.password_confirm_input = self.add_labeled_input(
             card_layout,
-            "CONFIRMAR CONTRASEÑA",
+            t("create_admin.label_confirm_password", default="CONFIRMAR CONTRASEÑA"),
             "pass.png",
-            "••••••••",
+            t("create_admin.placeholder_confirm_password", default="••••••••"),
             is_password=True,
             show_eye=True
         )
 
         self.question_combo = self.add_labeled_combo(
             card_layout,
-            "PREGUNTA DE SEGURIDAD",
+            t("create_admin.label_security_question", default="PREGUNTA DE SEGURIDAD"),
             "question.png"
         )
 
         self.answer_input = self.add_labeled_input(
             card_layout,
-            "RESPUESTA DE SEGURIDAD",
+            t("create_admin.label_security_answer", default="RESPUESTA DE SEGURIDAD"),
             "llave.png",
-            "Su respuesta secreta"
+            t("create_admin.placeholder_security_answer", default="Su respuesta secreta")
         )
 
         card_layout.addSpacing(22)
@@ -528,7 +529,7 @@ class CreateAdminWindow(QDialog):
         # =====================================================
         # BOTÓN CREAR
         # =====================================================
-        self.create_button = QPushButton("Crear Administrador    ›")
+        self.create_button = QPushButton(t("create_admin.button_create", default="Crear Administrador    ›"))
         self.create_button.setFixedHeight(55)
         self.create_button.setCursor(Qt.PointingHandCursor)
         self.create_button.setStyleSheet("""
@@ -559,7 +560,7 @@ class CreateAdminWindow(QDialog):
         # =====================================================
         # BOTÓN CERRAR
         # =====================================================
-        self.close_button = QPushButton("Cerrar")
+        self.close_button = QPushButton(t("create_admin.button_close", default="Cerrar"))
         self.close_button.setFixedHeight(50)
         self.close_button.setCursor(Qt.PointingHandCursor)
         self.close_button.setStyleSheet("""
@@ -770,12 +771,12 @@ class CreateAdminWindow(QDialog):
     
     def _validate_nombre(self, nombre: str) -> tuple:
         if not nombre:
-            return False, "El nombre es requerido"
+            return False, t("create_admin.error_name_required", default="El nombre es requerido")
         if not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$", nombre):
-            return False, "Solo se permiten letras y espacios"
+            return False, t("create_admin.error_name_letters", default="Solo se permiten letras y espacios")
         palabras = nombre.strip().split()
         if len(palabras) < 3:
-            return False, "Debe contener al menos 3 palabras"
+            return False, t("create_admin.error_name_words", default="Debe contener al menos 3 palabras")
         return True, ""
 
     def _on_nombre_changed(self, text: str):
@@ -799,37 +800,55 @@ class CreateAdminWindow(QDialog):
         es_valido, mensaje_error = self._validate_nombre(nombre)
         if not es_valido:
             play_sound("registrado.mp3")
-            self.show_message("Nombre inválido", mensaje_error)
+            self.show_message(t("create_admin.error_invalid_name_title", default="Nombre inválido"), mensaje_error)
             return
 
         if not password or not password_confirm:
             play_sound("registrado.mp3")
-            self.show_message("Campos incompletos", "Por favor complete todos los campos.")
+            self.show_message(
+                t("create_admin.error_incomplete", default="Campos incompletos"),
+                t("create_admin.error_incomplete_message", default="Por favor complete todos los campos.")
+            )
             return
 
         if len(password) < 6:
             play_sound("registrado.mp3")
-            self.show_message("Contraseña débil", "La contraseña debe tener al menos 6 caracteres.")
+            self.show_message(
+                t("create_admin.error_weak_password", default="Contraseña débil"),
+                t("create_admin.error_weak_password_message", default="La contraseña debe tener al menos 6 caracteres.")
+            )
             return
 
         if password != password_confirm:
             play_sound("registrado.mp3")
-            self.show_message("Contraseñas no coinciden", "Las contraseñas no son iguales.")
+            self.show_message(
+                t("create_admin.error_password_mismatch", default="Contraseñas no coinciden"),
+                t("create_admin.error_password_mismatch_message", default="Las contraseñas no son iguales.")
+            )
             return
 
         if self.question_combo.currentIndex() == 0:
             play_sound("registrado.mp3")
-            self.show_message("Pregunta requerida", "Selecciona una pregunta de seguridad.")
+            self.show_message(
+                t("create_admin.error_question_required", default="Pregunta requerida"),
+                t("create_admin.error_question_required_message", default="Selecciona una pregunta de seguridad.")
+            )
             return
 
         if not security_answer:
             play_sound("registrado.mp3")
-            self.show_message("Respuesta requerida", "Por favor proporciona una respuesta de seguridad.")
+            self.show_message(
+                t("create_admin.error_answer_required", default="Respuesta requerida"),
+                t("create_admin.error_answer_required_message", default="Por favor proporciona una respuesta de seguridad.")
+            )
             return
 
         if obtener_admin_por_nombre(nombre):
             play_sound("registrado.mp3")
-            self.show_message("Nombre registrado", f"El nombre '{nombre}' ya está registrado.")
+            self.show_message(
+                t("create_admin.error_name_registered_title", default="Nombre registrado"),
+                t("create_admin.error_name_registered", default="El nombre '{name}' ya está registrado.").format(name=nombre)
+            )
             return
 
         try:
@@ -846,17 +865,26 @@ class CreateAdminWindow(QDialog):
             if resultado and isinstance(resultado, dict):
                 play_sound("registrado.mp3")
                 self.show_message(
-                    "Éxito",
-                    f"Administrador creado exitosamente.\n\nNombre: {nombre}\nID: {resultado['admin_id']}\nNúmero de cuenta: {resultado['account_number']}"
+                    t("create_admin.success_title", default="Éxito"),
+                    t(
+                        "create_admin.success_message",
+                        default="Administrador creado exitosamente.\n\nNombre: {name}\nID: {id}\nNúmero de cuenta: {account}"
+                    ).format(name=nombre, id=resultado.get("admin_id", ""), account=resultado.get("account_number", ""))
                 )
                 self.close()
             else:
                 play_sound("registrado.mp3")
-                self.show_message("Error", "No se pudo crear el administrador.")
+                self.show_message(
+                    t("create_admin.error_title", default="Error"),
+                    t("create_admin.error_generic", default="No se pudo crear el administrador.")
+                )
 
         except Exception as e:
             play_sound("registrado.mp3")
-            self.show_message("Error", f"Error al crear administrador: {str(e)}")
+            self.show_message(
+                t("create_admin.error_title", default="Error"),
+                t("create_admin.error_exception", default="Error al crear administrador: {error}").format(error=str(e))
+            )
 
 
 # =========================================================
@@ -979,7 +1007,7 @@ class CreateAdminPage(QWidget):
         card_layout.addLayout(icon_row)
         card_layout.addSpacing(28)
 
-        title = QLabel("Crear Administrador")
+        title = QLabel(t("create_admin.title", default="Crear Administrador"))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
             color: #ffffff; background: transparent; border: none;
@@ -988,7 +1016,7 @@ class CreateAdminPage(QWidget):
         card_layout.addWidget(title)
         card_layout.addSpacing(6)
 
-        subtitle = QLabel("Configure los accesos para un nuevo\nperfil de seguridad")
+        subtitle = QLabel(t("create_admin.subtitle", default="Configure los accesos para un nuevo\nperfil de seguridad"))
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("""
             color: #b2bdcc; background: transparent; border: none;
@@ -998,7 +1026,12 @@ class CreateAdminPage(QWidget):
         card_layout.addSpacing(22)
 
         # ---------- form ----------
-        self.nombre_input = self._add_input(card_layout, "NOMBRE", "name.png", "Juan Perez")
+        self.nombre_input = self._add_input(
+            card_layout,
+            t("create_admin.label_name", default="NOMBRE"),
+            "name.png",
+            t("create_admin.placeholder_name", default="Juan Pérez")
+        )
         self._nombre_error_lbl = QLabel("")
         self._nombre_error_lbl.setVisible(False)
         self._nombre_error_lbl.setStyleSheet("""
@@ -1009,22 +1042,35 @@ class CreateAdminPage(QWidget):
         self.nombre_input.input.textChanged.connect(self._on_nombre_changed)
 
         self.password_input = self._add_input(
-            card_layout, "CONTRASEÑA", "pass.png", "••••••••",
+            card_layout,
+            t("create_admin.label_password", default="CONTRASEÑA"),
+            "pass.png",
+            t("create_admin.placeholder_password", default="••••••••"),
             is_password=True, show_eye=True
         )
         self.password_confirm_input = self._add_input(
-            card_layout, "CONFIRMAR CONTRASEÑA", "pass.png", "••••••••",
+            card_layout,
+            t("create_admin.label_confirm_password", default="CONFIRMAR CONTRASEÑA"),
+            "pass.png",
+            t("create_admin.placeholder_confirm_password", default="••••••••"),
             is_password=True, show_eye=True
         )
-        self.question_combo = self._add_combo(card_layout, "PREGUNTA DE SEGURIDAD", "question.png")
+        self.question_combo = self._add_combo(
+            card_layout,
+            t("create_admin.label_security_question", default="PREGUNTA DE SEGURIDAD"),
+            "question.png"
+        )
         self.answer_input = self._add_input(
-            card_layout, "RESPUESTA DE SEGURIDAD", "llave.png", "Su respuesta secreta"
+            card_layout,
+            t("create_admin.label_security_answer", default="RESPUESTA DE SEGURIDAD"),
+            "llave.png",
+            t("create_admin.placeholder_security_answer", default="Su respuesta secreta")
         )
 
         card_layout.addSpacing(18)
 
         # ---------- buttons ----------
-        self.create_button = QPushButton("Crear Administrador    ›")
+        self.create_button = QPushButton(t("create_admin.button_create", default="Crear Administrador    ›"))
         self.create_button.setFixedHeight(52)
         self.create_button.setCursor(Qt.PointingHandCursor)
         self.create_button.setStyleSheet("""
@@ -1040,7 +1086,7 @@ class CreateAdminPage(QWidget):
 
         card_layout.addSpacing(12)
 
-        self.back_button = QPushButton("← Volver al Panel")
+        self.back_button = QPushButton(t("create_admin.button_back", default="← Volver al Panel"))
         self.back_button.setFixedHeight(48)
         self.back_button.setCursor(Qt.PointingHandCursor)
         self.back_button.setStyleSheet("""
@@ -1100,12 +1146,12 @@ class CreateAdminPage(QWidget):
 
     def _validate_nombre(self, nombre: str) -> tuple:
         if not nombre:
-            return False, "El nombre es requerido"
+            return False, t("create_admin.error_name_required", default="El nombre es requerido")
         if not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$", nombre):
-            return False, "Solo se permiten letras y espacios"
+            return False, t("create_admin.error_name_letters", default="Solo se permiten letras y espacios")
         palabras = nombre.strip().split()
         if len(palabras) < 3:
-            return False, "Debe contener al menos 3 palabras"
+            return False, t("create_admin.error_name_words", default="Debe contener al menos 3 palabras")
         return True, ""
 
     def _on_nombre_changed(self, text: str):
@@ -1149,31 +1195,49 @@ class CreateAdminPage(QWidget):
 
         es_valido, mensaje_error = self._validate_nombre(nombre)
         if not es_valido:
-            self._show_msg("Nombre inválido", mensaje_error)
+            self._show_msg(t("create_admin.error_invalid_name_title", default="Nombre inválido"), mensaje_error)
             return
 
         if not password or not password_confirm:
-            self._show_msg("Campos incompletos", "Por favor complete todos los campos.")
+            self._show_msg(
+                t("create_admin.error_incomplete", default="Campos incompletos"),
+                t("create_admin.error_incomplete_message", default="Por favor complete todos los campos.")
+            )
             return
 
         if len(password) < 6:
-            self._show_msg("Contraseña débil", "La contraseña debe tener al menos 6 caracteres.")
+            self._show_msg(
+                t("create_admin.error_weak_password", default="Contraseña débil"),
+                t("create_admin.error_weak_password_message", default="La contraseña debe tener al menos 6 caracteres.")
+            )
             return
 
         if password != password_confirm:
-            self._show_msg("Contraseñas no coinciden", "Las contraseñas no son iguales.")
+            self._show_msg(
+                t("create_admin.error_password_mismatch", default="Contraseñas no coinciden"),
+                t("create_admin.error_password_mismatch_message", default="Las contraseñas no son iguales.")
+            )
             return
 
         if self.question_combo.currentIndex() == 0:
-            self._show_msg("Pregunta requerida", "Selecciona una pregunta de seguridad.")
+            self._show_msg(
+                t("create_admin.error_question_required", default="Pregunta requerida"),
+                t("create_admin.error_question_required_message", default="Selecciona una pregunta de seguridad.")
+            )
             return
 
         if not security_answer:
-            self._show_msg("Respuesta requerida", "Por favor proporciona una respuesta de seguridad.")
+            self._show_msg(
+                t("create_admin.error_answer_required", default="Respuesta requerida"),
+                t("create_admin.error_answer_required_message", default="Por favor proporciona una respuesta de seguridad.")
+            )
             return
 
         if obtener_admin_por_nombre(nombre):
-            self._show_msg("Nombre registrado", f"El nombre '{nombre}' ya está registrado.")
+            self._show_msg(
+                t("create_admin.error_name_registered_title", default="Nombre registrado"),
+                t("create_admin.error_name_registered", default="El nombre '{name}' ya está registrado.").format(name=nombre)
+            )
             return
 
         try:
@@ -1188,9 +1252,15 @@ class CreateAdminPage(QWidget):
             if resultado and isinstance(resultado, dict):
                 play_sound("registrado.mp3")
                 self._show_msg(
-                    "Éxito",
-                    f"Administrador creado exitosamente.\n\nNombre: {nombre}\n"
-                    f"ID: {resultado['admin_id']}\nNúmero de cuenta: {resultado['account_number']}"
+                    t("create_admin.success_title", default="Éxito"),
+                    t(
+                        "create_admin.success_message",
+                        default="Administrador creado exitosamente.\n\nNombre: {name}\nID: {id}\nNúmero de cuenta: {account}"
+                    ).format(
+                        name=nombre,
+                        id=resultado.get("admin_id", ""),
+                        account=resultado.get("account_number", "")
+                    )
                 )
                 # Limpiar formulario
                 self.nombre_input.clear()
@@ -1200,6 +1270,12 @@ class CreateAdminPage(QWidget):
                 self.answer_input.clear()
                 self._go_back()
             else:
-                self._show_msg("Error", "No se pudo crear el administrador.")
+                self._show_msg(
+                    t("create_admin.error_title", default="Error"),
+                    t("create_admin.error_generic", default="No se pudo crear el administrador.")
+                )
         except Exception as e:
-            self._show_msg("Error", f"Error al crear administrador: {str(e)}")
+            self._show_msg(
+                t("create_admin.error_title", default="Error"),
+                t("create_admin.error_exception", default="Error al crear administrador: {error}").format(error=str(e))
+            )

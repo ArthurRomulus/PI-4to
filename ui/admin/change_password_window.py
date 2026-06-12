@@ -23,6 +23,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from database.consultas import hash_pin, actualizar_pin_admin
+from ui.i18n import t
 
 
 def asset_path(filename):
@@ -204,7 +205,7 @@ class ChangePasswordWindow(QMainWindow):
     def __init__(self, account_number=None):
         super().__init__()
         self.account_number = account_number
-        self.setWindowTitle("Cambiar contraseña")
+        self.setWindowTitle(t("change_password.window_title", default="Cambiar contraseña"))
         self.setFixedSize(480, 800)
 
         central = QWidget()
@@ -278,7 +279,7 @@ class ChangePasswordWindow(QMainWindow):
         card_layout.setContentsMargins(26, 28, 26, 22)
         card_layout.setSpacing(0)
 
-        title = QLabel("Cambiar Contraseña")
+        title = QLabel(t("change_password.title", default="Cambiar Contraseña"))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
             color: #f8fafc;
@@ -288,7 +289,10 @@ class ChangePasswordWindow(QMainWindow):
             border: none;
         """)
 
-        subtitle = QLabel("Ingrese su nueva contraseña\ny confírmela para continuar.")
+        subtitle = QLabel(t(
+            "change_password.subtitle",
+            default="Ingrese su nueva contraseña\ny confírmela para continuar."
+        ))
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("""
             color: #94a3b8;
@@ -300,21 +304,21 @@ class ChangePasswordWindow(QMainWindow):
         """)
 
         self.new_password_input = PasswordInput(
-            placeholder="Nueva contraseña",
+            placeholder=t("change_password.placeholder_new_password", default="Nueva contraseña"),
             left_icon_name="pass.png",
             eye_icon_name="openeye.png"
         )
 
         self.confirm_password_input = PasswordInput(
-            placeholder="Confirmar contraseña",
+            placeholder=t("change_password.placeholder_confirm_password", default="Confirmar contraseña"),
             left_icon_name="pass.png",
             eye_icon_name="openeye.png"
         )
 
-        self.confirm_btn = GradientButton("Confirmar")
+        self.confirm_btn = GradientButton(t("change_password.button_confirm", default="Confirmar"))
         self.confirm_btn.clicked.connect(self.change_password)
 
-        back_btn = QPushButton("Volver al Inicio")
+        back_btn = QPushButton(t("change_password.button_back_home", default="Volver al Inicio"))
         back_btn.setCursor(Qt.PointingHandCursor)
         back_btn.setStyleSheet("""
             QPushButton {
@@ -354,24 +358,24 @@ class ChangePasswordWindow(QMainWindow):
         if not password1 or not password2:
             QMessageBox.warning(
                 self,
-                "Campos vacíos",
-                "Por favor, complete ambos campos."
+                t("change_password.error_empty_fields_title", default="Campos vacíos"),
+                t("change_password.error_empty_fields_message", default="Por favor, complete ambos campos.")
             )
             return
 
         if len(password1) < 6:
             QMessageBox.warning(
                 self,
-                "Contraseña inválida",
-                "La contraseña debe tener al menos 6 caracteres."
+                t("change_password.error_invalid_password_title", default="Contraseña inválida"),
+                t("change_password.error_invalid_password_message", default="La contraseña debe tener al menos 6 caracteres.")
             )
             return
 
         if password1 != password2:
             QMessageBox.critical(
                 self,
-                "No coinciden",
-                "Las contraseñas no coinciden."
+                t("change_password.error_password_mismatch_title", default="No coinciden"),
+                t("change_password.error_password_mismatch_message", default="Las contraseñas no coinciden.")
             )
             return
 
@@ -381,21 +385,21 @@ class ChangePasswordWindow(QMainWindow):
             if actualizar_pin_admin(self.account_number, nuevo_pin_hash):
                 QMessageBox.information(
                     self,
-                    "Éxito",
-                    "La contraseña se cambió correctamente."
+                    t("change_password.success_title", default="Éxito"),
+                    t("change_password.success_changed_message", default="La contraseña se cambió correctamente.")
                 )
                 self.go_back()
             else:
                 QMessageBox.critical(
                     self,
-                    "Error",
-                    "No se pudo actualizar la contraseña. Intenta de nuevo."
+                    t("change_password.failure_error_title", default="Error"),
+                    t("change_password.failure_error_message", default="No se pudo actualizar la contraseña. Intenta de nuevo.")
                 )
         else:
             QMessageBox.information(
                 self,
-                "Contraseña actualizada",
-                "La contraseña se cambió correctamente."
+                t("change_password.success_title", default="Contraseña actualizada"),
+                t("change_password.success_changed_message", default="La contraseña se cambió correctamente.")
             )
             self.go_back()
 

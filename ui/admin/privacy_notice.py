@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
+from ui.i18n import t
 
 
 class PrivacyNoticeDialog(QDialog):
@@ -21,7 +22,7 @@ class PrivacyNoticeDialog(QDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Aviso de Privacidad")
+        self.setWindowTitle(t("privacy_notice.window_title", default="Aviso de Privacidad"))
         self.setMinimumSize(600, 500)
         self.setStyleSheet("""
             QDialog {
@@ -65,13 +66,13 @@ class PrivacyNoticeDialog(QDialog):
         layout.setContentsMargins(24, 24, 24, 24)
         
         # ── Título ───────────────────────────────────────────────────────────
-        title = QLabel("📋 Aviso de Privacidad")
+        title = QLabel(t("privacy_notice.title", default="📋 Aviso de Privacidad"))
         title.setFont(QFont("Segoe UI", 18, QFont.Bold))
         title.setStyleSheet("color: #38bdf8; border: none;")
         title.setAlignment(Qt.AlignCenter)
         
         # ── Subtítulo ─────────────────────────────────────────────────────────
-        subtitle = QLabel("Sistema de Reconocimiento Facial Biometrico")
+        subtitle = QLabel(t("privacy_notice.subtitle", default="Sistema de Reconocimiento Facial Biometrico"))
         subtitle.setFont(QFont("Segoe UI", 14))
         subtitle.setStyleSheet("color: #94a3b8; border: none;")
         subtitle.setAlignment(Qt.AlignCenter)
@@ -85,7 +86,7 @@ class PrivacyNoticeDialog(QDialog):
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(16, 16, 16, 16)
         
-        aviso_texto = """
+        aviso_texto = t("privacy_notice.content_html", default="""
 <h2 style="color: #38bdf8;">1. Responsable del Tratamiento de Datos</h2>
 <p>El responsable del tratamiento de sus datos personales es el administrador del sistema de reconocimiento facial biométrico. Los datos serán utilizados exclusivamente para el control de acceso mediante reconocimiento facial.</p>
 
@@ -137,10 +138,9 @@ class PrivacyNoticeDialog(QDialog):
 
 <hr>
 <p style="color: #64748b; font-size: 12px;">Fecha de última actualización: Abril 2026</p>
-"""
+""")
         
         self.text_edit = QTextEdit()
-        self.text_edit.setHtml(aviso_texto)
         self.text_edit.setReadOnly(True)
         
         content_layout.addWidget(self.text_edit)
@@ -150,10 +150,10 @@ class PrivacyNoticeDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
         
-        self.btn_accept = QPushButton("✅ Aceptar y Continuar")
+        self.btn_accept = QPushButton(t("privacy_notice.button_accept", default="✅ Aceptar y Continuar"))
         self.btn_accept.clicked.connect(self.accept)
         
-        self.btn_cancel = QPushButton("❌ Cancelar")
+        self.btn_cancel = QPushButton(t("privacy_notice.button_cancel", default="❌ Cancelar"))
         self.btn_cancel.clicked.connect(self.reject)
         
         btn_layout.addStretch()
@@ -161,7 +161,7 @@ class PrivacyNoticeDialog(QDialog):
         btn_layout.addWidget(self.btn_accept)
         
         # ── Checkbox de confirmación ─────────────────────────────────────────
-        self.confirm_check = QLabel("☑ He leído y acepto el aviso de privacidad")
+        self.confirm_check = QLabel(t("privacy_notice.confirm_text", default="☑ He leído y acepto el aviso de privacidad"))
         self.confirm_check.setStyleSheet("color: #94a3b8; font-size: 12px; border: none;")
         self.confirm_check.setAlignment(Qt.AlignCenter)
         

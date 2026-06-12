@@ -15,6 +15,8 @@ from PyQt5.QtWidgets import (
     QGraphicsDropShadowEffect,
 )
 
+from ui.i18n import t
+
 from database.consultas import (
     contar_accesos_hoy,
     contar_usuarios_registrados,
@@ -74,7 +76,7 @@ class DashboardPage(QWidget):
         banner_layout.setContentsMargins(20, 16, 20, 14)
         banner_layout.setSpacing(6)
 
-        title = QLabel("Bienvenido al panel de\nadministrador")
+        title = QLabel(t("admin.dashboard.welcome_title", default="Bienvenido al panel de\nadministrador"))
         title.setWordWrap(True)
         title.setStyleSheet("""
             QLabel {
@@ -85,7 +87,7 @@ class DashboardPage(QWidget):
             }
         """)
 
-        subtitle = QLabel("aquí puedes administrar usuarios y revisar accesos")
+        subtitle = QLabel(t("admin.dashboard.welcome_subtitle", default="aquí puedes administrar usuarios y revisar accesos"))
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet("""
             QLabel {
@@ -107,13 +109,13 @@ class DashboardPage(QWidget):
 
         self.detected_card = self.stat_card(
             icon_file="face_id.png",
-            title="ROSTROS DETECTADOS",
+            title=t("admin.dashboard.metric_faces_detected", default="ROSTROS DETECTADOS"),
             value="0"
         )
 
         self.users_card = self.stat_card(
             icon_file="user_add.png",
-            title="NUEVOS REGISTROS",
+            title=t("admin.dashboard.metric_new_registrations", default="NUEVOS REGISTROS"),
             value="0"
         )
 
@@ -150,7 +152,7 @@ class DashboardPage(QWidget):
         header_row = QHBoxLayout()
         header_row.setContentsMargins(0, 0, 0, 0)
 
-        left_hdr = QLabel("Accesos Recientes")
+        left_hdr = QLabel(t("admin.dashboard.recent_access_title", default="Accesos Recientes"))
         left_hdr.setStyleSheet("""
             QLabel {
                 color: #f8fafc;
@@ -159,7 +161,7 @@ class DashboardPage(QWidget):
             }
         """)
 
-        see_all = QLabel("▣ Ver registros completos")
+        see_all = QLabel(t("admin.dashboard.view_all_records", default="▣ Ver registros completos"))
         see_all.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         see_all.setStyleSheet("""
             QLabel {
@@ -179,7 +181,11 @@ class DashboardPage(QWidget):
         # TABLA PREMIUM
         # =====================================================
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["USUARIO", "STATUS", "FECHA"])
+        self.table.setHorizontalHeaderLabels([
+            t("admin.dashboard.table_header_user", default="USUARIO"),
+            t("admin.dashboard.table_header_status", default="STATUS"),
+            t("admin.dashboard.table_header_date", default="FECHA"),
+        ])
 
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)

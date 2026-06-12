@@ -21,6 +21,7 @@ from database.consultas import (
     obtener_lista_admins, dar_de_baja_admin, reactivar_admin,
     modificar_admin, eliminar_admin_por_id,
 )
+from ui.i18n import t
 
 # ── Estilos compartidos ───────────────────────────────────────────────────────
 
@@ -144,7 +145,7 @@ class ModificarUsuarioDialog(QDialog):
 
     def __init__(self, nombre_actual: str, cuenta_actual: str, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Modificar usuario")
+        self.setWindowTitle(t("users_page.dialog_modify_user_title", default="Modificar usuario"))
         self.setMinimumWidth(380)
         self.setStyleSheet(_DIALOG_STYLE)
 
@@ -152,7 +153,7 @@ class ModificarUsuarioDialog(QDialog):
         layout.setSpacing(14)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        titulo = QLabel("✏️  Editar datos del usuario")
+        titulo = QLabel(t("users_page.dialog_modify_user_heading", default="✏️  Editar datos del usuario"))
         titulo.setStyleSheet("color: #38bdf8; font-size: 15px; font-weight: 700;")
         layout.addWidget(titulo)
 
@@ -162,13 +163,13 @@ class ModificarUsuarioDialog(QDialog):
         self.nombre_edit = QLineEdit(nombre_actual or "")
         self.cuenta_edit = QLineEdit(cuenta_actual or "")
 
-        form.addRow("Nombre:", self.nombre_edit)
-        form.addRow("Número de cuenta:", self.cuenta_edit)
+        form.addRow(t("users_page.dialog_label_name", default="Nombre:"), self.nombre_edit)
+        form.addRow(t("users_page.dialog_label_account_number", default="Número de cuenta:"), self.cuenta_edit)
         layout.addLayout(form)
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        btns.button(QDialogButtonBox.Ok).setText("Guardar")
-        btns.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        btns.button(QDialogButtonBox.Ok).setText(t("users_page.dialog_button_save", default="Guardar"))
+        btns.button(QDialogButtonBox.Cancel).setText(t("users_page.dialog_button_cancel", default="Cancelar"))
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
         layout.addWidget(btns)
@@ -182,7 +183,7 @@ class ModificarAdminDialog(QDialog):
 
     def __init__(self, email_actual: str, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Modificar administrador")
+        self.setWindowTitle(t("users_page.dialog_modify_admin_title", default="Modificar administrador"))
         self.setMinimumWidth(380)
         self.setStyleSheet(_DIALOG_STYLE)
 
@@ -190,19 +191,19 @@ class ModificarAdminDialog(QDialog):
         layout.setSpacing(14)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        titulo = QLabel("✏️  Editar nombre del administrador")
+        titulo = QLabel(t("users_page.dialog_modify_admin_heading", default="✏️  Editar nombre del administrador"))
         titulo.setStyleSheet("color: #f59e0b; font-size: 15px; font-weight: 700;")
         layout.addWidget(titulo)
 
         form = QFormLayout()
         form.setSpacing(10)
         self.nombre_edit = QLineEdit(email_actual or "")
-        form.addRow("Nombre:", self.nombre_edit)
+        form.addRow(t("users_page.dialog_label_name", default="Nombre:"), self.nombre_edit)
         layout.addLayout(form)
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        btns.button(QDialogButtonBox.Ok).setText("Guardar")
-        btns.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        btns.button(QDialogButtonBox.Ok).setText(t("users_page.dialog_button_save", default="Guardar"))
+        btns.button(QDialogButtonBox.Cancel).setText(t("users_page.dialog_button_cancel", default="Cancelar"))
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
         layout.addWidget(btns)
@@ -243,7 +244,7 @@ class UsersPage(QWidget):
         u_inner.setContentsMargins(14, 14, 14, 14)
         u_inner.setSpacing(8)
 
-        u_title = QLabel("👤  Usuarios registrados")
+        u_title = QLabel(t("users_page.users_title", default="👤  Usuarios registrados"))
         u_title.setStyleSheet("color: #38bdf8; font-size: 16px; font-weight: 700; border: none;")
         u_inner.addWidget(u_title)
 
@@ -251,7 +252,7 @@ class UsersPage(QWidget):
 
         # ── Campo de búsqueda de usuarios ────────────────────────────────────────
         self.user_search = QLineEdit()
-        self.user_search.setPlaceholderText("🔍  Buscar por nombre, ID o cuenta...")
+        self.user_search.setPlaceholderText(t("users_page.search_placeholder", default="🔍  Buscar por nombre, ID o cuenta..."))
         self.user_search.setClearButtonEnabled(True)
         self.user_search.setFixedHeight(32)
         self.user_search.setStyleSheet("""
@@ -269,7 +270,15 @@ class UsersPage(QWidget):
         u_inner.addWidget(self.user_search)
 
         # Tabla usuarios: ID, Nombre, Cuenta, Rol, Estado, Fecha, Acciones
-        self.user_table = _make_table(["ID", "NOMBRE", "CUENTA", "ROL", "ESTADO", "FECHA", "ACCIONES"], stretch_col=1)
+        self.user_table = _make_table([
+            t("users_page.table_header_id", default="ID"),
+            t("users_page.table_header_name", default="NOMBRE"),
+            t("users_page.table_header_account", default="CUENTA"),
+            t("users_page.table_header_role", default="ROL"),
+            t("users_page.table_header_status", default="ESTADO"),
+            t("users_page.table_header_date", default="FECHA"),
+            t("users_page.table_header_actions", default="ACCIONES"),
+        ], stretch_col=1)
         self.user_table.setColumnHidden(0, True)
         self.user_table.setColumnWidth(2, 70)
         self.user_table.setColumnWidth(3, 50)
@@ -291,10 +300,10 @@ class UsersPage(QWidget):
         a_inner.setContentsMargins(14, 14, 14, 14)
         a_inner.setSpacing(8)
 
-        a_title = QLabel("🔑  Administradores del sistema")
+        a_title = QLabel(t("users_page.admins_title", default="🔑  Administradores del sistema"))
         a_title.setStyleSheet("color: #f59e0b; font-size: 16px; font-weight: 700; border: none;")
 
-        a_desc = QLabel("Las contraseñas nunca se almacenan en texto plano — se muestran enmascaradas.")
+        a_desc = QLabel(t("users_page.admins_description", default="Las contraseñas nunca se almacenan en texto plano — se muestran enmascaradas."))
         a_desc.setWordWrap(True)
         a_desc.setStyleSheet("color: #64748b; font-size: 11px; border: none;")
 
@@ -305,7 +314,7 @@ class UsersPage(QWidget):
 
         # ── Campo de búsqueda de admins ─────────────────────────────────────────
         self.admin_search = QLineEdit()
-        self.admin_search.setPlaceholderText("🔍  Buscar por nombre, ID o cuenta...")
+        self.admin_search.setPlaceholderText(t("users_page.search_placeholder", default="🔍  Buscar por nombre, ID o cuenta..."))
         self.admin_search.setClearButtonEnabled(True)
         self.admin_search.setFixedHeight(32)
         self.admin_search.setStyleSheet("""
@@ -323,7 +332,15 @@ class UsersPage(QWidget):
         a_inner.addWidget(self.admin_search)
 
         # Tabla admins: ID, Nombre, Cuenta, Contraseña, Estado, Fecha, Acciones
-        self.admin_table = _make_table(["ID", "NOMBRE", "CUENTA", "CONTRASEÑA", "ESTADO", "FECHA", "ACCIONES"], stretch_col=1)
+        self.admin_table = _make_table([
+            t("users_page.table_header_id", default="ID"),
+            t("users_page.table_header_name", default="NOMBRE"),
+            t("users_page.table_header_account", default="CUENTA"),
+            t("users_page.table_header_password", default="CONTRASEÑA"),
+            t("users_page.table_header_status", default="ESTADO"),
+            t("users_page.table_header_date", default="FECHA"),
+            t("users_page.table_header_actions", default="ACCIONES"),
+        ], stretch_col=1)
         self.admin_table.setColumnHidden(0, True)
         self.admin_table.setColumnWidth(2, 70)
         self.admin_table.setColumnWidth(3, 60)
@@ -353,11 +370,12 @@ class UsersPage(QWidget):
         estado_item = self.user_table.item(row, 4)
         if not id_item:
             return None
+        active_text = estado_item.text() if estado_item else t("users_page.status_active", default="Activo")
         return (
             row,
             int(id_item.text()),
             nombre_item.text() if nombre_item else "",
-            estado_item.text() if estado_item else "Activo",
+            active_text == t("users_page.status_active", default="Activo"),
         )
 
     def _get_selected_admin(self):
@@ -370,11 +388,12 @@ class UsersPage(QWidget):
         estado_item = self.admin_table.item(row, 4)
         if not id_item:
             return None
+        active_text = estado_item.text() if estado_item else t("users_page.status_active", default="Activo")
         return (
             row,
             int(id_item.text()),
             nombre_item.text() if nombre_item else "",
-            estado_item.text() if estado_item else "Activo",
+            active_text == t("users_page.status_active", default="Activo"),
         )
 
     # ── Selección (sin uso con botones por fila) ──────────────────────────────
@@ -395,46 +414,69 @@ class UsersPage(QWidget):
 
     def _eliminar_usuario_directo(self, user_id, nombre):
         msg = QMessageBox(self)
-        msg.setWindowTitle("Confirmar eliminación")
-        msg.setText(f"¿Eliminar al usuario <b>{nombre}</b> (ID: {user_id})?")
-        msg.setInformativeText("Se eliminarán también sus registros faciales e historial de accesos.\nEsta acción no se puede deshacer.")
+        msg.setWindowTitle(t("users_page.confirm_delete_user_title", default="Confirmar eliminación"))
+        msg.setText(t("users_page.confirm_delete_user_text", default="¿Eliminar al usuario <b>{name}</b> (ID: {id})?").format(name=nombre, id=user_id))
+        msg.setInformativeText(t("users_page.confirm_delete_user_info", default="Se eliminarán también sus registros faciales e historial de accesos.\nEsta acción no se puede deshacer."))
         msg.setIcon(QMessageBox.Warning)
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
-        msg.button(QMessageBox.Yes).setText("Eliminar")
-        msg.button(QMessageBox.Cancel).setText("Cancelar")
+        msg.button(QMessageBox.Yes).setText(t("users_page.dialog_button_delete", default="Eliminar"))
+        msg.button(QMessageBox.Cancel).setText(t("users_page.dialog_button_cancel", default="Cancelar"))
         msg.setStyleSheet(_MSG_STYLE)
         if msg.exec_() == QMessageBox.Yes:
             if eliminar_usuario_por_id(user_id):
-                self._notificar(f"✅  Usuario «{nombre}» eliminado correctamente.", ok=True)
+                self._notificar(
+                    t("users_page.user_deleted_ok", default="✅  Usuario «{name}» eliminado correctamente.").format(name=nombre),
+                    ok=True
+                )
                 self.refresh_data()
             else:
-                self._notificar(f"❌  No se pudo eliminar a «{nombre}».", ok=False)
+                self._notificar(
+                    t("users_page.user_deleted_error", default="❌  No se pudo eliminar a «{name}»." ).format(name=nombre),
+                    ok=False
+                )
 
     def _toggle_baja_usuario(self):
         data = self._get_selected_user()
         if not data: return
-        _, user_id, nombre, estado = data
-        self._toggle_baja_usuario_directo(user_id, nombre, estado)
+        _, user_id, nombre, is_active = data
+        self._toggle_baja_usuario_directo(user_id, nombre, is_active)
 
-    def _toggle_baja_usuario_directo(self, user_id, nombre, estado):
-        activo = estado == "Activo"
-        accion = "reactivar" if not activo else "dar de baja"
+    def _toggle_baja_usuario_directo(self, user_id, nombre, is_active):
+        accion = t("users_page.user_action_reactivate", default="reactivar") if not is_active else t("users_page.user_action_deactivate", default="dar de baja")
         msg = QMessageBox(self)
-        msg.setWindowTitle("Confirmar acción")
-        msg.setText(f"¿Deseas <b>{accion}</b> al usuario <b>{nombre}</b>?")
-        msg.setInformativeText("El usuario podrá volver a iniciar sesión." if not activo else "El usuario no podrá iniciar sesión hasta que sea reactivado.")
+        msg.setWindowTitle(t("users_page.confirm_action_title", default="Confirmar acción"))
+        msg.setText(t("users_page.confirm_toggle_user_text", default="¿Deseas <b>{action}</b> al usuario <b>{name}</b>?").format(action=accion, name=nombre))
+        msg.setInformativeText(
+            t("users_page.confirm_toggle_user_info_reactivate", default="El usuario podrá volver a iniciar sesión.") if not is_active else
+            t("users_page.confirm_toggle_user_info_deactivate", default="El usuario no podrá iniciar sesión hasta que sea reactivado.")
+        )
         msg.setIcon(QMessageBox.Question)
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
-        msg.button(QMessageBox.Yes).setText("Confirmar")
-        msg.button(QMessageBox.Cancel).setText("Cancelar")
+        msg.button(QMessageBox.Yes).setText(t("users_page.dialog_button_confirm", default="Confirmar"))
+        msg.button(QDialogButtonBox.Cancel).setText(t("users_page.dialog_button_cancel", default="Cancelar"))
         msg.setStyleSheet(_MSG_STYLE)
         if msg.exec_() == QMessageBox.Yes:
-            ok = reactivar_usuario(user_id) if not activo else dar_de_baja_usuario(user_id)
+            ok = reactivar_usuario(user_id) if not is_active else dar_de_baja_usuario(user_id)
             if ok:
-                self._notificar(f"✅  Usuario «{nombre}» {'reactivado' if not activo else 'dado de baja'} correctamente.", ok=True)
+                self._notificar(
+                    t(
+                        "users_page.user_toggle_status_ok",
+                        default="✅  Usuario «{name}» {action} correctamente."
+                    ).format(
+                        name=nombre,
+                        action=t("users_page.user_action_reactivated", default="reactivado") if not is_active else t("users_page.user_action_deactivated", default="dado de baja")
+                    ),
+                    ok=True
+                )
                 self.refresh_data()
             else:
-                self._notificar(f"❌  No se pudo {accion} a «{nombre}».", ok=False)
+                self._notificar(
+                    t("users_page.user_toggle_status_error", default="❌  No se pudo {action} a «{name}».").format(
+                        action=accion,
+                        name=nombre
+                    ),
+                    ok=False
+                )
 
     def _modificar_usuario(self):
         data = self._get_selected_user()
@@ -450,14 +492,14 @@ class UsersPage(QWidget):
         if dlg.exec_() == QDialog.Accepted:
             nuevo_nombre, nueva_cuenta = dlg.get_datos()
             if not nuevo_nombre:
-                self._notificar("❌  El nombre no puede estar vacío.", ok=False)
+                self._notificar(t("users_page.user_update_empty_name_error", default="❌  El nombre no puede estar vacío."), ok=False)
                 return
             ok = modificar_usuario(user_id, nuevo_nombre, nueva_cuenta or None)
             if ok:
-                self._notificar("✅  Usuario actualizado correctamente.", ok=True)
+                self._notificar(t("users_page.user_update_ok", default="✅  Usuario actualizado correctamente."), ok=True)
                 self.refresh_data()
             else:
-                self._notificar("❌  No se pudo actualizar el usuario.", ok=False)
+                self._notificar(t("users_page.user_update_error", default="❌  No se pudo actualizar el usuario."), ok=False)
 
     # ── Acciones directas ADMINS ──────────────────────────────────────────────
 
@@ -469,46 +511,69 @@ class UsersPage(QWidget):
 
     def _eliminar_admin_directo(self, admin_id, nombre):
         msg = QMessageBox(self)
-        msg.setWindowTitle("Confirmar eliminación")
-        msg.setText(f"¿Eliminar al administrador <b>{nombre}</b> (ID: {admin_id})?")
-        msg.setInformativeText("Esta acción no se puede deshacer.")
+        msg.setWindowTitle(t("users_page.confirm_delete_admin_title", default="Confirmar eliminación"))
+        msg.setText(t("users_page.confirm_delete_admin_text", default="¿Eliminar al administrador <b>{name}</b> (ID: {id})?").format(name=nombre, id=admin_id))
+        msg.setInformativeText(t("users_page.confirm_delete_admin_info", default="Esta acción no se puede deshacer."))
         msg.setIcon(QMessageBox.Warning)
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
-        msg.button(QMessageBox.Yes).setText("Eliminar")
-        msg.button(QMessageBox.Cancel).setText("Cancelar")
+        msg.button(QMessageBox.Yes).setText(t("users_page.dialog_button_delete", default="Eliminar"))
+        msg.button(QMessageBox.Cancel).setText(t("users_page.dialog_button_cancel", default="Cancelar"))
         msg.setStyleSheet(_MSG_STYLE)
         if msg.exec_() == QMessageBox.Yes:
             if eliminar_admin_por_id(admin_id):
-                self._notificar(f"✅  Administrador «{nombre}» eliminado correctamente.", ok=True)
+                self._notificar(
+                    t("users_page.admin_deleted_ok", default="✅  Administrador «{name}» eliminado correctamente.").format(name=nombre),
+                    ok=True
+                )
                 self.refresh_data()
             else:
-                self._notificar(f"❌  No se pudo eliminar al administrador «{nombre}».", ok=False)
+                self._notificar(
+                    t("users_page.admin_deleted_error", default="❌  No se pudo eliminar al administrador «{name}»." ).format(name=nombre),
+                    ok=False
+                )
 
     def _toggle_baja_admin(self):
         data = self._get_selected_admin()
         if not data: return
-        _, admin_id, nombre, estado = data
-        self._toggle_baja_admin_directo(admin_id, nombre, estado)
+        _, admin_id, nombre, is_active = data
+        self._toggle_baja_admin_directo(admin_id, nombre, is_active)
 
-    def _toggle_baja_admin_directo(self, admin_id, nombre, estado):
-        activo = estado == "Activo"
-        accion = "reactivar" if not activo else "dar de baja"
+    def _toggle_baja_admin_directo(self, admin_id, nombre, is_active):
+        accion = t("users_page.admin_action_reactivate", default="reactivar") if not is_active else t("users_page.admin_action_deactivate", default="dar de baja")
         msg = QMessageBox(self)
-        msg.setWindowTitle("Confirmar acción")
-        msg.setText(f"¿Deseas <b>{accion}</b> al administrador <b>{nombre}</b>?")
-        msg.setInformativeText("El administrador podrá volver a iniciar sesión." if not activo else "El administrador no podrá iniciar sesión hasta que sea reactivado.")
+        msg.setWindowTitle(t("users_page.confirm_action_title", default="Confirmar acción"))
+        msg.setText(t("users_page.confirm_toggle_admin_text", default="¿Deseas <b>{action}</b> al administrador <b>{name}</b>?").format(action=accion, name=nombre))
+        msg.setInformativeText(
+            t("users_page.confirm_toggle_admin_info_reactivate", default="El administrador podrá volver a iniciar sesión.") if not is_active else
+            t("users_page.confirm_toggle_admin_info_deactivate", default="El administrador no podrá iniciar sesión hasta que sea reactivado.")
+        )
         msg.setIcon(QMessageBox.Question)
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
-        msg.button(QMessageBox.Yes).setText("Confirmar")
-        msg.button(QMessageBox.Cancel).setText("Cancelar")
+        msg.button(QMessageBox.Yes).setText(t("users_page.dialog_button_confirm", default="Confirmar"))
+        msg.button(QDialogButtonBox.Cancel).setText(t("users_page.dialog_button_cancel", default="Cancelar"))
         msg.setStyleSheet(_MSG_STYLE)
         if msg.exec_() == QMessageBox.Yes:
-            ok = reactivar_admin(admin_id) if not activo else dar_de_baja_admin(admin_id)
+            ok = reactivar_admin(admin_id) if not is_active else dar_de_baja_admin(admin_id)
             if ok:
-                self._notificar(f"✅  Administrador «{nombre}» {'reactivado' if not activo else 'dado de baja'} correctamente.", ok=True)
+                self._notificar(
+                    t(
+                        "users_page.admin_toggle_status_ok",
+                        default="✅  Administrador «{name}» {action} correctamente."
+                    ).format(
+                        name=nombre,
+                        action=t("users_page.admin_action_reactivated", default="reactivado") if not is_active else t("users_page.admin_action_deactivated", default="dado de baja")
+                    ),
+                    ok=True
+                )
                 self.refresh_data()
             else:
-                self._notificar(f"❌  No se pudo {accion} al administrador «{nombre}».", ok=False)
+                self._notificar(
+                    t("users_page.admin_toggle_status_error", default="❌  No se pudo {action} al administrador «{name}»." ).format(
+                        action=accion,
+                        name=nombre
+                    ),
+                    ok=False
+                )
 
     def _modificar_admin(self):
         data = self._get_selected_admin()
@@ -521,20 +586,20 @@ class UsersPage(QWidget):
         if dlg.exec_() == QDialog.Accepted:
             nuevo_nombre = dlg.get_nombre()
             if not nuevo_nombre:
-                self._notificar("❌  El nombre no puede estar vacío.", ok=False)
+                self._notificar(t("users_page.admin_update_empty_name_error", default="❌  El nombre no puede estar vacío."), ok=False)
                 return
             ok = modificar_admin(admin_id, nuevo_nombre)
             if ok:
-                self._notificar("✅  Administrador actualizado correctamente.", ok=True)
+                self._notificar(t("users_page.admin_update_ok", default="✅  Administrador actualizado correctamente."), ok=True)
                 self.refresh_data()
             else:
-                self._notificar("❌  No se pudo actualizar. El nombre puede estar duplicado.", ok=False)
+                self._notificar(t("users_page.admin_update_error", default="❌  No se pudo actualizar. El nombre puede estar duplicado."), ok=False)
 
     # ── Notificaciones ────────────────────────────────────────────────────────
 
     def _notificar(self, texto: str, ok: bool):
         msg = QMessageBox(self)
-        msg.setWindowTitle("Resultado")
+        msg.setWindowTitle(t("users_page.notification_title", default="Resultado"))
         msg.setText(texto)
         msg.setIcon(QMessageBox.Information if ok else QMessageBox.Critical)
         msg.setStandardButtons(QMessageBox.Ok)
@@ -590,8 +655,8 @@ class UsersPage(QWidget):
         """Llena la tabla de usuarios con la lista proporcionada."""
         self.user_table.setRowCount(len(users))
         for row, user in enumerate(users):
-            is_active = user.get("is_active", 1)
-            estado = "Activo" if is_active else "Baja"
+            is_active = bool(user.get("is_active", 1))
+            estado = t("users_page.status_active", default="Activo") if is_active else t("users_page.status_inactive", default="Baja")
             color  = "#86efac" if is_active else "#f87171"
             user_id = user.get("id", 0)
             nombre  = str(user.get("nombre", ""))
@@ -606,7 +671,7 @@ class UsersPage(QWidget):
             self.user_table.setItem(row, 4, estado_item)
             self.user_table.setItem(row, 5, QTableWidgetItem(str(user.get("fecha_registro", ""))))
 
-            self.user_table.setCellWidget(row, 6, self._make_user_action_widget(user_id, nombre, estado))
+            self.user_table.setCellWidget(row, 6, self._make_user_action_widget(user_id, nombre, is_active))
             self.user_table.setRowHeight(row, 38)
 
         self.user_table.resizeRowsToContents()
@@ -624,8 +689,8 @@ class UsersPage(QWidget):
         """Llena la tabla de admins con la lista proporcionada."""
         self.admin_table.setRowCount(len(admins))
         for row, admin in enumerate(admins):
-            is_active = admin.get("is_active", 1)
-            estado = "Activo" if is_active else "Baja"
+            is_active = bool(admin.get("is_active", 1))
+            estado = t("users_page.status_active", default="Activo") if is_active else t("users_page.status_inactive", default="Baja")
             color  = "#86efac" if is_active else "#f87171"
             admin_id = admin.get("id_admin", 0)
             nombre   = str(admin.get("nombre", ""))
@@ -640,14 +705,14 @@ class UsersPage(QWidget):
             self.admin_table.setItem(row, 4, estado_item)
             self.admin_table.setItem(row, 5, QTableWidgetItem(str(admin.get("created_at", ""))))
 
-            self.admin_table.setCellWidget(row, 6, self._make_admin_action_widget(admin_id, nombre, estado))
+            self.admin_table.setCellWidget(row, 6, self._make_admin_action_widget(admin_id, nombre, is_active))
             self.admin_table.setRowHeight(row, 38)
 
         self.admin_table.resizeRowsToContents()
 
     # ── Widgets de acción por fila ───────────────────────────────────────────
 
-    def _make_user_action_widget(self, user_id, nombre, estado):
+    def _make_user_action_widget(self, user_id, nombre, is_active):
         from PyQt5.QtWidgets import QWidget as _W, QHBoxLayout as _H
         w = _W()
         w.setStyleSheet("background: transparent;")
@@ -660,22 +725,21 @@ class UsersPage(QWidget):
         btn_mod = QPushButton("✏")
         btn_mod.setFixedSize(26, 26)
         btn_mod.setCursor(Qt.PointingHandCursor)
-        btn_mod.setToolTip("Modificar")
+        btn_mod.setToolTip(t("users_page.tooltip_modify", default="Modificar"))
         btn_mod.setStyleSheet("QPushButton { background:#1e3a5f; border:1px solid #38bdf8; border-radius:4px; color:#7dd3fc; font-size:13px; } QPushButton:hover { background:#1e4d7a; color:#fff; }")
         btn_mod.clicked.connect(lambda _, uid=user_id, n=nombre: self._modificar_usuario_directo(uid, n))
 
-        is_active = (estado == "Activo")
         btn_baja = QPushButton("⛔" if is_active else "✅")
         btn_baja.setFixedSize(26, 26)
         btn_baja.setCursor(Qt.PointingHandCursor)
-        btn_baja.setToolTip("Dar de baja" if is_active else "Reactivar")
+        btn_baja.setToolTip(t("users_page.tooltip_toggle_status", default="Dar de baja" if is_active else "Reactivar"))
         btn_baja.setStyleSheet("QPushButton { background:#78350f; border:1px solid #f59e0b; border-radius:4px; color:#fde68a; font-size:13px; } QPushButton:hover { background:#92400e; color:#fff; }")
-        btn_baja.clicked.connect(lambda _, uid=user_id, n=nombre, e=estado: self._toggle_baja_usuario_directo(uid, n, e))
+        btn_baja.clicked.connect(lambda _, uid=user_id, n=nombre, active=is_active: self._toggle_baja_usuario_directo(uid, n, active))
 
         btn_del = QPushButton("🗑")
         btn_del.setFixedSize(26, 26)
         btn_del.setCursor(Qt.PointingHandCursor)
-        btn_del.setToolTip("Eliminar")
+        btn_del.setToolTip(t("users_page.tooltip_delete", default="Eliminar"))
         btn_del.setStyleSheet("QPushButton { background:#7f1d1d; border:1px solid #ef4444; border-radius:4px; color:#fca5a5; font-size:13px; } QPushButton:hover { background:#991b1b; color:#fff; }")
         btn_del.clicked.connect(lambda _, uid=user_id, n=nombre: self._eliminar_usuario_directo(uid, n))
 
@@ -684,7 +748,7 @@ class UsersPage(QWidget):
         lay.addWidget(btn_del)
         return w
 
-    def _make_admin_action_widget(self, admin_id, nombre, estado):
+    def _make_admin_action_widget(self, admin_id, nombre, is_active):
         from PyQt5.QtWidgets import QWidget as _W, QHBoxLayout as _H
         w = _W()
         w.setStyleSheet("background: transparent;")
@@ -695,22 +759,21 @@ class UsersPage(QWidget):
         btn_mod = QPushButton("✏")
         btn_mod.setFixedSize(26, 26)
         btn_mod.setCursor(Qt.PointingHandCursor)
-        btn_mod.setToolTip("Modificar")
+        btn_mod.setToolTip(t("users_page.tooltip_modify", default="Modificar"))
         btn_mod.setStyleSheet("QPushButton { background:#1e3a5f; border:1px solid #38bdf8; border-radius:4px; color:#7dd3fc; font-size:13px; } QPushButton:hover { background:#1e4d7a; color:#fff; }")
         btn_mod.clicked.connect(lambda _, aid=admin_id, n=nombre: self._modificar_admin_directo(aid, n))
 
-        is_active = (estado == "Activo")
         btn_baja = QPushButton("⛔" if is_active else "✅")
         btn_baja.setFixedSize(26, 26)
         btn_baja.setCursor(Qt.PointingHandCursor)
-        btn_baja.setToolTip("Dar de baja" if is_active else "Reactivar")
+        btn_baja.setToolTip(t("users_page.tooltip_toggle_status", default="Dar de baja" if is_active else "Reactivar"))
         btn_baja.setStyleSheet("QPushButton { background:#78350f; border:1px solid #f59e0b; border-radius:4px; color:#fde68a; font-size:13px; } QPushButton:hover { background:#92400e; color:#fff; }")
-        btn_baja.clicked.connect(lambda _, aid=admin_id, n=nombre, e=estado: self._toggle_baja_admin_directo(aid, n, e))
+        btn_baja.clicked.connect(lambda _, aid=admin_id, n=nombre, active=is_active: self._toggle_baja_admin_directo(aid, n, active))
 
         btn_del = QPushButton("🗑")
         btn_del.setFixedSize(26, 26)
         btn_del.setCursor(Qt.PointingHandCursor)
-        btn_del.setToolTip("Eliminar")
+        btn_del.setToolTip(t("users_page.tooltip_delete", default="Eliminar"))
         btn_del.setStyleSheet("QPushButton { background:#7f1d1d; border:1px solid #ef4444; border-radius:4px; color:#fca5a5; font-size:13px; } QPushButton:hover { background:#991b1b; color:#fff; }")
         btn_del.clicked.connect(lambda _, aid=admin_id, n=nombre: self._eliminar_admin_directo(aid, n))
 

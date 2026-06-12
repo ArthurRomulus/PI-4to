@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QHeaderView, QLabel, QTableWidget, QTableWidgetItem,
 from PyQt5.QtCore import QTimer
 from .admin_components import RoundedCard
 from database.consultas import obtener_historial_accesos
+from ui.i18n import t
 
 
 class AccessPage(QWidget):
@@ -14,11 +15,16 @@ class AccessPage(QWidget):
         inner = QVBoxLayout(card)
         inner.setContentsMargins(14, 14, 14, 14)
 
-        title = QLabel("Registro de acceso")
+        title = QLabel(t("admin.access.title", default="Registro de acceso"))
         title.setStyleSheet("color: #38bdf8; font-size: 16px; font-weight: 700;")
 
         self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["USUARIO", "CUENTA", "ESTADO", "FECHA"])
+        self.table.setHorizontalHeaderLabels([
+            t("admin.access.table_header_user", default="USUARIO"),
+            t("admin.access.table_header_account", default="CUENTA"),
+            t("admin.access.table_header_status", default="ESTADO"),
+            t("admin.access.table_header_date", default="FECHA"),
+        ])
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionMode(QTableWidget.NoSelection)

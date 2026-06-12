@@ -13,6 +13,8 @@ from PyQt5.QtWidgets import (
     QGraphicsDropShadowEffect,
 )
 
+from ui.i18n import t
+
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -162,7 +164,7 @@ class _BottomButton(QPushButton):
 # =========================================================
 class _LogoutButton(QPushButton):
     def __init__(self):
-        super().__init__("  CERRAR PANEL")
+        super().__init__("  " + t("admin.menu_logout", default="CERRAR PANEL"))
 
         self.setCursor(Qt.PointingHandCursor)
         self.setFixedHeight(52)
@@ -321,7 +323,7 @@ class AdminHamburgerMenu:
         admin_texts.setContentsMargins(0, 0, 0, 0)
         admin_texts.setSpacing(2)
 
-        admin_role = QLabel("ADMINISTRADOR")
+        admin_role = QLabel(t("admin.role_label_upper", default="ADMINISTRADOR"))
         admin_role.setStyleSheet("""
             QLabel {
                 color: #9aa8b8;
@@ -345,7 +347,7 @@ class AdminHamburgerMenu:
         """)
 
         cuenta_txt = self._admin_cuenta if self._admin_cuenta else "—"
-        admin_acct = QLabel(f"Cuenta: {cuenta_txt}")
+        admin_acct = QLabel(f"{t('admin.account_label', default='Cuenta:')} {cuenta_txt}")
         admin_acct.setStyleSheet("""
             QLabel {
                 color: #4d8cff;
@@ -370,11 +372,11 @@ class AdminHamburgerMenu:
         # =====================================================
         # BOTONES PRINCIPALES
         # =====================================================
-        self.btn_dashboard = _MenuButton("  PANEL DE CONTROL", "dashboard.png", True)
-        self.btn_users = _MenuButton("  HISTORIAL DE USUARIOS", "pet.png")
-        self.btn_access = _MenuButton("  REGISTRO DE ACCESO", "register.png")
-        self.btn_register = _MenuButton("  REGISTRO DE USUARIOS", "user_add.png")
-        self.btn_create_admin = _MenuButton("  CREAR ADMINISTRADOR", "security.png")
+        self.btn_dashboard = _MenuButton("  " + t("admin.menu_dashboard", default="PANEL DE CONTROL"), "dashboard.png", True)
+        self.btn_users = _MenuButton("  " + t("admin.menu_users_history", default="HISTORIAL DE USUARIOS"), "pet.png")
+        self.btn_access = _MenuButton("  " + t("admin.menu_access_log", default="REGISTRO DE ACCESO"), "register.png")
+        self.btn_register = _MenuButton("  " + t("admin.menu_register_users", default="REGISTRO DE USUARIOS"), "user_add.png")
+        self.btn_create_admin = _MenuButton("  " + t("admin.menu_create_admin", default="CREAR ADMINISTRADOR"), "security.png")
 
         self.page_buttons = [
             self.btn_dashboard,
@@ -423,7 +425,7 @@ class AdminHamburgerMenu:
         # =====================================================
         # BOTÓN INICIO
         # =====================================================
-        self.back_main_btn = _BottomButton("  INICIO", "home.png")
+        self.back_main_btn = _BottomButton("  " + t("admin.menu_home", default="INICIO"), "home.png")
         self.back_main_btn.clicked.connect(self._go_back_main)
         drawer_layout.addWidget(self.back_main_btn)
         drawer_layout.addSpacing(10)
