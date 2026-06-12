@@ -460,7 +460,7 @@ class VerifyWindow(QWidget):
         self._tutorial_label = QLabel()
         self._tutorial_label.setAlignment(Qt.AlignCenter)
         self._tutorial_label.setStyleSheet("background-color: #000;")
-        self._tutorial_label.setScaledContents(False)
+        self._tutorial_label.setScaledContents(True)   # rellena todo el espacio disponible
         layout.addWidget(self._tutorial_label)
 
         # Estado interno del reproductor
@@ -520,13 +520,12 @@ class VerifyWindow(QWidget):
         # Convertir BGR → RGB → QImage → QPixmap
         rgb = _cv2.cvtColor(frame, _cv2.COLOR_BGR2RGB)
         h, w, ch = rgb.shape
-        qi = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
+        # Copiar datos para evitar que NumPy los libere antes de que Qt los use
+        qi = QImage(bytes(rgb.data), w, h, ch * w, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(qi)
 
-        # Escalar manteniendo aspecto dentro del label
-        lbl_size = self._tutorial_label.size()
-        scaled = pixmap.scaled(lbl_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self._tutorial_label.setPixmap(scaled)
+        # setScaledContents=True se encarga de estirar el pixmap al tamaño del label
+        self._tutorial_label.setPixmap(pixmap)
 
     def _stop_tutorial_video(self):
         """Detiene el timer y libera la captura del video tutorial."""
