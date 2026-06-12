@@ -348,10 +348,12 @@ class FaceScanDialog(QDialog):
             self.status_lbl.setText("Status: COMPLETADO")
             self.info_lbl.setText("Captura facial completada")
             self.pct_label.setText("100%")
+            self.pct_label.setStyleSheet("font-scolor: #fffff; font-size: 11px; font-weight: 900;")
             self._on_progress(100)
             self.scan_completed.emit(embedding)
             play_sound("registrado.mp3")
             QMessageBox.information(self, "Captura completada", "El rostro fue capturado correctamente.")
+            
             self.accept()
         else:
             self.status_lbl.setText("Status: ERROR")
