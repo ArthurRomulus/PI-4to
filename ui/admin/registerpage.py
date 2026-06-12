@@ -351,7 +351,32 @@ class FaceScanDialog(QDialog):
             self._on_progress(100)
             self.scan_completed.emit(embedding)
             play_sound("registrado.mp3")
-            QMessageBox.information(self, "Captura completada", "El rostro fue capturado correctamente.")
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Captura completada")
+            msg.setText("El rostro fue capturado correctamente.")
+            msg.setIcon(QMessageBox.Information)
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setStyleSheet("""
+                QMessageBox {
+                    background-color: #0d1620;
+                }
+                QMessageBox QLabel {
+                    color: #ffffff;
+                    font-size: 13px;
+                }
+                QPushButton {
+                    background-color: #1c2a35;
+                    color: #ffffff !important;
+                    border: 1px solid #3b4d60;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #263342;
+                }
+            """)
+            msg.exec_()
             self.accept()
         else:
             self.status_lbl.setText("Status: ERROR")
@@ -633,7 +658,26 @@ class RegisterPage(QWidget):
         box = QMessageBox(self)
         box.setWindowTitle(title)
         box.setText(message)
-        box.setStyleSheet(f"QLabel {{ color: {color}; }}")
+        box.setStyleSheet(f"""
+            QMessageBox {{
+                background-color: #0d1620;
+            }}
+            QMessageBox QLabel {{
+                color: {color};
+                font-size: 13px;
+            }}
+            QPushButton {{
+                background-color: #1c2a35;
+                color: #ffffff !important;
+                border: 1px solid #3b4d60;
+                border-radius: 6px;
+                padding: 6px 18px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #263342;
+            }}
+        """)
         box.exec_()
 
     def _show_privacy_notice(self):
