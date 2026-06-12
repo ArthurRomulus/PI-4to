@@ -17,6 +17,26 @@ if __name__ == "__main__":
         print(f"No se pudo inicializar la base de datos: {e}")
 
     app = QApplication(sys.argv)
+    app.setStyleSheet("""
+        QMessageBox {
+            background-color: #0d1620;
+        }
+        QMessageBox QLabel {
+            color: #ffffff;
+            font-size: 13px;
+        }
+        QMessageBox QPushButton {
+            background-color: #1c2a35;
+            color: #ffffff !important;
+            border: 1px solid #3b4d60;
+            border-radius: 6px;
+            padding: 6px 18px;
+            font-weight: bold;
+        }
+        QMessageBox QPushButton:hover {
+            background-color: #263342;
+        }
+    """)
 
     try:
         if iniciar_boton_motor():
