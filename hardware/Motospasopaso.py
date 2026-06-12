@@ -13,10 +13,10 @@ SIMULATION_MODE = True
 # ==============================
 
 # Motor 28BYJ-48 + ULN2003
-PIN_IN1 = 17
-PIN_IN2 = 18
+PIN_IN1 = 16
+PIN_IN2 = 17
 PIN_IN3 = 27
-PIN_IN4 = 22
+PIN_IN4 = 25
 
 pins = [PIN_IN1, PIN_IN2, PIN_IN3, PIN_IN4]
 
@@ -275,18 +275,6 @@ def liberar():
 def girar_adelante(cantidad_pasos=PASOS_ACCESO, velocidad=VELOCIDAD):
     """
     Equivalente directo a girarAdelante(int cantidadPasos) del Arduino.
-
-    Arduino:
-    for (int i = 0; i < cantidadPasos; i++) {
-        for (int paso = 0; paso < 8; paso++) {
-            activarPaso(paso);
-            delay(velocidad);
-        }
-    }
-
-    En Python:
-    velocidad esta en segundos.
-    0.002 segundos = 2 ms.
     """
     if not _ensure_gpio_ready():
         print(f"Mock: girando adelante {cantidad_pasos} ciclos.")
@@ -332,16 +320,15 @@ def girar_atras(cantidad_pasos=PASOS_ACCESO, velocidad=VELOCIDAD):
 
 def girar_derecha(cantidad_pasos=PASOS_ACCESO, velocidad=VELOCIDAD):
     """
-    Funcion para el proyecto.
-    Por defecto usa la misma direccion que girarAdelante() del Arduino.
-
-    Si fisicamente gira hacia la izquierda, cambia SOLO esta funcion para llamar
-    a girar_atras(), sin cambiar los GPIO.
+    Funcion para girar hacia el lado que actualmente funciona con el boton.
     """
     girar_adelante(cantidad_pasos=cantidad_pasos, velocidad=velocidad)
 
 
 def girar_izquierda(cantidad_pasos=PASOS_ACCESO, velocidad=VELOCIDAD):
+    """
+    Funcion para girar al lado contrario.
+    """
     girar_atras(cantidad_pasos=cantidad_pasos, velocidad=velocidad)
 
 
@@ -477,9 +464,13 @@ def indicar_acceso_denegado():
 
 def conceder_acceso_motor():
     """
-    Funcion que usa verify_window.py cuando el acceso es autorizado.
+    Funcion que usa verify_window.py cuando el acceso es autorizado
+    por reconocimiento facial.
 
-    Activa LED verde, buzzer y gira el motor.
+    Reconocimiento facial:
+    - Activa LED verde.
+    - Activa buzzer.
+    - Gira al lado contrario del boton fisico.
     """
     if not _ensure_gpio_ready():
         print("Acceso permitido: simulando LED verde, buzzer y motor.")
@@ -490,18 +481,52 @@ def conceder_acceso_motor():
         return
 
     try:
-        print("Acceso concedido. Motor girando hacia la derecha.")
+        print("Acceso concedido por reconocimiento facial. Motor girando al lado contrario del boton.")
         indicar_acceso_concedido()
 
-        # Usa la adaptacion del Arduino.
-        # Si gira al lado contrario, cambia esta linea por:
-        # girar_izquierda(PASOS_ACCESO, VELOCIDAD)
-        girar_derecha(PASOS_ACCESO, VELOCIDAD)
+        # RECONOCIMIENTO FACIAL:
+        # Gira al lado contrario del boton.
+        girar_izquierda(PASOS_ACCESO, VELOCIDAD)
 
         apagar_led_verde()
 
     except Exception as e:
         print(f"Error en conceder_acceso_motor: {e}")
+
+    finally:
+        detener_motor()
+        _motor_lock.release()
+
+
+def conceder_acceso_boton():
+    """
+    Funcion exclusiva para el boton fisico.
+
+    Boton:
+    - Activa LED verde.
+    - Activa buzzer.
+    - Gira hacia el lado que ya funciona correctamente.
+    """
+    if not _ensure_gpio_ready():
+        print("Boton: simulando LED verde, buzzer y motor.")
+        return
+
+    if not _motor_lock.acquire(blocking=False):
+        print("Motor ocupado. Ignorando solicitud duplicada.")
+        return
+
+    try:
+        print("Boton presionado. Motor girando en el sentido actual correcto.")
+        indicar_acceso_concedido()
+
+        # BOTON FISICO:
+        # Se deja el giro que ya funciona correctamente.
+        girar_derecha(PASOS_ACCESO, VELOCIDAD)
+
+        apagar_led_verde()
+
+    except Exception as e:
+        print(f"Error en conceder_acceso_boton: {e}")
 
     finally:
         detener_motor()
@@ -534,8 +559,8 @@ def _on_button_pressed(channel):
 
     _last_button_time = now
 
-    print(f"Boton detectado en GPIO {channel}. Activando salida.")
-    threading.Thread(target=conceder_acceso_motor, daemon=True).start()
+    print(f"Boton detectado en GPIO {channel}. Activando salida por boton.")
+    threading.Thread(target=conceder_acceso_boton, daemon=True).start()
 
 
 def iniciar_boton_motor():
@@ -613,7 +638,9 @@ if __name__ == "__main__":
             print("3. Girar izquierda")
             print("4. Prueba completa Arduino: adelante y atras")
             print("5. Apagar motor")
-            print("6. Salir")
+            print("6. Simular acceso por reconocimiento facial")
+            print("7. Simular boton fisico")
+            print("8. Salir")
 
             opcion = input("Selecciona una opcion: ").strip()
 
@@ -628,6 +655,10 @@ if __name__ == "__main__":
             elif opcion == "5":
                 detener_motor()
             elif opcion == "6":
+                conceder_acceso_motor()
+            elif opcion == "7":
+                conceder_acceso_boton()
+            elif opcion == "8":
                 break
             else:
                 print("Opcion invalida.")
