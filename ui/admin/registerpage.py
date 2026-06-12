@@ -348,11 +348,27 @@ class FaceScanDialog(QDialog):
             self.status_lbl.setText("Status: COMPLETADO")
             self.info_lbl.setText("Captura facial completada")
             self.pct_label.setText("100%")
-            self.pct_label.setStyleSheet("font-scolor: #fffff; font-size: 11px; font-weight: 900;")
+            self.pct_label.setStyleSheet("color: #ffffff; font-size: 11px; font-weight: 900;")
             self._on_progress(100)
             self.scan_completed.emit(embedding)
             play_sound("registrado.mp3")
-            QMessageBox.information(self, "Captura completada", "El rostro fue capturado correctamente.")
+            _box = QMessageBox(self)
+            _box.setWindowTitle("Captura completada")
+            _box.setText("El rostro fue capturado correctamente.")
+            _box.setStyleSheet("""
+                QMessageBox { background-color: #0d1620; }
+                QMessageBox QLabel { color: #ffffff; font-size: 13px; }
+                QPushButton {
+                    background-color: #1c2a35;
+                    color: #ffffff;
+                    border: 1px solid #3b4d60;
+                    border-radius: 6px;
+                    padding: 6px 18px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background-color: #263342; }
+            """)
+            _box.exec_()
             self.accept()
         else:
             self.status_lbl.setText("Status: ERROR")
