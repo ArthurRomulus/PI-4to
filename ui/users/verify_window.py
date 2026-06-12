@@ -19,7 +19,8 @@ from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QFrame, QProgressBar, QGraphicsOpacityEffect, QStackedWidget
+    QPushButton, QFrame, QProgressBar, QGraphicsOpacityEffect, QStackedWidget,
+    QSizePolicy
 )
 from PyQt5.QtCore import QTimer, Qt, QPropertyAnimation, QEasingCurve, QEvent
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
@@ -313,11 +314,13 @@ class VerifyWindow(QWidget):
         )
         self.video_frame.setMinimumHeight(420)
         v_layout = QVBoxLayout(self.video_frame)
-        v_layout.setContentsMargins(6, 6, 6, 6)
+        v_layout.setContentsMargins(0, 0, 0, 0)   # sin márgenes para que el stack llene todo
+        v_layout.setSpacing(0)
 
         # ── Stack: tutorial de video (antes de que arranque la cámara) ────────
         self._cam_stack = QStackedWidget()
         self._cam_stack.setMinimumHeight(400)
+        self._cam_stack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Página 0 — Video tutorial (mientras la cámara no ha iniciado)
         self._tutorial_widget = self._build_tutorial_widget()
@@ -452,15 +455,16 @@ class VerifyWindow(QWidget):
         """Construye el widget que muestra VideoTutorial.mp4 frame a frame."""
         container = QWidget()
         container.setStyleSheet("background-color: #000;")
+        container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
         # QLabel donde se pintarán los frames del video
         self._tutorial_label = QLabel()
-        self._tutorial_label.setAlignment(Qt.AlignCenter)
         self._tutorial_label.setStyleSheet("background-color: #000;")
         self._tutorial_label.setScaledContents(True)   # rellena todo el espacio disponible
+        self._tutorial_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(self._tutorial_label)
 
         # Estado interno del reproductor
@@ -517,15 +521,26 @@ class VerifyWindow(QWidget):
             if not ret:
                 return
 
-        # Convertir BGR → RGB → QImage → QPixmap
+        # Convertir BGR → RGB → QPixmap
         rgb = _cv2.cvtColor(frame, _cv2.COLOR_BGR2RGB)
         h, w, ch = rgb.shape
-        # Copiar datos para evitar que NumPy los libere antes de que Qt los use
         qi = QImage(bytes(rgb.data), w, h, ch * w, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(qi)
 
-        # setScaledContents=True se encarga de estirar el pixmap al tamaño del label
-        self._tutorial_label.setPixmap(pixmap)
+        # Escalar para LLENAR el label completamente (KeepAspectRatioByExpanding)
+        # y recortar el exceso al centro — elimina las barras negras de los lados
+        lw = self._tutorial_label.width()
+        lh = self._tutorial_label.height()
+        if lw > 0 and lh > 0:
+            scaled = pixmap.scaled(lw, lh, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            # Recorte centrado si el scaled es más grande que el label
+            if scaled.width() > lw or scaled.height() > lh:
+                x = (scaled.width() - lw) // 2
+                y = (scaled.height() - lh) // 2
+                scaled = scaled.copy(x, y, lw, lh)
+            self._tutorial_label.setPixmap(scaled)
+        else:
+            self._tutorial_label.setPixmap(pixmap)
 
     def _stop_tutorial_video(self):
         """Detiene el timer y libera la captura del video tutorial."""
