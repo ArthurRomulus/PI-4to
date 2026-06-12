@@ -12,15 +12,23 @@ Flujo de UI:
 """
 
 import datetime
+import os
 import threading
 import time
+from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QFrame, QProgressBar, QGraphicsOpacityEffect
+    QPushButton, QFrame, QProgressBar, QGraphicsOpacityEffect, QStackedWidget
 )
 from PyQt5.QtCore import QTimer, Qt, QPropertyAnimation, QEasingCurve, QEvent
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QLinearGradient, QColor
+try:
+    import cv2 as _cv2
+    _OPENCV_AVAILABLE = True
+except ImportError:
+    _OPENCV_AVAILABLE = False
+    print("Warning: OpenCV no disponible — el video tutorial no se mostrará.")
 
 from ui.i18n import localize_date, t
 
@@ -307,12 +315,28 @@ class VerifyWindow(QWidget):
         v_layout = QVBoxLayout(self.video_frame)
         v_layout.setContentsMargins(6, 6, 6, 6)
 
-        self.video_label = QLabel(t("verify.video_initial", default="Iniciando cámara..."))
+        # ── Stack: tutorial de video (antes de que arranque la cámara) ────────
+        self._cam_stack = QStackedWidget()
+        self._cam_stack.setMinimumHeight(400)
+
+        # Página 0 — Video tutorial (mientras la cámara no ha iniciado)
+        self._tutorial_widget = self._build_tutorial_widget()
+        self._cam_stack.addWidget(self._tutorial_widget)   # índice 0
+
+        # Página 1 — Feed de cámara en vivo
+        self.video_label = QLabel()
         self.video_label.setAlignment(Qt.AlignCenter)
-        self.video_label.setStyleSheet("color: #94a3b8; font-size: 16px; font-weight: bold;")
+        self.video_label.setStyleSheet("background-color: #000;")
         self.video_label.setMinimumHeight(400)
         self.video_label.setScaledContents(True)
-        v_layout.addWidget(self.video_label)
+        self._cam_stack.addWidget(self.video_label)        # índice 1
+
+        # Mostrar tutorial al inicio (la cámara aún no ha enviado frames)
+        self._camera_started = False
+        self._cam_stack.setCurrentIndex(0)
+        self._start_tutorial_video()
+
+        v_layout.addWidget(self._cam_stack)
 
         self.scan_overlay = ScanLineWidget(self.video_label)
         cam_wrapper_layout.addWidget(self.video_frame)
@@ -423,10 +447,105 @@ class VerifyWindow(QWidget):
         self.camera_thread.recognition_result.connect(self._on_recognition_result)
         self.camera_thread.start()
 
+    # ── Tutorial de video (OpenCV) ─────────────────────────────────────────────
+    def _build_tutorial_widget(self) -> QWidget:
+        """Construye el widget que muestra VideoTutorial.mp4 frame a frame."""
+        container = QWidget()
+        container.setStyleSheet("background-color: #000;")
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # QLabel donde se pintarán los frames del video
+        self._tutorial_label = QLabel()
+        self._tutorial_label.setAlignment(Qt.AlignCenter)
+        self._tutorial_label.setStyleSheet("background-color: #000;")
+        self._tutorial_label.setScaledContents(False)
+        layout.addWidget(self._tutorial_label)
+
+        # Estado interno del reproductor
+        self._tutorial_cap = None       # cv2.VideoCapture
+        self._tutorial_timer = None     # QTimer de frames
+        self._tutorial_fps = 30.0
+
+        return container
+
+    def _start_tutorial_video(self):
+        """Localiza VideoTutorial.mp4 y comienza a reproducirlo con OpenCV."""
+        if not _OPENCV_AVAILABLE:
+            return
+
+        candidates = [
+            Path(__file__).resolve().parent.parent.parent / "VideoTutorial.mp4",
+            Path("VideoTutorial.mp4"),
+        ]
+        video_path = None
+        for c in candidates:
+            if c.exists():
+                video_path = c
+                break
+
+        if video_path is None:
+            print("Warning: VideoTutorial.mp4 no encontrado — se omite el tutorial.")
+            return
+
+        # Abrir captura
+        self._tutorial_cap = _cv2.VideoCapture(str(video_path))
+        if not self._tutorial_cap.isOpened():
+            print("Warning: no se pudo abrir VideoTutorial.mp4 con OpenCV.")
+            self._tutorial_cap = None
+            return
+
+        fps = self._tutorial_cap.get(_cv2.CAP_PROP_FPS)
+        self._tutorial_fps = fps if fps > 1 else 30.0
+        interval_ms = max(1, int(1000 / self._tutorial_fps))
+
+        # Timer que avanza frame a frame
+        self._tutorial_timer = QTimer(self)
+        self._tutorial_timer.timeout.connect(self._advance_tutorial_frame)
+        self._tutorial_timer.start(interval_ms)
+
+    def _advance_tutorial_frame(self):
+        """Lee el siguiente frame del video y lo muestra. Hace loop al llegar al final."""
+        if self._tutorial_cap is None:
+            return
+        ret, frame = self._tutorial_cap.read()
+        if not ret:
+            # Fin del video → reiniciar desde el principio
+            self._tutorial_cap.set(_cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = self._tutorial_cap.read()
+            if not ret:
+                return
+
+        # Convertir BGR → RGB → QImage → QPixmap
+        rgb = _cv2.cvtColor(frame, _cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb.shape
+        qi = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(qi)
+
+        # Escalar manteniendo aspecto dentro del label
+        lbl_size = self._tutorial_label.size()
+        scaled = pixmap.scaled(lbl_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self._tutorial_label.setPixmap(scaled)
+
+    def _stop_tutorial_video(self):
+        """Detiene el timer y libera la captura del video tutorial."""
+        if self._tutorial_timer is not None:
+            self._tutorial_timer.stop()
+            self._tutorial_timer.deleteLater()
+            self._tutorial_timer = None
+        if self._tutorial_cap is not None:
+            self._tutorial_cap.release()
+            self._tutorial_cap = None
+
     # ── Slots ──────────────────────────────────────────────────────────────────
     def _on_frame(self, pixmap: QPixmap):
-        if self.video_label.text():
-            self.video_label.setText("")
+        # Primera vez que llega un frame → ocultar tutorial y mostrar cámara
+        if not self._camera_started:
+            self._camera_started = True
+            self._stop_tutorial_video()
+            self._cam_stack.setCurrentIndex(1)   # cambiar a feed de cámara
+
         self.video_label.setPixmap(pixmap)
         if hasattr(self, "scan_overlay"):
             self.scan_overlay.setGeometry(self.video_label.rect())
@@ -638,6 +757,12 @@ class VerifyWindow(QWidget):
         self._result_shown = False
         self._liveness_active = False
         self._access_granted = False
+        self._camera_started = False
+
+        # Volver a mostrar el tutorial mientras la cámara reinicia
+        self._cam_stack.setCurrentIndex(0)
+        self._start_tutorial_video()
+
         self._set_border_color(COLOR_IDLE)
         self.status_label.setText("COLOQUE SU ROSTRO EN EL ÓVALO")
         self.status_label.setStyleSheet(
