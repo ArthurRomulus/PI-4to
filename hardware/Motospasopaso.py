@@ -13,7 +13,7 @@ SIMULATION_MODE = True
 # ==============================
 
 # Motor 28BYJ-48 + ULN2003
-PIN_IN1 = 16
+PIN_IN1 = 18
 PIN_IN2 = 17
 PIN_IN3 = 27
 PIN_IN4 = 25
@@ -55,7 +55,7 @@ VELOCIDAD = 0.002
 
 # Tu Arduino usa girarAdelante(2048), pero dentro hace 8 pasos por cada ciclo.
 # Se respeta esa misma logica.
-PASOS_ACCESO = 2048
+PASOS_ACCESO = 520
 
 _motor_lock = threading.Lock()
 _gpio_lock = threading.Lock()
